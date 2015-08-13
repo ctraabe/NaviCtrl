@@ -73,10 +73,10 @@
 // #define _GPIO0
 // #define _GPIO1
 // #define _GPIO2
-// #define _GPIO3
+#define _GPIO3
 // #define _GPIO4
 #define _GPIO5
-// #define _GPIO6
+#define _GPIO6
 // #define _GPIO7
 // #define _GPIO8
 // #define _GPIO9

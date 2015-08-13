@@ -31,6 +31,28 @@ void ReceiveData(void);
 
 void UARTInit(void)
 {
+  SCU_APBPeriphClockConfig(__GPIO3, ENABLE);  // Enable the GPIO3 Clock
+  SCU_APBPeriphClockConfig(__UART1, ENABLE);  // Enable the UART1 Clock
+
+  GPIO_InitTypeDef GPIO_InitStructure;
+
+  // Configure pin GPIO3.2 to be UART1 Rx
+  GPIO_StructInit(&GPIO_InitStructure);
+  GPIO_InitStructure.GPIO_Direction = GPIO_PinInput;
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
+  GPIO_InitStructure.GPIO_Type = GPIO_Type_PushPull;
+  GPIO_InitStructure.GPIO_IPInputConnected = GPIO_IPInputConnected_Enable;
+  GPIO_InitStructure.GPIO_Alternate = GPIO_InputAlt1;  // UART1 Rx
+  GPIO_Init (GPIO3, &GPIO_InitStructure);
+
+  // Configure pin GPIO3.3 to be UART1 Tx
+  GPIO_StructInit(&GPIO_InitStructure);
+  GPIO_InitStructure.GPIO_Direction = GPIO_PinOutput;
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
+  GPIO_InitStructure.GPIO_Type = GPIO_Type_PushPull;
+  GPIO_InitStructure.GPIO_Alternate = GPIO_OutputAlt3;  // UART1 Tx
+  GPIO_Init (GPIO3, &GPIO_InitStructure);
+
   UART_InitTypeDef UART_InitStructure;
 
   UART_InitStructure.UART_WordLength = UART_WordLength_8D;

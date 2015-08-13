@@ -4,6 +4,7 @@ SOURCES  += $(LIBRARY_SRC)/91x_scu.c
 SOURCES  += $(LIBRARY_SRC)/91x_tim.c
 SOURCES  += $(LIBRARY_SRC)/91x_uart.c
 SOURCES  += $(LIBRARY_SRC)/91x_vic.c
+SOURCES  += $(LIBRARY_SRC)/91x_wdg.c
 
 TARGET := $(notdir $(shell pwd))
 
@@ -18,7 +19,7 @@ CFLAGS    = -c -g $(LDFLAGS)
 CCFLAGS   = -std=gnu99 -Wstrict-prototypes
 CPPFLAGS  = -std=c++11 -fno-exceptions
 LSTFLAGS  = -Wa,-adhlns=$(addprefix $(BUILD_PATH)/,$(addsuffix .lst, $<))
-LDFLAGS   = -Ofast -Wall -Wextra -Werror -Wundef -ffreestanding \
+LDFLAGS   = -Ofast -pedantic -Wall -Wextra -Werror -Wundef -ffreestanding \
             -Wl,--relax -Tstr911fam.ld
 ALLFLAGS  = -mcpu=$(MCU) -I. -I$(LIBRARY_INC)
 

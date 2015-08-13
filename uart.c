@@ -5,12 +5,25 @@
 
 #include "91x_lib.h"
 #include "config.h"
+#include "mk_serial_protocol.h"
+#include "mk_serial_tx.h"
 
 
 // =============================================================================
 // Private data:
 
 #define UART_BAUD (57600)
+
+static volatile uint8_t rx_buffer_[RX_BUFFER_LENGTH], *tx_ptr_ = 0;
+static volatile size_t rx_buffer_head_ = 0, tx_bytes_remaining_ = 0;
+static uint8_t data_buffer_[DATA_BUFFER_LENGTH], tx_buffer_[TX_BUFFER_LENGTH];
+static uint8_t tx_overflow_counter_ = 0;
+
+
+// =============================================================================
+// Private function declarations:
+
+void ReceiveData(void);
 
 
 // =============================================================================
@@ -26,7 +39,7 @@ void UARTInit(void)
   UART_InitStructure.UART_BaudRate = UART_BAUD;
   UART_InitStructure.UART_HardwareFlowControl = UART_HardwareFlowControl_None;
   UART_InitStructure.UART_Mode = UART_Mode_Tx_Rx;
-  UART_InitStructure.UART_FIFO = UART_FIFO_Disable;
+  UART_InitStructure.UART_FIFO = UART_FIFO_Enable;
   UART_InitStructure.UART_TxFIFOLevel = UART_FIFOLevel_1_2;
   UART_InitStructure.UART_RxFIFOLevel = UART_FIFOLevel_1_2;
 
@@ -44,10 +57,75 @@ void UARTInit(void)
 }
 
 // -----------------------------------------------------------------------------
+// This function processes bytes that have been read into the Rx ring buffer
+// (rx_buffer_) by the Rx interrupt handler. Each byte is passed to the
+// appropriate Rx handler, which may place it into the temporary data buffer
+// (data_buffer_).
+void ProcessIncomingUART(void)
+{
+  static size_t rx_buffer_tail = 0;
+  static enum UARTRxMode mode = UART_RX_MODE_IDLE;
+
+  ReceiveData();
+
+  while (rx_buffer_tail != rx_buffer_head_)
+  {
+    // Move the ring buffer tail forward.
+    rx_buffer_tail = (rx_buffer_tail + 1) % RX_BUFFER_LENGTH;
+
+    // Add other Rx protocols here.
+    if (mode != UART_RX_MODE_IDLE)
+      mode = MKSerialRx(rx_buffer_[rx_buffer_tail], data_buffer_);
+    else if (rx_buffer_[rx_buffer_tail] == '#')  // MK protocol start character
+      mode = UART_RX_MODE_MK_ONGOING;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// This function returns the address of the shared Tx buffer (tx_buffer_) if it
+// is available of zero if not.
+uint8_t * RequestUARTTxBuffer(void)
+{
+  if (tx_bytes_remaining_)
+  {
+    tx_overflow_counter_++;
+    return 0;
+  }
+  return tx_buffer_;
+}
+
+// -----------------------------------------------------------------------------
+// This function calls handlers for pending data transmission requests.
+void SendPendingUART(void)
+{
+  // Add other Tx protocols here.
+  SendPendingMKSerial();
+}
+
+// -----------------------------------------------------------------------------
+// This function initiates the transmission of the data in the Tx buffer.
+void UARTTxBuffer(size_t tx_length)
+{
+  if (tx_length == 0) return;
+  tx_ptr_ = &tx_buffer_[0];
+  tx_bytes_remaining_ = tx_length;
+  // UCSR0B |= _BV(UDRIE0);  // Enable the USART0 data register empty interrupt.
+}
+
+// -----------------------------------------------------------------------------
+// This function immediately transmits a byte and blocks computation until
+// transmission is commenced.
+void UARTTxByte(uint8_t byte)
+{
+  while(UART_GetFlagStatus(UART1, UART_FLAG_TxFIFOFull));
+  UART_SendData(UART1, byte);
+}
+
+// -----------------------------------------------------------------------------
 // This function mimics printf, but puts the result on the UART stream. It also
 // adds the end-of-line characters and checks that the character buffer is not
 // exceeded. Note that this function is slow and blocking.
-void UARTPrintf_P(const char *format, ...)
+void UARTPrintf(const char *format, ...)
 {
   uint8_t ascii[103];  // 100 chars + 2 newline chars + null terminator
 
@@ -62,23 +140,27 @@ void UARTPrintf_P(const char *format, ...)
     sprintf((char *)&ascii[80], "... MESSAGE TOO LONG\n\r");
 
   uint8_t *pointer = &ascii[0];
-  while (*pointer)
-  {
-    UART_SendData(UART1, *pointer++);
-    while(UART_GetFlagStatus(UART1, UART_FLAG_TxFIFOFull) != RESET);
-  }
+  while (*pointer) UARTTxByte(*pointer++);
 }
 
 
 // =============================================================================
 // Private functions:
 
+void ReceiveData(void)
+{
+  VIC_ITCmd(UART1_ITLine, DISABLE);
+  while (!UART_GetFlagStatus(UART1, UART_FLAG_RxFIFOEmpty))
+  {
+    rx_buffer_head_ = (rx_buffer_head_ + 1) % RX_BUFFER_LENGTH;
+    rx_buffer_[rx_buffer_head_] = UART_ReceiveData(UART1);
+  }
+  VIC_ITCmd(UART1_ITLine, ENABLE);
+}
+
+// -----------------------------------------------------------------------------
 void UART1_IRQHandler(void)
 {
-  // Clear receive interrupt flag.
   UART_ClearITPendingBit(UART1, UART_IT_Receive);
-
-  // Send back the received character.
-  while (UART_GetFlagStatus(UART1, UART_FLAG_TxFIFOFull) != RESET);
-  UART_SendData(UART1, UART_ReceiveData(UART1));
+  ReceiveData();
 }

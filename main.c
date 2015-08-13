@@ -1,7 +1,7 @@
 #include "91x_lib.h"
 #include "config.h"
 #include "led.h"
-#include "timer1.h"
+#include "timing.h"
 #include "uart.h"
 
 
@@ -63,7 +63,7 @@ int main(void)
   for (;;) // the endless main loop
   {
     Wait(100);
+    ProcessIncomingUART();
     GreenLEDToggle();
-    RedLEDToggle();
   }
 }

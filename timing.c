@@ -1,4 +1,4 @@
-#include "timer1.h"
+#include "timing.h"
 
 #include "91x_lib.h"
 #include "config.h"

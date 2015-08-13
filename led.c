@@ -18,13 +18,13 @@ void LEDInit(void)
   SCU_APBPeriphClockConfig(__GPIO5, ENABLE);  // Enable the GPIO5 Clock
 
   // The green LED is on pin GPIO5.6 and the red LED is on pin GPIO5.7
-  GPIO_InitTypeDef gpio_init;
-  gpio_init.GPIO_Pin = GREEN_LED_PIN | RED_LED_PIN;
-  gpio_init.GPIO_Direction = GPIO_PinOutput;
-  gpio_init.GPIO_Type = GPIO_Type_PushPull;
-  gpio_init.GPIO_IPInputConnected = GPIO_IPInputConnected_Disable;
-  gpio_init.GPIO_Alternate = GPIO_OutputAlt1;
-  GPIO_Init(GPIO5, &gpio_init);
+  GPIO_InitTypeDef GPIO_InitStructure;
+  GPIO_InitStructure.GPIO_Pin = GREEN_LED_PIN | RED_LED_PIN;
+  GPIO_InitStructure.GPIO_Direction = GPIO_PinOutput;
+  GPIO_InitStructure.GPIO_Type = GPIO_Type_PushPull;
+  GPIO_InitStructure.GPIO_IPInputConnected = GPIO_IPInputConnected_Disable;
+  GPIO_InitStructure.GPIO_Alternate = GPIO_OutputAlt1;
+  GPIO_Init(GPIO5, &GPIO_InitStructure);
 
   GreenLEDOff();
   RedLEDOff();

@@ -14,16 +14,17 @@
 
 #define UART_BAUD (57600)
 
-static volatile uint8_t rx_buffer_[RX_BUFFER_LENGTH], *tx_ptr_ = 0;
+static volatile uint8_t rx_buffer_[UART_RX_BUFFER_LENGTH], *tx_ptr_ = 0;
 static volatile size_t rx_buffer_head_ = 0, tx_bytes_remaining_ = 0;
-static uint8_t data_buffer_[DATA_BUFFER_LENGTH], tx_buffer_[TX_BUFFER_LENGTH];
+static uint8_t data_buffer_[UART_DATA_BUFFER_LENGTH];
+static uint8_t tx_buffer_[UART_TX_BUFFER_LENGTH];
 static uint8_t tx_overflow_counter_ = 0;
 
 
 // =============================================================================
 // Private function declarations:
 
-void ReceiveData(void);
+static void ReceiveUARTData(void);
 
 
 // =============================================================================
@@ -37,21 +38,19 @@ void UARTInit(void)
   GPIO_InitTypeDef GPIO_InitStructure;
 
   // Configure pin GPIO3.2 to be UART1 Rx
-  GPIO_StructInit(&GPIO_InitStructure);
   GPIO_InitStructure.GPIO_Direction = GPIO_PinInput;
   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
   GPIO_InitStructure.GPIO_Type = GPIO_Type_PushPull;
   GPIO_InitStructure.GPIO_IPInputConnected = GPIO_IPInputConnected_Enable;
   GPIO_InitStructure.GPIO_Alternate = GPIO_InputAlt1;  // UART1 Rx
-  GPIO_Init (GPIO3, &GPIO_InitStructure);
+  GPIO_Init(GPIO3, &GPIO_InitStructure);
 
   // Configure pin GPIO3.3 to be UART1 Tx
-  GPIO_StructInit(&GPIO_InitStructure);
   GPIO_InitStructure.GPIO_Direction = GPIO_PinOutput;
   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
   GPIO_InitStructure.GPIO_Type = GPIO_Type_PushPull;
   GPIO_InitStructure.GPIO_Alternate = GPIO_OutputAlt3;  // UART1 Tx
-  GPIO_Init (GPIO3, &GPIO_InitStructure);
+  GPIO_Init(GPIO3, &GPIO_InitStructure);
 
   UART_InitTypeDef UART_InitStructure;
 
@@ -64,7 +63,6 @@ void UARTInit(void)
   UART_InitStructure.UART_FIFO = UART_FIFO_Enable;
   UART_InitStructure.UART_TxFIFOLevel = UART_FIFOLevel_1_2;
   UART_InitStructure.UART_RxFIFOLevel = UART_FIFOLevel_1_2;
-
   UART_DeInit(UART1);
   UART_Init(UART1, &UART_InitStructure);
 
@@ -88,12 +86,12 @@ void ProcessIncomingUART(void)
   static size_t rx_buffer_tail = 0;
   static enum UARTRxMode mode = UART_RX_MODE_IDLE;
 
-  ReceiveData();
+  ReceiveUARTData();
 
   while (rx_buffer_tail != rx_buffer_head_)
   {
     // Move the ring buffer tail forward.
-    rx_buffer_tail = (rx_buffer_tail + 1) % RX_BUFFER_LENGTH;
+    rx_buffer_tail = (rx_buffer_tail + 1) % UART_RX_BUFFER_LENGTH;
 
     // Add other Rx protocols here.
     if (mode != UART_RX_MODE_IDLE)
@@ -169,12 +167,12 @@ void UARTPrintf(const char *format, ...)
 // =============================================================================
 // Private functions:
 
-void ReceiveData(void)
+void ReceiveUARTData(void)
 {
   VIC_ITCmd(UART1_ITLine, DISABLE);
   while (!UART_GetFlagStatus(UART1, UART_FLAG_RxFIFOEmpty))
   {
-    rx_buffer_head_ = (rx_buffer_head_ + 1) % RX_BUFFER_LENGTH;
+    rx_buffer_head_ = (rx_buffer_head_ + 1) % UART_RX_BUFFER_LENGTH;
     rx_buffer_[rx_buffer_head_] = UART_ReceiveData(UART1);
   }
   VIC_ITCmd(UART1_ITLine, ENABLE);
@@ -184,5 +182,5 @@ void ReceiveData(void)
 void UART1_IRQHandler(void)
 {
   UART_ClearITPendingBit(UART1, UART_IT_Receive);
-  ReceiveData();
+  ReceiveUARTData();
 }

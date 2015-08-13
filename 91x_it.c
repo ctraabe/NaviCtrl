@@ -43,7 +43,7 @@ void DMA_IRQHandler(void) { VIC0->VAR = 0xFF; }
 void CAN_IRQHandler(void) { VIC0->VAR = 0xFF; }
 void MC_IRQHandler(void) { VIC0->VAR = 0xFF; }
 void ADC_IRQHandler(void) { VIC0->VAR = 0xFF; }
-void UART0_IRQHandler(void) { }
+// void UART0_IRQHandler(void) { }
 // void UART1_IRQHandler(void) { }
 void UART2_IRQHandler(void) { }
 void I2C0_IRQHandler(void) { }

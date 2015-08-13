@@ -6,10 +6,9 @@
 #include <stddef.h>
 
 
-#define RX_BUFFER_LENGTH_POWER_OF_2 (6)  // 2^6 = 64
-#define RX_BUFFER_LENGTH (1 << RX_BUFFER_LENGTH_POWER_OF_2)
-#define DATA_BUFFER_LENGTH (70)
-#define TX_BUFFER_LENGTH (70)
+#define UART_RX_BUFFER_LENGTH (1 << 7)  // 2^7 = 128
+#define UART_DATA_BUFFER_LENGTH (70)
+#define UART_TX_BUFFER_LENGTH (70)
 
 enum UARTRxMode {
   UART_RX_MODE_IDLE = 0,

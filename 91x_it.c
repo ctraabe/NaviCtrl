@@ -44,7 +44,7 @@ void CAN_IRQHandler(void) { VIC0->VAR = 0xFF; }
 void MC_IRQHandler(void) { VIC0->VAR = 0xFF; }
 void ADC_IRQHandler(void) { VIC0->VAR = 0xFF; }
 void UART0_IRQHandler(void) { }
-void UART1_IRQHandler(void) { }
+// void UART1_IRQHandler(void) { }
 void UART2_IRQHandler(void) { }
 void I2C0_IRQHandler(void) { }
 void I2C1_IRQHandler(void) { }
@@ -61,7 +61,6 @@ void USBWU_IRQHandler(void) { }
 void PFQBC_IRQHandler(void) { }
 void DefaultVector_Handler(void)
 {
-    /* Write any value to VICs	*/
     VIC0->VAR = 0xFF;
     VIC1->VAR = 0xFF;
 }

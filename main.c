@@ -1,7 +1,8 @@
 #include "91x_lib.h"
+#include "config.h"
 #include "led.h"
 #include "timer1.h"
-#include "config.h"
+#include "uart.h"
 
 
 // =============================================================================
@@ -39,14 +40,6 @@ void SCUConfig(void)
 }
 
 //------------------------------------------------------------------------------
-// Set the default VIC handlers to avoid spurious interrupts.
-void SetDefautlVICHandlers(void)
-{
-  VIC0->DVAR = (uint32_t)DefaultVector_Handler;
-  VIC1->DVAR = (uint32_t)DefaultVector_Handler;
-}
-
-//------------------------------------------------------------------------------
 int main(void)
 {
   // Configure the system clocks via the SCU (system control unit).
@@ -58,11 +51,14 @@ int main(void)
   SCU_AHBPeriphReset(__VIC, DISABLE);
   // De-initialize the VIC module registers (to their default reset values).
   VIC_DeInit();
-  // Set the default VIC handlers to avoid spurious interrupts.
-  SetDefautlVICHandlers();
+  // Initialize VICs default vector registers.
+  VIC_InitDefaultVectors();
 
   TimingInit();
   LEDInit();
+  UARTInit();
+
+  UARTPrintf("This is a test");
 
   for (;;) // the endless main loop
   {

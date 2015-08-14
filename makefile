@@ -1,5 +1,6 @@
 # Add library files as needed:
 SOURCES  += $(LIBRARY_SRC)/91x_gpio.c
+SOURCES  += $(LIBRARY_SRC)/91x_i2c.c
 SOURCES  += $(LIBRARY_SRC)/91x_scu.c
 SOURCES  += $(LIBRARY_SRC)/91x_tim.c
 SOURCES  += $(LIBRARY_SRC)/91x_uart.c

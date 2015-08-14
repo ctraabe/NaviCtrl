@@ -72,7 +72,7 @@
 #define _GPIO
 // #define _GPIO0
 // #define _GPIO1
-// #define _GPIO2
+#define _GPIO2
 #define _GPIO3
 // #define _GPIO4
 #define _GPIO5
@@ -102,9 +102,9 @@
 /************************* WDG *************************/
 #define _WDG
 /************************* I2C *************************/
-// #define _I2C
+#define _I2C
 // #define _I2C0
-// #define _I2C1
+#define _I2C1
 /************************ ENET *************************/
 // #define _ENET
 

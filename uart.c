@@ -32,6 +32,7 @@ static void ReceiveUARTData(void);
 
 void UARTInit(void)
 {
+
   SCU_APBPeriphClockConfig(__GPIO3, ENABLE);  // Enable the GPIO3 Clock
   SCU_APBPeriphClockConfig(__UART1, ENABLE);  // Enable the UART1 Clock
 
@@ -49,7 +50,7 @@ void UARTInit(void)
   GPIO_InitStructure.GPIO_Direction = GPIO_PinOutput;
   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
   GPIO_InitStructure.GPIO_Type = GPIO_Type_PushPull;
-  GPIO_InitStructure.GPIO_Alternate = GPIO_OutputAlt3;  // UART1 Tx
+  GPIO_InitStructure.GPIO_Alternate = GPIO_OutputAlt2;  // UART1 Tx
   GPIO_Init(GPIO3, &GPIO_InitStructure);
 
   UART_InitTypeDef UART_InitStructure;
@@ -67,7 +68,7 @@ void UARTInit(void)
   UART_Init(UART1, &UART_InitStructure);
 
   // Enable UART Rx interrupt.
-  UART_ITConfig(UART1, UART_IT_Receive , ENABLE);
+  UART_ITConfig(UART1, UART_IT_Receive, ENABLE);
   VIC_Config(UART1_ITLine, VIC_IRQ, PRIORITY_UART1);
 
   UART_Cmd(UART1, ENABLE);

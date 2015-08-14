@@ -36,44 +36,41 @@ void UARTInit(void)
   SCU_APBPeriphClockConfig(__GPIO3, ENABLE);  // Enable the GPIO3 Clock
   SCU_APBPeriphClockConfig(__UART1, ENABLE);  // Enable the UART1 Clock
 
-  GPIO_InitTypeDef GPIO_InitStructure;
+  GPIO_InitTypeDef gpio_init;
 
   // Configure pin GPIO3.2 to be UART1 Rx
-  GPIO_InitStructure.GPIO_Direction = GPIO_PinInput;
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
-  GPIO_InitStructure.GPIO_Type = GPIO_Type_PushPull;
-  GPIO_InitStructure.GPIO_IPInputConnected = GPIO_IPInputConnected_Enable;
-  GPIO_InitStructure.GPIO_Alternate = GPIO_InputAlt1;  // UART1 Rx
-  GPIO_Init(GPIO3, &GPIO_InitStructure);
+  gpio_init.GPIO_Direction = GPIO_PinInput;
+  gpio_init.GPIO_Pin = GPIO_Pin_2;
+  gpio_init.GPIO_Type = GPIO_Type_PushPull;
+  gpio_init.GPIO_IPInputConnected = GPIO_IPInputConnected_Enable;
+  gpio_init.GPIO_Alternate = GPIO_InputAlt1;  // UART1 Rx
+  GPIO_Init(GPIO3, &gpio_init);
 
   // Configure pin GPIO3.3 to be UART1 Tx
-  GPIO_InitStructure.GPIO_Direction = GPIO_PinOutput;
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
-  GPIO_InitStructure.GPIO_Type = GPIO_Type_PushPull;
-  GPIO_InitStructure.GPIO_Alternate = GPIO_OutputAlt2;  // UART1 Tx
-  GPIO_Init(GPIO3, &GPIO_InitStructure);
+  gpio_init.GPIO_Direction = GPIO_PinOutput;
+  gpio_init.GPIO_Pin = GPIO_Pin_3;
+  gpio_init.GPIO_Type = GPIO_Type_PushPull;
+  gpio_init.GPIO_Alternate = GPIO_OutputAlt2;  // UART1 Tx
+  GPIO_Init(GPIO3, &gpio_init);
 
-  UART_InitTypeDef UART_InitStructure;
+  UART_InitTypeDef uart_init;
 
-  UART_InitStructure.UART_WordLength = UART_WordLength_8D;
-  UART_InitStructure.UART_StopBits = UART_StopBits_1;
-  UART_InitStructure.UART_Parity = UART_Parity_No ;
-  UART_InitStructure.UART_BaudRate = UART_BAUD;
-  UART_InitStructure.UART_HardwareFlowControl = UART_HardwareFlowControl_None;
-  UART_InitStructure.UART_Mode = UART_Mode_Tx_Rx;
-  UART_InitStructure.UART_FIFO = UART_FIFO_Enable;
-  UART_InitStructure.UART_TxFIFOLevel = UART_FIFOLevel_1_2;
-  UART_InitStructure.UART_RxFIFOLevel = UART_FIFOLevel_1_2;
+  uart_init.UART_WordLength = UART_WordLength_8D;
+  uart_init.UART_StopBits = UART_StopBits_1;
+  uart_init.UART_Parity = UART_Parity_No ;
+  uart_init.UART_BaudRate = UART_BAUD;
+  uart_init.UART_HardwareFlowControl = UART_HardwareFlowControl_None;
+  uart_init.UART_Mode = UART_Mode_Tx_Rx;
+  uart_init.UART_FIFO = UART_FIFO_Enable;
+  uart_init.UART_TxFIFOLevel = UART_FIFOLevel_1_2;
+  uart_init.UART_RxFIFOLevel = UART_FIFOLevel_1_2;
   UART_DeInit(UART1);
-  UART_Init(UART1, &UART_InitStructure);
+  UART_Init(UART1, &uart_init);
+  UART_Cmd(UART1, ENABLE);
 
   // Enable UART Rx interrupt.
   UART_ITConfig(UART1, UART_IT_Receive, ENABLE);
   VIC_Config(UART1_ITLine, VIC_IRQ, PRIORITY_UART1);
-
-  UART_Cmd(UART1, ENABLE);
-
-  // Enable UART1 interrupt for data reception.
   VIC_ITCmd(UART1_ITLine, ENABLE);
 }
 

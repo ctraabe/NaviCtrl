@@ -7,7 +7,9 @@
 // =============================================================================
 // Private data:
 
-volatile uint32_t ms_timestamp_;
+#define F_TIM1 (200000)  // 200kHz
+
+volatile uint32_t ms_timestamp_ = 0;
 
 
 // =============================================================================
@@ -15,27 +17,23 @@ volatile uint32_t ms_timestamp_;
 
 void TimingInit(void)
 {
-  TIM_InitTypeDef TIM_InitStructure;
-
-  #define TIM1_FREQ (200000)  // 200kHz
-
   SCU_APBPeriphClockConfig(__TIM01, ENABLE);
 
-  TIM_DeInit(TIM1); 
-  TIM_StructInit(&TIM_InitStructure);
-  TIM_InitStructure.TIM_Mode = TIM_OCM_CHANNEL_1;
-  TIM_InitStructure.TIM_OC1_Modes = TIM_TIMING;
-  TIM_InitStructure.TIM_Clock_Source = TIM_CLK_APB;
-  TIM_InitStructure.TIM_Prescaler = (SCU_GetPCLKFreqValue() * 1000) / TIM1_FREQ;
-  TIM_Init(TIM1, &TIM_InitStructure);
+  TIM_InitTypeDef tim_init;
 
-  TIM_ITConfig(TIM1, TIM_IT_OC1, ENABLE);
+  TIM_StructInit(&tim_init);
+  tim_init.TIM_Mode = TIM_OCM_CHANNEL_1;
+  tim_init.TIM_OC1_Modes = TIM_TIMING;
+  tim_init.TIM_Clock_Source = TIM_CLK_APB;
+  tim_init.TIM_Prescaler = (SCU_GetPCLKFreqValue() * 1000) / F_TIM1;
+  TIM_DeInit(TIM1);
+  TIM_Init(TIM1, &tim_init);
+
   TIM_CounterCmd(TIM1, TIM_START);
 
+  TIM_ITConfig(TIM1, TIM_IT_OC1, ENABLE);
   VIC_Config(TIM1_ITLine, VIC_IRQ, PRIORITY_TIMER1);
   VIC_ITCmd(TIM1_ITLine, ENABLE);
-
-  ms_timestamp_ = 0;
 }
 
 // -----------------------------------------------------------------------------

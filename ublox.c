@@ -88,24 +88,29 @@ void UBloxInit(void)
   SCU_APBPeriphClockConfig(__GPIO6, ENABLE);  // Enable the GPIO6 Clock
   SCU_APBPeriphClockConfig(__UART0, ENABLE);  // Enable the UART0 Clock
 
-  GPIO_InitTypeDef GPIO_InitStructure;
+  GPIO_InitTypeDef gpio_init;
 
   // Configure pin GPIO6.6 to be UART0 Rx
-  GPIO_InitStructure.GPIO_Direction = GPIO_PinInput;
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
-  GPIO_InitStructure.GPIO_Type = GPIO_Type_PushPull;
-  GPIO_InitStructure.GPIO_IPInputConnected = GPIO_IPInputConnected_Enable;
-  GPIO_InitStructure.GPIO_Alternate = GPIO_InputAlt1;  // UART0 Rx
-  GPIO_Init(GPIO6, &GPIO_InitStructure);
+  gpio_init.GPIO_Direction = GPIO_PinInput;
+  gpio_init.GPIO_Pin = GPIO_Pin_6;
+  gpio_init.GPIO_Type = GPIO_Type_PushPull;
+  gpio_init.GPIO_IPInputConnected = GPIO_IPInputConnected_Enable;
+  gpio_init.GPIO_Alternate = GPIO_InputAlt1;  // UART0 Rx
+  GPIO_Init(GPIO6, &gpio_init);
 
   // Configure pin GPIO6.6 to be UART0 Tx
-  GPIO_InitStructure.GPIO_Direction = GPIO_PinOutput;
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
-  GPIO_InitStructure.GPIO_Type = GPIO_Type_PushPull;
-  GPIO_InitStructure.GPIO_Alternate = GPIO_OutputAlt3;  // UART0 Tx
-  GPIO_Init(GPIO6, &GPIO_InitStructure);
+  gpio_init.GPIO_Direction = GPIO_PinOutput;
+  gpio_init.GPIO_Pin = GPIO_Pin_7;
+  gpio_init.GPIO_Type = GPIO_Type_PushPull;
+  gpio_init.GPIO_Alternate = GPIO_OutputAlt3;  // UART0 Tx
+  GPIO_Init(GPIO6, &gpio_init);
 
   UART0Init(UBLOX_INITIAL_BAUD);
+
+  // Enable UART Rx interrupt.
+  UART_ITConfig(UART0, UART_IT_Receive, ENABLE);
+  VIC_Config(UART0_ITLine, VIC_IRQ, PRIORITY_UART0);
+  VIC_ITCmd(UART0_ITLine, ENABLE);
 
   {
     // Set the port to UART UBX @ 57600.
@@ -117,11 +122,6 @@ void UBloxInit(void)
 
   Wait(150);
   UART0Init(UBLOX_OPERATING_BAUD);
-
-  // Enable UART Rx interrupt.
-  UART_ITConfig(UART0, UART_IT_Receive, ENABLE);
-  VIC_Config(UART0_ITLine, VIC_IRQ, PRIORITY_UART0);
-  VIC_ITCmd(UART0_ITLine, ENABLE);
 
   {  // Configure USB for UBX input with no output.
     const uint8_t tx_buffer[28] = { 0xb5, 0x62, 0x06, 0x00, 0x14, 0x00, 0x03,
@@ -313,19 +313,19 @@ static void UBloxTxBuffer(const uint8_t * buffer, size_t length)
 // -----------------------------------------------------------------------------
 static void UART0Init(uint32_t baud_rate)
 {
-  UART_InitTypeDef UART_InitStructure;
+  UART_InitTypeDef uart_init;
 
-  UART_InitStructure.UART_WordLength = UART_WordLength_8D;
-  UART_InitStructure.UART_StopBits = UART_StopBits_1;
-  UART_InitStructure.UART_Parity = UART_Parity_No ;
-  UART_InitStructure.UART_BaudRate = baud_rate;
-  UART_InitStructure.UART_HardwareFlowControl = UART_HardwareFlowControl_None;
-  UART_InitStructure.UART_Mode = UART_Mode_Tx_Rx;
-  UART_InitStructure.UART_FIFO = UART_FIFO_Enable;
-  UART_InitStructure.UART_TxFIFOLevel = UART_FIFOLevel_1_2;
-  UART_InitStructure.UART_RxFIFOLevel = UART_FIFOLevel_1_2;
+  uart_init.UART_WordLength = UART_WordLength_8D;
+  uart_init.UART_StopBits = UART_StopBits_1;
+  uart_init.UART_Parity = UART_Parity_No ;
+  uart_init.UART_BaudRate = baud_rate;
+  uart_init.UART_HardwareFlowControl = UART_HardwareFlowControl_None;
+  uart_init.UART_Mode = UART_Mode_Tx_Rx;
+  uart_init.UART_FIFO = UART_FIFO_Enable;
+  uart_init.UART_TxFIFOLevel = UART_FIFOLevel_1_2;
+  uart_init.UART_RxFIFOLevel = UART_FIFOLevel_1_2;
   UART_DeInit(UART0);
-  UART_Init(UART0, &UART_InitStructure);
+  UART_Init(UART0, &uart_init);
   UART_Cmd(UART0, ENABLE);
 }
 

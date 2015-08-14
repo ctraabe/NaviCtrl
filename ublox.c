@@ -4,12 +4,14 @@
 
 #include "91x_lib.h"
 #include "config.h"
+#include "timing.h"
 
 
 // =============================================================================
 // Private data:
 
-#define UBLOX_BAUD (57600)
+#define UBLOX_INITIAL_BAUD (9600)
+#define UBLOX_OPERATING_BAUD (57600)
 #define UBLOX_RX_BUFFER_LENGTH (1 << 8)  // 2^8 = 256
 #define UBLOX_DATA_BUFFER_LENGTH (70)
 #define UBX_SYNC_CHAR_1 (0xb5)
@@ -74,6 +76,8 @@ static uint8_t data_buffer_[UBLOX_DATA_BUFFER_LENGTH];
 
 static void ProcessUBloxData(uint8_t byte);
 static void ReceiveUBloxData(void);
+static void UBloxTxBuffer(const uint8_t * buffer, size_t length);
+static void UART0Init(uint32_t baud_rate);
 
 
 // =============================================================================
@@ -92,36 +96,31 @@ void UBloxInit(void)
   GPIO_InitStructure.GPIO_Type = GPIO_Type_PushPull;
   GPIO_InitStructure.GPIO_IPInputConnected = GPIO_IPInputConnected_Enable;
   GPIO_InitStructure.GPIO_Alternate = GPIO_InputAlt1;  // UART0 Rx
-  GPIO_Init(GPIO3, &GPIO_InitStructure);
+  GPIO_Init(GPIO6, &GPIO_InitStructure);
 
   // Configure pin GPIO6.6 to be UART0 Tx
   GPIO_InitStructure.GPIO_Direction = GPIO_PinOutput;
   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
   GPIO_InitStructure.GPIO_Type = GPIO_Type_PushPull;
   GPIO_InitStructure.GPIO_Alternate = GPIO_OutputAlt3;  // UART0 Tx
-  GPIO_Init(GPIO3, &GPIO_InitStructure);
+  GPIO_Init(GPIO6, &GPIO_InitStructure);
 
-  UART_InitTypeDef UART_InitStructure;
+  UART0Init(UBLOX_INITIAL_BAUD);
 
-  UART_InitStructure.UART_WordLength = UART_WordLength_8D;
-  UART_InitStructure.UART_StopBits = UART_StopBits_1;
-  UART_InitStructure.UART_Parity = UART_Parity_No ;
-  UART_InitStructure.UART_BaudRate = UBLOX_BAUD;
-  UART_InitStructure.UART_HardwareFlowControl = UART_HardwareFlowControl_None;
-  UART_InitStructure.UART_Mode = UART_Mode_Tx_Rx;
-  UART_InitStructure.UART_FIFO = UART_FIFO_Enable;
-  UART_InitStructure.UART_TxFIFOLevel = UART_FIFOLevel_1_2;
-  UART_InitStructure.UART_RxFIFOLevel = UART_FIFOLevel_1_2;
-  UART_DeInit(UART0);
-  UART_Init(UART0, &UART_InitStructure);
+  {
+    // Set the port to UART UBX @ 57600.
+   const  uint8_t tx_buffer[28] = { 0xb5, 0x62, 0x06, 0x00, 0x14, 0x00, 0x01,
+      0x00, 0x00, 0x00, 0xd0, 0x08, 0x00, 0x00, 0x00, 0xe1, 0x00, 0x00, 0x01,
+      0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0xd6, 0x8d };
+    UBloxTxBuffer(tx_buffer, 28);
+  }
+
+  Wait(150);
+  UART0Init(UBLOX_OPERATING_BAUD);
 
   // Enable UART Rx interrupt.
-  UART_ITConfig(UART0, UART_IT_Receive , ENABLE);
+  UART_ITConfig(UART0, UART_IT_Receive, ENABLE);
   VIC_Config(UART0_ITLine, VIC_IRQ, PRIORITY_UART0);
-
-  UART_Cmd(UART0, ENABLE);
-
-  // Enable UART0 interrupt for data reception.
   VIC_ITCmd(UART0_ITLine, ENABLE);
 
   {  // Configure USB for UBX input with no output.
@@ -203,37 +202,22 @@ void ProcessIncomingUBlox(void)
   }
 }
 
-// -----------------------------------------------------------------------------
-// This function sends the contents of buffer to the u-blox device. This
-// function blocks program execution until the entire buffer is sent.
-void UBloxTxBuffer(const uint8_t * buffer, size_t length)
-{
-  while (length--)
-  {
-    while(UART_GetFlagStatus(UART0, UART_FLAG_TxFIFOFull)) continue;
-    UART_SendData(UART0, *buffer++);
-  }
-}
-
 
 // =============================================================================
 // Private functions:
 
-static void DecodeUBloxRx(void)
+static void DecodeUBloxRx(uint8_t id)
 {
-
-  switch (data_buffer_[3])  // ID
+  switch (id)
   {
     case UBX_ID_POS_LLH:
-      memcpy((uint8_t *)&ubx_pos_llh_, &data_buffer_[5],
-        sizeof(struct UBXPosLLH));
+      memcpy((uint8_t *)&ubx_pos_llh_, data_buffer_, sizeof(struct UBXPosLLH));
       break;
     case UBX_ID_VEL_NED:
-      memcpy((uint8_t *)&ubx_vel_ned_, &data_buffer_[5],
-        sizeof(struct UBXVelNED));
+      memcpy((uint8_t *)&ubx_vel_ned_, data_buffer_, sizeof(struct UBXVelNED));
       break;
     case UBX_ID_SOL:
-      memcpy((uint8_t *)&ubx_sol_, &data_buffer_[5], sizeof(struct UBXSol));
+      memcpy((uint8_t *)&ubx_sol_, data_buffer_, sizeof(struct UBXSol));
       break;
     default:
       break;
@@ -241,65 +225,65 @@ static void DecodeUBloxRx(void)
 }
 
 // -----------------------------------------------------------------------------
-static void RecordAndAdvance(uint8_t byte, uint8_t * data_buffer_ptr,
-  uint8_t * checksum_a, uint8_t * checksum_b, size_t * bytes_processed)
+static void UpdateChecksum(uint8_t byte, uint8_t * checksum_a,
+  uint8_t * checksum_b)
 {
-  *data_buffer_ptr = byte;
   *checksum_a += byte;
   *checksum_b += *checksum_a;
-  ++*bytes_processed;
 }
 
 // -----------------------------------------------------------------------------
 static void ProcessUBloxData(uint8_t byte)
 {
-  static size_t length = 0, bytes_processed = 0;
-  static uint8_t checksum_a = 0, checksum_b = 0;
+  static size_t bytes_processed = 0, payload_length = 0;
+  static uint8_t id, checksum_a, checksum_b;
   static uint8_t * data_buffer_ptr = NULL;
 
   switch (bytes_processed)
   {
     case 0:  // Sync char 1
-      if (byte == UBX_SYNC_CHAR_1) ++bytes_processed;
+      if (byte != UBX_SYNC_CHAR_1) goto RESET;
       break;
     case 1:  // Sync char 2
-      if (byte == UBX_SYNC_CHAR_2) ++bytes_processed;
-      else bytes_processed = 0;
+      if (byte != UBX_SYNC_CHAR_2) goto RESET;
       break;
     case 2:  // Class (NAV)
-      checksum_a = 0;
-      checksum_b = 0;
+      if (byte != UBX_CLASS_NAV) goto RESET;
+      checksum_a = byte;
+      checksum_b = byte;
       data_buffer_ptr = data_buffer_;
-      if (byte == UBX_CLASS_NAV)
-        RecordAndAdvance(byte, data_buffer_ptr++, &checksum_a, &checksum_b,
-          &bytes_processed);
-      else
-        bytes_processed = 0;
       break;
-    case 4:  // Length (lower byte)
-      length = byte > UBLOX_DATA_BUFFER_LENGTH ? 0 : byte + 8;
-    case 3:  // Byte should always be 0 (no messages exceed 255 bytes)
-      RecordAndAdvance(byte, data_buffer_ptr++, &checksum_a, &checksum_b,
-        &bytes_processed);
+    case 3:  // ID
+      id = byte;
+      UpdateChecksum(byte, &checksum_a, &checksum_b);
       break;
-    default:
-      if (bytes_processed < length - 2)
+    case 4:  // Payload length (lower byte)
+      payload_length = byte > UBLOX_DATA_BUFFER_LENGTH ? 0 : byte;
+    case 5:  // Payload length (upper byte should always be zero)
+      UpdateChecksum(byte, &checksum_a, &checksum_b);
+      break;
+    default:  // Payload or checksum
+      if (bytes_processed < (payload_length + 6))  // Payload
       {
-        RecordAndAdvance(byte, data_buffer_ptr++, &checksum_a, &checksum_b,
-          &bytes_processed);
+        *data_buffer_ptr++ = byte;
+        UpdateChecksum(byte, &checksum_a, &checksum_b);
       }
-      else if (bytes_processed == length -2)
+      else if (bytes_processed == (payload_length + 6))  // Checksum A
       {
-        if (byte == checksum_a) bytes_processed++;
-        else bytes_processed = 0;
+        if (byte != checksum_a) goto RESET;
       }
-      else
+      else  // Checksum B
       {
-        if (byte == checksum_b) DecodeUBloxRx();
-        bytes_processed = 0;
+        if (byte == checksum_b) DecodeUBloxRx(id);
+        goto RESET;
       }
       break;
   }
+  bytes_processed++;
+  return;
+
+  RESET:
+  bytes_processed = 0;
 }
 
 // -----------------------------------------------------------------------------
@@ -312,6 +296,37 @@ static void ReceiveUBloxData(void)
     rx_buffer_[rx_buffer_head_] = UART_ReceiveData(UART0);
   }
   VIC_ITCmd(UART0_ITLine, ENABLE);
+}
+
+// -----------------------------------------------------------------------------
+// This function sends the contents of buffer to the u-blox device. This
+// function blocks program execution until the entire buffer is sent.
+static void UBloxTxBuffer(const uint8_t * buffer, size_t length)
+{
+  while (length--)
+  {
+    while(UART_GetFlagStatus(UART0, UART_FLAG_TxFIFOFull)) continue;
+    UART_SendData(UART0, *buffer++);
+  }
+}
+
+// -----------------------------------------------------------------------------
+static void UART0Init(uint32_t baud_rate)
+{
+  UART_InitTypeDef UART_InitStructure;
+
+  UART_InitStructure.UART_WordLength = UART_WordLength_8D;
+  UART_InitStructure.UART_StopBits = UART_StopBits_1;
+  UART_InitStructure.UART_Parity = UART_Parity_No ;
+  UART_InitStructure.UART_BaudRate = baud_rate;
+  UART_InitStructure.UART_HardwareFlowControl = UART_HardwareFlowControl_None;
+  UART_InitStructure.UART_Mode = UART_Mode_Tx_Rx;
+  UART_InitStructure.UART_FIFO = UART_FIFO_Enable;
+  UART_InitStructure.UART_TxFIFOLevel = UART_FIFOLevel_1_2;
+  UART_InitStructure.UART_RxFIFOLevel = UART_FIFOLevel_1_2;
+  UART_DeInit(UART0);
+  UART_Init(UART0, &UART_InitStructure);
+  UART_Cmd(UART0, ENABLE);
 }
 
 // -----------------------------------------------------------------------------

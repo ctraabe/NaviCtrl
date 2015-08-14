@@ -3,6 +3,7 @@
 #include "led.h"
 #include "timing.h"
 #include "uart.h"
+#include "ublox.h"
 
 
 // =============================================================================
@@ -57,6 +58,7 @@ int main(void)
   TimingInit();
   LEDInit();
   UARTInit();
+  UBloxInit();
 
   UARTPrintf("This is a test");
 
@@ -64,6 +66,7 @@ int main(void)
   {
     Wait(100);
     ProcessIncomingUART();
+    ProcessIncomingUBlox();
     GreenLEDToggle();
   }
 }

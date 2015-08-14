@@ -18,15 +18,5 @@ void UBloxInit(void);
 // (data_buffer_).
 void ProcessIncomingUBlox(void);
 
-// -----------------------------------------------------------------------------
-// This function sends the contents of buffer to the u-blox device. This
-// function blocks program execution until the entire buffer is sent.
-void UBloxTxBuffer(const uint8_t * buffer, size_t length);
-
-// -----------------------------------------------------------------------------
-// This function immediately transmits a byte and blocks computation until
-// transmission is commenced.
-void UBloxTxByte(uint8_t byte);
-
 
 #endif  // UBLOX_H_

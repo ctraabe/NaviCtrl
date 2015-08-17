@@ -170,7 +170,7 @@ static uint16_t MKChecksum(uint8_t * buffer, size_t length)
 static void AddMKChecksum(uint8_t * buffer, size_t length)
 {
   uint16_t * checksum_ptr = (uint16_t *)&buffer[length];
-  *checksum_ptr = MKChecksum(buffer, length);
+  *checksum_ptr = MKChecksum(++buffer, --length);
 }
 
 // -----------------------------------------------------------------------------

@@ -1,9 +1,7 @@
 #include "i2c.h"
 
-#include <avr/interrupt.h>
-#include <util/twi.h>
-
-#include "mcu_pins.h"
+#include "91x_lib.h"
+#include "config.h"
 
 
 // =============================================================================
@@ -23,8 +21,9 @@ static volatile enum I2CError i2c_error_ = I2C_ERROR_NONE;
 static volatile uint8_t rx_destination_len_ = 0, tx_source_len_ = 0;
 static volatile uint8_t * rx_destination_ptr_ = 0;
 static volatile const uint8_t * tx_source_ptr_ = 0;
+static volatile uint8_t register_address_specified_ = 0;
 
-static uint8_t slave_address_ = 0x00;
+static uint8_t register_address_ = 0x00, slave_address_ = 0x00;
 static I2CCallback callback_ptr_ = 0;
 
 
@@ -57,7 +56,7 @@ void I2CInit(void)
   GPIO_InitTypeDef gpio_init;
 
   // Configure pins GPIO2.2 and GPIO2.3 to SCL and SDA
-  GPIO_InitStructure.GPIO_Direction = GPIO_PinOutput;
+  gpio_init.GPIO_Direction = GPIO_PinOutput;
   gpio_init.GPIO_Pin = GPIO_Pin_2 | GPIO_Pin_3;
   gpio_init.GPIO_Type = GPIO_Type_OpenCollector;
   gpio_init.GPIO_IPInputConnected = GPIO_IPInputConnected_Enable;
@@ -75,7 +74,7 @@ void I2CInit(void)
   I2C_Cmd(I2C1, ENABLE);
 
   I2C_ITConfig(I2C1, ENABLE);
-  VIC_Config(I2C1_ITLine, VIC_IRQ, 1);
+  VIC_Config(I2C1_ITLine, VIC_IRQ, PRIORITY_I2C1);
   VIC_ITCmd(I2C1_ITLine, ENABLE);
 
   I2C_GenerateSTOP(I2C1, ENABLE);
@@ -94,6 +93,24 @@ void I2CReset(void)
 }
 
 // -----------------------------------------------------------------------------
+enum I2CError I2CRx(uint8_t slave_address, volatile uint8_t *rx_destination_ptr,
+  uint8_t rx_destination_len)
+{
+  return I2CRxThenCallback(slave_address, rx_destination_ptr,
+    rx_destination_len, 0);
+}
+
+// -----------------------------------------------------------------------------
+enum I2CError I2CRxFromRegister(uint8_t slave_address, uint8_t register_address,
+  volatile uint8_t *rx_destination_ptr, uint8_t rx_destination_len)
+{
+  register_address_ = register_address;
+  register_address_specified_ = 1;
+  return I2CTxThenRx(slave_address, 0, 0, rx_destination_ptr,
+    rx_destination_len);
+}
+
+// -----------------------------------------------------------------------------
 enum I2CError I2CRxThenCallback(uint8_t slave_address,
   volatile uint8_t *rx_destination_ptr, uint8_t rx_destination_len,
   I2CCallback callback_ptr)
@@ -109,12 +126,29 @@ enum I2CError I2CRxThenCallback(uint8_t slave_address,
 }
 
 // -----------------------------------------------------------------------------
+enum I2CError I2CTx(uint8_t slave_address, const uint8_t *tx_source_ptr,
+  uint8_t tx_source_len)
+{
+  return I2CTxThenRxThenCallback(slave_address, tx_source_ptr, tx_source_len,
+    0, 0, (I2CCallback)0);
+}
+
+// -----------------------------------------------------------------------------
 enum I2CError I2CTxThenRx(uint8_t slave_address, const uint8_t *tx_source_ptr,
   uint8_t tx_source_len, volatile uint8_t *rx_destination_ptr,
   uint8_t rx_destination_len)
 {
   return I2CTxThenRxThenCallback(slave_address, tx_source_ptr, tx_source_len,
     rx_destination_ptr, rx_destination_len, (I2CCallback)0);
+}
+
+// -----------------------------------------------------------------------------
+enum I2CError I2CTxToRegister(uint8_t slave_address, uint8_t register_address,
+  const uint8_t *tx_source_ptr, uint8_t tx_source_len)
+{
+  register_address_ = register_address;
+  register_address_specified_ = 1;
+  return I2CTx(slave_address, tx_source_ptr, tx_source_len);
 }
 
 // -----------------------------------------------------------------------------
@@ -131,7 +165,8 @@ enum I2CError I2CTxThenRxThenCallback(uint8_t slave_address,
   rx_destination_len_ = rx_destination_len;
   callback_ptr_ = callback_ptr;
   i2c_error_ = I2C_ERROR_NONE;
-  I2CStart(I2C_MODE_TX_THEN_RX);
+  if (rx_destination_ptr_) I2CStart(I2C_MODE_TX_THEN_RX);
+  else I2CStart(I2C_MODE_TX);
   return I2C_ERROR_NONE;
 }
 
@@ -139,7 +174,7 @@ enum I2CError I2CTxThenRxThenCallback(uint8_t slave_address,
 // TODO: make a version that takes a limit
 void I2CWaitUntilCompletion(void)
 {
-  while (i2c_mode_) continue;
+  while (i2c_mode_ != I2C_MODE_IDLE) continue;
 }
 
 
@@ -148,23 +183,9 @@ void I2CWaitUntilCompletion(void)
 
 static void I2CReadByte(void)
 {
-  *rx_destination_ptr_ = TWDR;
+  *rx_destination_ptr_ = I2C_ReceiveData(I2C1);
   rx_destination_ptr_++;
   rx_destination_len_--;
-}
-
-// -----------------------------------------------------------------------------
-// Initiate data reception and acknowledge the result.
-static void I2CRxAck(void)
-{
-  TWCR = _BV(TWINT) | _BV(TWEA) | _BV(TWEN) | _BV(TWIE);
-}
-
-// -----------------------------------------------------------------------------
-// Initiate data reception and do not acknowledge the result (don't send more).
-static void I2CRxNAck(void)
-{
-  TWCR = _BV(TWINT) | _BV(TWEN) | _BV(TWIE);
 }
 
 // -----------------------------------------------------------------------------
@@ -172,14 +193,15 @@ static void I2CRxNAck(void)
 static void I2CStart(enum I2CMode i2c_mode)
 {
   i2c_mode_ = i2c_mode;
-  TWCR = _BV(TWINT) | _BV(TWSTA) | _BV(TWEN) | _BV(TWIE);
+  if (rx_destination_len_ > 1) I2C_AcknowledgeConfig(I2C1, ENABLE);
+  I2C_GenerateStart(I2C1, ENABLE);
 }
 
 // -----------------------------------------------------------------------------
 // Give the stop signal.
 static void I2CStop(void)
 {
-  TWCR = _BV(TWINT) | _BV(TWSTO) | _BV(TWEN);
+  I2C_GenerateSTOP(I2C1, ENABLE);
   i2c_mode_ = I2C_MODE_IDLE;
 }
 
@@ -187,18 +209,16 @@ static void I2CStop(void)
 // Initiate or continue transmission from a buffer.
 static void I2CTxBuffer(void)
 {
-  TWDR = *tx_source_ptr_;
+  I2C_SendData(I2C1, *tx_source_ptr_);
   tx_source_ptr_++;
   tx_source_len_--;
-  TWCR = _BV(TWINT) | _BV(TWEN) | _BV(TWIE);
 }
 
 // -----------------------------------------------------------------------------
 // Initiate transmission of a single byte.
 static void I2CTxByte(uint8_t byte)
 {
-  TWDR = byte;
-  TWCR = _BV(TWINT) | _BV(TWEN) | _BV(TWIE);
+  I2C_SendData(I2C1, byte);
 }
 
 // -----------------------------------------------------------------------------
@@ -217,107 +237,45 @@ static void Next(void)
 }
 
 // -----------------------------------------------------------------------------
-// Interrupt received during a transmit phase. Process accordingly.
-static void ProcessTxInterrupt(void)
-{
-  switch (TWSR)
-  {
-    case TW_START:  // Start condition transmitted
-    case TW_REP_START:  // Repeated start condition transmitted
-      // Send a write request to the desired slave address.
-      I2CTxByte(slave_address_ + TW_WRITE);
-      break;
-    case TW_MT_SLA_ACK:  // SLA+W transmitted, ACK received
-    case TW_MT_DATA_ACK:  // Data transmitted, ACK received
-      if (tx_source_len_ > 0)
-      {
-        I2CTxBuffer();
-      }
-      else
-      {
-        // Target is erroneously expecting more data
-        // i2c_error_ = I2C_ERROR_ACK;
-        Next();
-      }
-      break;
-    case TW_MT_DATA_NACK:  // Data transmitted, NACK received
-      if (tx_source_len_ > 0)
-      {
-        // Indicates that target has canceled reception
-        i2c_error_ = I2C_ERROR_NACK;
-      }
-      Next();
-      break;
-    case TW_MT_SLA_NACK:  // SLA+W transmitted, NACK received
-      // Suggests that the target device is not present
-      i2c_error_ = I2C_ERROR_NO_REPLY;
-      Next();
-      break;
-    case TW_MT_ARB_LOST:  // arbitration lost in SLA+W or data
-    case TW_NO_INFO:  // no state information available
-    case TW_BUS_ERROR:  // illegal start or stop condition
-    default:
-      // Unexpected status message. Send stop.
-      i2c_error_ = I2C_ERROR_OTHER;
-      Next();
-      break;
-  }
-}
-
-// -----------------------------------------------------------------------------
-// Interrupt received during a receive phase. Process accordingly.
-static void ProcessRxInterrupt(void)
-{
-  switch (TWSR)
-  {
-    case TW_START:  // Start condition transmitted
-    case TW_REP_START:  // Repeated start condition transmitted
-      // Send a read request to the desired slave address.
-      I2CTxByte(slave_address_ + TW_READ);
-      break;
-    case TW_MR_DATA_ACK:  // Data received, ACK returned
-      I2CReadByte();
-      // continue
-    case TW_MR_SLA_ACK:  // SLA+R transmitted, ACK received
-      if (rx_destination_len_ > 1) I2CRxAck();
-      else I2CRxNAck();  // Don't send acknowledgment following last reception.
-      break;
-    case TW_MR_DATA_NACK:  // Data received, NACK returned
-      I2CReadByte();
-      Next();
-      break;
-    case TW_MR_SLA_NACK:  // SLA+R transmitted, NACK received
-      // Suggests that the target device is not present
-      i2c_error_ = I2C_ERROR_NO_REPLY;
-      Next();
-      break;
-    case TW_MR_ARB_LOST:  // Arbitration lost in SLA+R or NACK
-    case TW_NO_INFO:  // No state information available
-    case TW_BUS_ERROR:  // Illegal start or stop condition
-    default:
-      // Unexpected status message. Send stop.
-      i2c_error_ = I2C_ERROR_OTHER;
-      Next();
-      break;
-  }
-}
-
-// -----------------------------------------------------------------------------
 // I2C interrupt indicating that the I2C is active and waiting for the next
 // instruction.
-ISR(TWI_vect)
+void I2C1_IRQHandler(void)
 {
-  switch (i2c_mode_)
+  switch (I2C_GetLastEvent(I2C1))
   {
-    case I2C_MODE_TX:
-    case I2C_MODE_TX_THEN_RX:
-      ProcessTxInterrupt();
+    case I2C_EVENT_MASTER_MODE_SELECT:  // EV5
+      if (i2c_mode_ == I2C_MODE_RX)
+        I2C_Send7bitAddress(I2C1, slave_address_, I2C_MODE_RECEIVER);
+      else
+        I2C_Send7bitAddress(I2C1, slave_address_, I2C_MODE_TRANSMITTER);
       break;
-    case I2C_MODE_RX:
-      ProcessRxInterrupt();
+
+    case I2C_EVENT_MASTER_MODE_SELECTED:  // EV6
+      // Clear EV6 by by writing to I2C_CR register (for example PE (0x20))
+      I2C1->CR |=  0x20;
+      if (i2c_mode_ == I2C_MODE_RX) break;
+      if (register_address_specified_) {
+        I2CTxByte(register_address_);
+        register_address_specified_ = 0;
+        break;
+      }
+      // continue
+
+    case I2C_EVENT_MASTER_BYTE_TRANSMITTED:  // EV8
+      if (tx_source_len_ > 0) I2CTxBuffer();
+      else  Next();
       break;
+
+    case I2C_EVENT_MASTER_BYTE_RECEIVED:  // EV7
+      if (rx_destination_len_ == 1) I2C_AcknowledgeConfig(I2C1, DISABLE);
+      else if (rx_destination_len_ == 0) Next();
+      I2CReadByte();
+      break;
+
     default:
-      Next();  // Unexpected interrupt, reset interrupt flag;
+      // Unexpected status message. Send stop.
+      i2c_error_ = I2C_ERROR_OTHER;
+      Next();
       break;
   }
 }

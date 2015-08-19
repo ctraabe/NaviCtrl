@@ -31,20 +31,6 @@ void LEDInit(void)
   RedLEDOff();
 }
 
-#define LED_GRN_ON GPIO_WriteBit(GPIO5, GREEN_LED_PIN, Bit_SET)
-#define LED_GRN_OFF GPIO_WriteBit(GPIO5, GREEN_LED_PIN, Bit_RESET)
-#define LED_GRN_TOGGLE \
-  if (GPIO_ReadBit(GPIO5, GREEN_LED_PIN)) \
-    LED_GRN_OFF; \
-  else LED_GRN_ON;
-
-#define LED_RED_ON GPIO_WriteBit(GPIO5, RED_LED_PIN, Bit_SET)
-#define LED_RED_OFF GPIO_WriteBit(GPIO5, RED_LED_PIN, Bit_RESET)
-#define LED_RED_TOGGLE \
-  if (GPIO_ReadBit(GPIO5, RED_LED_PIN)) \
-    LED_RED_OFF; \
-  else LED_RED_ON;
-
 // -----------------------------------------------------------------------------
 void GreenLEDOff(void)
 {

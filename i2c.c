@@ -2,12 +2,13 @@
 
 #include "91x_lib.h"
 #include "config.h"
+#include "timing.h"
 
 
 // =============================================================================
 // Private data:
 
-#define F_SCL (100000)
+#define F_SCL (400000)
 
 enum I2CMode {
   I2C_MODE_IDLE,
@@ -66,7 +67,7 @@ void I2CInit(void)
   I2C_InitTypeDef i2c_init;
 
   i2c_init.I2C_GeneralCall = I2C_GeneralCall_Disable;
-  i2c_init.I2C_Ack = I2C_Ack_Enable;
+  i2c_init.I2C_Ack = I2C_Ack_Disable;
   i2c_init.I2C_CLKSpeed = F_SCL;
   i2c_init.I2C_OwnAddress = 0x00;
   I2C_DeInit(I2C1);
@@ -76,8 +77,6 @@ void I2CInit(void)
   I2C_ITConfig(I2C1, ENABLE);
   VIC_Config(I2C1_ITLine, VIC_IRQ, PRIORITY_I2C1);
   VIC_ITCmd(I2C1_ITLine, ENABLE);
-
-  I2C_GenerateSTOP(I2C1, ENABLE);
 }
 
 // -----------------------------------------------------------------------------
@@ -172,9 +171,11 @@ enum I2CError I2CTxThenRxThenCallback(uint8_t slave_address,
 
 // -----------------------------------------------------------------------------
 // TODO: make a version that takes a limit
-void I2CWaitUntilCompletion(void)
+uint32_t I2CWaitUntilCompletion(uint32_t time_limit_ms)
 {
-  while (i2c_mode_ != I2C_MODE_IDLE) continue;
+  uint32_t timeout = GetTimestampMillisFromNow(time_limit_ms);
+  while (i2c_mode_ != I2C_MODE_IDLE && !TimestampInPast(timeout)) continue;
+  return TimestampInPast(timeout);
 }
 
 
@@ -202,6 +203,7 @@ static void I2CStart(enum I2CMode i2c_mode)
 static void I2CStop(void)
 {
   I2C_GenerateSTOP(I2C1, ENABLE);
+  I2C_AcknowledgeConfig(I2C1, DISABLE);
   i2c_mode_ = I2C_MODE_IDLE;
 }
 
@@ -222,26 +224,20 @@ static void I2CTxByte(uint8_t byte)
 }
 
 // -----------------------------------------------------------------------------
-// Go to the next communication phase.
-static void Next(void)
-{
-  if (i2c_mode_ == I2C_MODE_TX_THEN_RX && i2c_error_ == I2C_ERROR_NONE)
-  {
-    I2CStart(I2C_MODE_RX);
-  }
-  else
-  {
-    I2CStop();
-    if (callback_ptr_) (*callback_ptr_)();
-  }
-}
-
-// -----------------------------------------------------------------------------
 // I2C interrupt indicating that the I2C is active and waiting for the next
 // instruction.
 void I2C1_IRQHandler(void)
 {
-  switch (I2C_GetLastEvent(I2C1))
+  uint16_t status = I2C_GetLastEvent(I2C1);
+  if (status & (I2C_FLAG_AF | I2C_FLAG_BERR))
+  {
+    i2c_error_ = I2C_ERROR_ACK;
+    I2CStop();
+    if (callback_ptr_) (*callback_ptr_)();
+    return;
+  }
+
+  switch (status)
   {
     case I2C_EVENT_MASTER_MODE_SELECT:  // EV5
       if (i2c_mode_ == I2C_MODE_RX)
@@ -254,7 +250,8 @@ void I2C1_IRQHandler(void)
       // Clear EV6 by by writing to I2C_CR register (for example PE (0x20))
       I2C1->CR |=  0x20;
       if (i2c_mode_ == I2C_MODE_RX) break;
-      if (register_address_specified_) {
+      if (register_address_specified_)
+      {
         I2CTxByte(register_address_);
         register_address_specified_ = 0;
         break;
@@ -262,20 +259,33 @@ void I2C1_IRQHandler(void)
       // continue
 
     case I2C_EVENT_MASTER_BYTE_TRANSMITTED:  // EV8
-      if (tx_source_len_ > 0) I2CTxBuffer();
-      else  Next();
+      if (tx_source_len_ > 0)
+      {
+        I2CTxBuffer();
+      }
+      else if (i2c_mode_ == I2C_MODE_TX_THEN_RX)
+      {
+        I2CStart(I2C_MODE_RX);
+      }
+      else
+      {
+        I2CStop();
+        if (callback_ptr_) (*callback_ptr_)();
+      }
       break;
 
     case I2C_EVENT_MASTER_BYTE_RECEIVED:  // EV7
-      if (rx_destination_len_ == 1) I2C_AcknowledgeConfig(I2C1, DISABLE);
-      else if (rx_destination_len_ == 0) Next();
+      if (rx_destination_len_ == 2) I2C_AcknowledgeConfig(I2C1, DISABLE);
+      else if (rx_destination_len_ == 1) I2CStop();
       I2CReadByte();
+      if (rx_destination_len_ == 0 && callback_ptr_) (*callback_ptr_)();
       break;
 
     default:
       // Unexpected status message. Send stop.
       i2c_error_ = I2C_ERROR_OTHER;
-      Next();
+      I2CStop();
+      if (callback_ptr_) (*callback_ptr_)();
       break;
   }
 }

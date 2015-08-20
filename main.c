@@ -1,6 +1,8 @@
 #include "91x_lib.h"
 #include "config.h"
+#include "i2c.h"
 #include "led.h"
+#include "lsm303dl.h"
 #include "timing.h"
 #include "uart.h"
 #include "ublox.h"
@@ -58,15 +60,19 @@ int main(void)
   TimingInit();
   LEDInit();
   UARTInit();
+  I2CInit();
+
   UBloxInit();
 
-  UARTPrintf("This is a test");
+  LSM303DLInit();
 
   for (;;) // the endless main loop
   {
-    Wait(100);
+    Wait(1000);
     ProcessIncomingUART();
     ProcessIncomingUBlox();
+    LSM303DLReadMag();
     GreenLEDToggle();
+    UARTPrintf("%i %i %i", Magnetometer()[0], Magnetometer()[1], Magnetometer()[2]);
   }
 }

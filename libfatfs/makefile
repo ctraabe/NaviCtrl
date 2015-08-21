@@ -1,21 +1,6 @@
-# Add library files as needed only:
-SOURCES   = libfatfs/src/ff.c
-SOURCES  += libstr91x/src/91x_gpio.c
-SOURCES  += libstr91x/src/91x_i2c.c
-SOURCES  += libstr91x/src/91x_scu.c
-SOURCES  += libstr91x/src/91x_ssp.c
-SOURCES  += libstr91x/src/91x_tim.c
-SOURCES  += libstr91x/src/91x_uart.c
-SOURCES  += libstr91x/src/91x_vic.c
-SOURCES  += libstr91x/src/91x_wdg.c
-
-TARGET := $(notdir $(shell pwd))
+TARGET := fatfs
 
 MCU      := arm9e
-
-LIBRARY     := $(wildcard lib*)
-LIBRARY_INC := $(addsuffix /include, $(LIBRARY))
-LIBRARY_SRC := $(addsuffix /src, $(LIBRARY))
 
 DEPFLAGS  = -MM -MT '$(addprefix $(BUILD_PATH)/, $(<:.c=.o)) $@' $< -MF $@
 CFLAGS    = -c -g $(LDFLAGS)
@@ -24,14 +9,11 @@ CPPFLAGS  = -std=c++11 -fno-exceptions
 LSTFLAGS  = -Wa,-adhlns=$(addprefix $(BUILD_PATH)/,$(addsuffix .lst, $<))
 LDFLAGS   = -Ofast -pedantic -Wall -Wextra -Werror -Wundef -ffreestanding \
             -Wl,--relax -Tstr911fam.ld
-ALLFLAGS  = -mcpu=$(MCU) -I. $(addprefix -I, $(LIBRARY_INC))
+ALLFLAGS  = -mcpu=$(MCU)
 
+AR   := arm-none-eabi-ar
 CC   := arm-none-eabi-gcc
 CCP  := arm-none-eabi-g++
-CP   := arm-none-eabi-objcopy
-DUMP := arm-none-eabi-objdump
-SIZE := arm-none-eabi-size
-MKP  := mk-programmer
 
 # If the environment variable DEV_BUILD_PATH is set, then the build files will
 # be placed there in a named sub-folder, otherwise a build directory will be
@@ -41,16 +23,17 @@ ifneq ($(DEV_BUILD_PATH),)
 else
   BUILD_PATH := build
 endif
+INSTALL_PATH ?= /opt/arm/arm-none-eabi
 
-SOURCES  += $(wildcard *.S)
+HEADERS   = $(wildcard *.h)
+HEADERS  += $(wildcard *.hpp)
+SOURCES   = $(wildcard *.S)
 SOURCES  += $(wildcard *.c)
 SOURCES  += $(wildcard *.cpp)
 DEPENDS   = $(addsuffix .d, $(addprefix $(BUILD_PATH)/, $(SOURCES)))
 OBJECTS   = $(addsuffix .o, $(addprefix $(BUILD_PATH)/, $(SOURCES)))
 ASSEMBL   = $(addsuffix .lst, $(addprefix $(BUILD_PATH)/, $(SOURCES)))
-
-ELF    := $(BUILD_PATH)/$(TARGET).elf
-HEX    := $(BUILD_PATH)/$(TARGET).hex
+ARCHIVE   = lib$(TARGET).a
 
 # Rules to make dependency "makefiles"
 $(BUILD_PATH)/%.c.d: %.c
@@ -80,32 +63,28 @@ $(BUILD_PATH)/%.cpp.o: %.cpp $(BUILD_PATH)/%.cpp.d
 
 
 # Note that without an argument, make simply tries to build the first target
-# (not rule), which in this case is this target to build the .hex
-$(HEX): $(ELF)
-	$(CP) -O ihex $< $@
-	$(SIZE) --target=ihex $@
+# (not rule), which in this case is this target to build the .a file
+$(BUILD_PATH)/$(ARCHIVE): $(OBJECTS)
+	$(AR) cr $@ $<
 
-# Target to build the .elf file
-# NOTE: -lm includes the math library (libm.a)
-$(ELF): $(OBJECTS)
-	$(CC) $(LDFLAGS) $(CCFLAGS) $(ALLFLAGS) -o $@ $(OBJECTS) -lm
-	$(SIZE) -A $@
+install: $(INSTALL_PATH)
+	mkdir -p $(INSTALL_PATH)/include/$(TARGET)
+	cp $(HEADERS) $(INSTALL_PATH)/include/$(TARGET)/.
+	cp $(BUILD_PATH)/$(ARCHIVE) $(INSTALL_PATH)/lib/.
 
 # Include the dependency "makefiles"
 ifneq ($(MAKECMDGOALS),clean)
 -include $(DEPENDS)
 endif
 
-# Target to program the board
-program: $(HEX)
-	$(MKP) $(HEX)
-
 # Target to clean up the directory (leaving only source)
-clean: $(addprefix $(BUILD_PATH)/, $(LIBRARY_SRC))
-	rm -f $(HEX) $(ELF) $(OBJECTS) $(DEPENDS) $(ASSEMBL)
-	rmdir $(addprefix $(BUILD_PATH)/, $(LIBRARY_SRC))
-	rmdir $(addprefix $(BUILD_PATH)/, $(LIBRARY))
+clean: $(BUILD_PATH)
+	rm -f $(OBJECTS) $(DEPENDS) $(ASSEMBL) $(BUILD_PATH)/$(ARCHIVE)
 	rmdir $(BUILD_PATH)
 
-$(addprefix $(BUILD_PATH)/, $(LIBRARY_SRC)):
-	mkdir -p $@
+uninstall:
+	rm -rf $(INSTALL_PATH)/inlcude/$(TARGET)
+	rm $(INSTALL_PATH)/lib/$(ARCHIVE)
+
+$(BUILD_PATH):
+	mkdir -p $(BUILD_PATH)

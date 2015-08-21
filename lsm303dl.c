@@ -38,7 +38,7 @@ static volatile uint8_t magnetometer_raw_[6] = { 0 };
 
 
 // =============================================================================
-// Accessors
+// Accessors:
 
 int16_t * Magnetometer(void)
 {

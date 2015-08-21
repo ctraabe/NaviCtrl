@@ -36,7 +36,7 @@ static void I2CStop(void);
 
 
 // =============================================================================
-// Accessors
+// Accessors:
 
 enum I2CError I2CError(void)
 {
@@ -170,7 +170,6 @@ enum I2CError I2CTxThenRxThenCallback(uint8_t slave_address,
 }
 
 // -----------------------------------------------------------------------------
-// TODO: make a version that takes a limit
 uint32_t I2CWaitUntilCompletion(uint32_t time_limit_ms)
 {
   uint32_t timeout = GetTimestampMillisFromNow(time_limit_ms);

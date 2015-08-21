@@ -18,7 +18,7 @@ enum I2CError {
 
 
 // =============================================================================
-// Accessors
+// Accessors:
 
 enum I2CError I2CError(void);
 

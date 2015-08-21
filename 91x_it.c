@@ -49,7 +49,7 @@ void UART2_IRQHandler(void) { }
 void I2C0_IRQHandler(void) { }
 // void I2C1_IRQHandler(void) { }
 void SSP0_IRQHandler(void) { }
-void SSP1_IRQHandler(void) { }
+// void SSP1_IRQHandler(void) { }
 void LVD_IRQHandler(void) { }
 void RTC_IRQHandler(void) { }
 void WIU_IRQHandler(void) { }

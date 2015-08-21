@@ -3,6 +3,7 @@
 #include "i2c.h"
 #include "led.h"
 #include "lsm303dl.h"
+#include "spi.h"
 #include "timing.h"
 #include "uart.h"
 #include "ublox.h"
@@ -30,23 +31,22 @@ void SCUConfig(void)
   SCU_PLLFactorsConfig(192,25,3);
   // Enable the PLL.
   SCU_PLLCmd(ENABLE);
-  // Set the BRCLK (baud rate clock) divisor to 1.
-  SCU_BRCLKDivisorConfig(SCU_BRCLK_Div1);
-  // Set the RCLK(reference clock) divisor to 1.
+  // Set the RCLK (reference clock) divisor to 1.
   SCU_RCLKDivisorConfig(SCU_RCLK_Div1);
-  // Set the PCLK (peripheral clock) divisor to 2.
-  SCU_PCLKDivisorConfig(SCU_PCLK_Div2);
   // Set the HCLK (AHB (advanced high-performance bus) clock) divisor to 1.
   SCU_HCLKDivisorConfig(SCU_HCLK_Div1);
+  // Set the PCLK (peripheral clock) divisor to 2.
+  SCU_PCLKDivisorConfig(SCU_PCLK_Div2);
   // Set the PLL as the master clock source.
   SCU_MCLKSourceConfig(SCU_MCLK_PLL);
+  // Set the BRCLK (baud rate clock) divisor to 2.
+  SCU_BRCLKDivisorConfig(SCU_BRCLK_Div2);
 }
 
 //------------------------------------------------------------------------------
-int main(void)
+// Configure the interrupt vector.
+void VICConfig(void)
 {
-  // Configure the system clocks via the SCU (system control unit).
-  SCUConfig();
   // Enable the AHB (advanced high-performance but) clock for VIC (vectored
   // interrupt controller).
   SCU_AHBPeriphClockConfig(__VIC,ENABLE);
@@ -56,17 +56,26 @@ int main(void)
   VIC_DeInit();
   // Initialize VICs default vector registers.
   VIC_InitDefaultVectors();
+}
 
+//------------------------------------------------------------------------------
+int main(void)
+{
+  SCUConfig();
+  VICConfig();
   TimingInit();
   LEDInit();
   UARTInit();
   I2CInit();
+  SPIInit();
 
   UBloxInit();
-
   LSM303DLInit();
 
-  for (;;) // the endless main loop
+  UARTPrintf("University of Tokyo NaviCtrl firmware V2");
+
+  // Main loop.
+  for (;;)
   {
     Wait(1000);
     ProcessIncomingUART();

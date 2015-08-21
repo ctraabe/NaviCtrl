@@ -41,6 +41,8 @@
 //<o> VIC1.5: SPI0 <0-15>
 #define PRIORITY_SPI0 	3		// VIC1.5: timing forced by FC, must be lower than UARTS for flashing FC thrue the NC
 
+#define PRIORITY_SSP1 (5)
+
 //<o> VIC0.5: VIC1.10 switch SD card <0-15>
 #define PRIORITY_SDSWITCH 14	// VIC1.10 switch at sd port
 

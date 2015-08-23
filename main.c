@@ -3,7 +3,7 @@
 #include "i2c.h"
 #include "led.h"
 #include "lsm303dl.h"
-#include "spi.h"
+#include "spi_master.h"
 #include "timing.h"
 #include "uart.h"
 #include "ublox.h"
@@ -67,7 +67,7 @@ int main(void)
   LEDInit();
   UARTInit();
   I2CInit();
-  SPIInit();
+  SPIMasterInit();
 
   UBloxInit();
   LSM303DLInit();

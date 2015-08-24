@@ -3,6 +3,8 @@
 
 
 #include <inttypes.h>
+#include <stddef.h>
+
 
 #define SPI_MASTER_TX_BUFFER_LENGTH (128)
 

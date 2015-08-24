@@ -9,7 +9,7 @@
 // =============================================================================
 // Private data:
 
-  // MMC/SD SPI mode commands
+// MMC/SD SPI mode commands
 #define CMD0  (0)  // GO_IDLE_STATE
 #define CMD1  (1)  // SEND_OP_COND
 #define ACMD41  (0x80+41)  // SEND_OP_COND (SDC)
@@ -32,17 +32,13 @@
 #define CMD55 (55)  // APP_CMD
 #define CMD58 (58)  // READ_OCR
 
-static DSTATUS status_ = STA_NODISK | STA_NOINIT;
+static DSTATUS Stat = STA_NODISK | STA_NOINIT;
+static BYTE CardType;
 
 
 // =============================================================================
 // Private function declarations:
 
-static void Deselect(void);
-static uint32_t SDCardPresent(void);
-static uint32_t Select(void);
-static uint8_t SendCommand(uint8_t cmd, uint32_t arg);
-static uint32_t WaitForReady(uint32_t time_limit_ms);
 
 // =============================================================================
 // Public functions:
@@ -64,61 +60,10 @@ void SDCardInit(void)
   // Configure P5.4 -> SD-CS as an output pin.
   gpio_init.GPIO_Direction = GPIO_PinOutput;
   gpio_init.GPIO_Pin = GPIO_Pin_4;
+  gpio_init.GPIO_Alternate = GPIO_OutputAlt1;
   GPIO_Init (GPIO5, &gpio_init);
-}
 
-
-// =============================================================================
-// Disk I/O functions required for FatFs (declared in diskio.h and ff.h):
-
-// This function returns the card status.
-DSTATUS disk_status(BYTE pdrv)
-{
-  if (pdrv == 0) return status_;
-  return STA_NODISK | STA_NOINIT;
-}
-
-// -----------------------------------------------------------------------------
-// This function initialize the SD card.
-DSTATUS disk_initialize(BYTE pdrv)
-{
-  if (pdrv != 0) return STA_NODISK | STA_NOINIT;
-
-  Wait(10);
-
-  Deselect();
-  // TODO: Is this necessary?
-  SPIMasterStart(10, 0);
-  SPIMasterWaitUntilCompletion(10);
-  SPIMasterResetRxFIFO();
-
-  return STA_NOINIT;
-}
-
-// -----------------------------------------------------------------------------
-// This function reads sector(s) from the SD card.
-DRESULT disk_read(BYTE pdrv, BYTE *buff, DWORD sector, UINT count)
-{
-  return RES_PARERR;
-}
-
-// -----------------------------------------------------------------------------
-// This function writes sector(s) to the SD card.
-DRESULT disk_write(BYTE pdrv, const BYTE *buff, DWORD sector, UINT count)
-{
-  return RES_PARERR;
-}
-// -----------------------------------------------------------------------------
-// This function controls miscellaneous functions other than generic read/write.
-DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void *buff)
-{
-  return RES_PARERR;
-}
-
-// -----------------------------------------------------------------------------
-DWORD get_fattime(void)
-{
-  return 0;
+  GPIO_WriteBit(GPIO5, GPIO_Pin_4, Bit_SET);
 }
 
 
@@ -137,103 +82,304 @@ static void CSPinLow(void)
 }
 
 // -----------------------------------------------------------------------------
-static void Deselect(void)
+static void xmit_mmc(const BYTE* buff, UINT bc)
 {
-  CSPinHigh();
-  // TODO: Is this necessary for single slave applications?
-  SPIMasterStart(1, 0);
-  SPIMasterWaitUntilCompletion(10);
-  SPIMasterResetRxFIFO();
+  do {
+    SSP_SendData(SSP1, *buff++);
+    while(SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty)==RESET);
+    SSP_ReceiveData(SSP1);
+  } while (--bc);
 }
 
 // -----------------------------------------------------------------------------
-static uint32_t SDCardPresent(void)
+// Receive bytes from the card
+static void rcvr_mmc(BYTE *buff, UINT bc)
 {
-  return !(GPIO_ReadBit(GPIO5, GPIO_Pin_3));
+  do {
+    SSP_SendData(SSP1, 0xFF);
+    while(SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty)==RESET);
+    *buff++ = SSP_ReceiveData(SSP1);
+  } while (--bc);
 }
 
 // -----------------------------------------------------------------------------
-static uint32_t Select(void)
+// Wait for card ready
+static int wait_ready(void)  /* 1:OK, 0:Timeout */
 {
-  CSPinLow();
+  BYTE d;
 
-  // Establish the clock to enable DO
-  SPIMasterStart(1, 0);
-  SPIMasterWaitUntilCompletion(10);
-  SPIMasterResetRxFIFO();
+  uint32_t timeout = GetTimestampMillisFromNow(500);
+  while (!TimestampInPast(timeout))
+  {
+    rcvr_mmc(&d, 1);
+    if (d == 0xFF) break;
+    Wait(1);  // dly_us(100);
+  }
 
-  // TODO: Is this too long?
-  if (!WaitForReady(500)) return 0;
+  return !TimestampInPast(timeout);
+}
 
-  // Deselect of the card failed to respond.
-  Deselect();
+// -----------------------------------------------------------------------------
+// Deselect the card and release SPI bus
+static void deselect(void)
+{
+  BYTE d;
+
+  CSPinHigh();       /* Set CS# high */
+  rcvr_mmc(&d, 1);  /* Dummy clock (force DO hi-z for multiple slave SPI) */
+}
+
+// -----------------------------------------------------------------------------
+// Select the card and wait for ready
+static int select(void)  /* 1:OK, 0:Timeout */
+{
+  BYTE d;
+
+  CSPinLow();       /* Set CS# low */
+  rcvr_mmc(&d, 1);  /* Dummy clock (force DO enabled) */
+  if (wait_ready()) return 1; /* Wait for card ready */
+
+  deselect();
+  return 0;     /* Failed */
+}
+
+// -----------------------------------------------------------------------------
+// Receive a data packet from the card
+static int rcvr_datablock(BYTE *buff, UINT btr)
+{
+  BYTE d[2];
+  UINT tmr;
+
+
+  for (tmr = 1000; tmr; tmr--) {  /* Wait for data packet in timeout of 100ms */
+    rcvr_mmc(d, 1);
+    if (d[0] != 0xFF) break;
+    Wait(1);  // dly_us(100);
+  }
+  if (d[0] != 0xFE) return 0;   /* If not valid data token, return with error */
+
+  rcvr_mmc(buff, btr);      /* Receive the data block into buffer */
+  rcvr_mmc(d, 2);         /* Discard CRC */
+
+  return 1;           /* Return with success */
+}
+
+// -----------------------------------------------------------------------------
+// Send a data packet to the card
+static int xmit_datablock(const BYTE *buff, BYTE token)
+{
+  BYTE d[2];
+
+
+  if (!wait_ready()) return 0;
+
+  d[0] = token;
+  xmit_mmc(d, 1);       /* Xmit a token */
+  if (token != 0xFD) {    /* Is it data token? */
+    xmit_mmc(buff, 512);  /* Xmit the 512 byte data block to MMC */
+    rcvr_mmc(d, 2);     /* Xmit dummy CRC (0xFF,0xFF) */
+    rcvr_mmc(d, 1);     /* Receive data response */
+    if ((d[0] & 0x1F) != 0x05)  /* If not accepted, return with error */
+      return 0;
+  }
+
   return 1;
 }
 
 // -----------------------------------------------------------------------------
-static uint8_t SendCommand(uint8_t cmd, uint32_t arg)
+// Send a command packet to the card
+static BYTE send_cmd( BYTE cmd, DWORD arg)
 {
-  uint8_t n;
+  BYTE n, d, buf[6];
 
-  // ACMDXX begins with a sequence of CMD55 commands until the response is 0.
-  if (cmd & 0x80)
-  {
+
+  if (cmd & 0x80) { /* ACMD<n> is the command sequense of CMD55-CMD<n> */
     cmd &= 0x7F;
-    n = SendCommand(CMD55, 0);
+    n = send_cmd(CMD55, 0);
     if (n > 1) return n;
   }
 
-  // Select the card and wait for ready response.
-  if (cmd != CMD12)
-  {
-    Deselect();
-    if (Select()) return 0xFF;  // Card did not respond
+  /* Select the card and wait for ready except to stop multiple block read */
+  if (cmd != CMD12) {
+    deselect();
+    if (!select()) return 0xFF;
   }
 
-  // Send a command packet.
-  uint8_t * tx_buffer = RequestSPIMasterTxBuffer();
-  if (!tx_buffer) return 0xFF;  // TX buffer not ready
-  tx_buffer[0] = 0x40 | cmd;  // Start + Command
-  tx_buffer[1] = (uint8_t)(arg >> 24);  // Argument[31..24]
-  tx_buffer[2] = (uint8_t)(arg >> 16);  // Argument[23..16]
-  tx_buffer[3] = (uint8_t)(arg >> 8);  // Argument[15..8]
-  tx_buffer[4] = (uint8_t)arg;  // Argument[7..0]
-  n = 0x01;  // Dummy CRC + Stop
-  if (cmd == CMD0) n = 0x95;  // (valid CRC for CMD0(0))
-  if (cmd == CMD8) n = 0x87;  // (valid CRC for CMD8(0x1AA))
-  tx_buffer[5] = n;
-  SPIMasterStart(0, 6);
+  /* Send a command packet */
+  buf[0] = 0x40 | cmd;      /* Start + Command index */
+  buf[1] = (BYTE)(arg >> 24);   /* Argument[31..24] */
+  buf[2] = (BYTE)(arg >> 16);   /* Argument[23..16] */
+  buf[3] = (BYTE)(arg >> 8);    /* Argument[15..8] */
+  buf[4] = (BYTE)arg;       /* Argument[7..0] */
+  n = 0x01;           /* Dummy CRC + Stop */
+  if (cmd == CMD0) n = 0x95;    /* (valid CRC for CMD0(0)) */
+  if (cmd == CMD8) n = 0x87;    /* (valid CRC for CMD8(0x1AA)) */
+  buf[5] = n;
+  xmit_mmc(buf, 6);
 
-  // Skip one received byte following a "stop transmission" command.
-  if (cmd == CMD12)
-  {
-    SPIMasterStart(1, 0);
-    SPIMasterWaitUntilCompletion(10);
-    SPIMasterResetRxFIFO();
-  }
+  /* Receive command response */
+  if (cmd == CMD12) rcvr_mmc(&d, 1);  /* Skip a stuff byte when stop reading */
+  n = 10;               /* Wait for a valid response in timeout of 10 attempts */
+  do
+    rcvr_mmc(&d, 1);
+  while ((d & 0x80) && --n);
 
-  // Get the response to the command.
-  uint8_t response = 0;
-  for (uint32_t i = 10; --i && (response & 0x80); )
-  {
-    SPIMasterStart(1, 0);
-    SPIMasterWaitUntilCompletion(10);
-    while(!SPIMasterGetByte(&response));
-  }
+  return d;     /* Return with the response value */
+}
 
-  return response;
+
+// =============================================================================
+// Disk I/O functions required for FatFs (declared in diskio.h and ff.h):
+
+// This function returns the card status.
+DSTATUS disk_status(BYTE drv)
+{
+  if (drv == 0) return Stat;
+  return STA_NODISK | STA_NOINIT;
 }
 
 // -----------------------------------------------------------------------------
-static uint32_t WaitForReady(uint32_t time_limit_ms)
+// This function initialize the SD card.
+DSTATUS disk_initialize(BYTE drv)
 {
-  uint32_t timeout = GetTimestampMillisFromNow(time_limit_ms);
-  uint8_t response = 0;
-  while ((response != 0xFF) && !TimestampInPast(timeout))
-  {
-    SPIMasterStart(1, 0);
-    SPIMasterWaitUntilCompletion(10);
-    while(!SPIMasterGetByte(&response));
+  BYTE n, ty, cmd, buf[4];
+  UINT tmr;
+  DSTATUS s;
+
+  if (drv) return RES_NOTRDY;
+
+  Wait(10);  // dly_us(10000);      /* 10ms */
+  CSPinHigh();    /* Initialize port pin tied to CS */
+
+  for (n = 10; n; n--) rcvr_mmc(buf, 1);  /* Apply 80 dummy clocks and the card gets ready to receive command */
+
+  ty = 0;
+  if (send_cmd(CMD0, 0) == 1) {     /* Enter Idle state */
+    if (send_cmd(CMD8, 0x1AA) == 1) { /* SDv2? */
+      rcvr_mmc(buf, 4);             /* Get trailing return value of R7 resp */
+      if (buf[2] == 0x01 && buf[3] == 0xAA) {   /* The card can work at vdd range of 2.7-3.6V */
+        for (tmr = 1000; tmr; tmr--) {      /* Wait for leaving idle state (ACMD41 with HCS bit) */
+          if (send_cmd(ACMD41, 1UL << 30) == 0) break;
+          Wait(1);  // dly_us(1000);
+        }
+        if (tmr && send_cmd(CMD58, 0) == 0) { /* Check CCS bit in the OCR */
+          rcvr_mmc(buf, 4);
+          ty = (buf[0] & 0x40) ? CT_SD2 | CT_BLOCK : CT_SD2;  /* SDv2 */
+        }
+      }
+    } else {              /* SDv1 or MMCv3 */
+      if (send_cmd(ACMD41, 0) <= 1)   {
+        ty = CT_SD1; cmd = ACMD41;  /* SDv1 */
+      } else {
+        ty = CT_MMC; cmd = CMD1;  /* MMCv3 */
+      }
+      for (tmr = 1000; tmr; tmr--) {      /* Wait for leaving idle state */
+        if (send_cmd(cmd, 0) == 0) break;
+        Wait(1);  // dly_us(1000);
+      }
+      if (!tmr || send_cmd(CMD16, 512) != 0)  /* Set R/W block length to 512 */
+        ty = 0;
+    }
   }
-  return TimestampInPast(timeout);
+  CardType = ty;
+  s = ty ? 0 : STA_NOINIT;
+  Stat = s;
+
+  deselect();
+
+  return s;
+}
+
+// -----------------------------------------------------------------------------
+// This function reads sector(s) from the SD card.
+DRESULT disk_read(BYTE drv, BYTE *buff, DWORD sector, UINT count)
+{
+  BYTE cmd;
+
+  if (disk_status(drv) & STA_NOINIT) return RES_NOTRDY;
+  if (!(CardType & CT_BLOCK)) sector *= 512;  /* Convert LBA to byte address if needed */
+
+  cmd = count > 1 ? CMD18 : CMD17;      /*  READ_MULTIPLE_BLOCK : READ_SINGLE_BLOCK */
+  if (send_cmd(cmd, sector) == 0) {
+    do {
+      if (!rcvr_datablock(buff, 512)) break;
+      buff += 512;
+    } while (--count);
+    if (cmd == CMD18) send_cmd(CMD12, 0); /* STOP_TRANSMISSION */
+  }
+  deselect();
+
+  return count ? RES_ERROR : RES_OK;
+}
+
+// -----------------------------------------------------------------------------
+// This function writes sector(s) to the SD card.
+DRESULT disk_write(BYTE drv, const BYTE *buff, DWORD sector, UINT count)
+{
+  if (disk_status(drv) & STA_NOINIT) return RES_NOTRDY;
+  if (!(CardType & CT_BLOCK)) sector *= 512;  /* Convert LBA to byte address if needed */
+
+  if (count == 1) { /* Single block write */
+    if ((send_cmd(CMD24, sector) == 0)  /* WRITE_BLOCK */
+      && xmit_datablock(buff, 0xFE))
+      count = 0;
+  }
+  else {        /* Multiple block write */
+    if (CardType & CT_SDC) send_cmd(ACMD23, count);
+    if (send_cmd(CMD25, sector) == 0) { /* WRITE_MULTIPLE_BLOCK */
+      do {
+        if (!xmit_datablock(buff, 0xFC)) break;
+        buff += 512;
+      } while (--count);
+      if (!xmit_datablock(0, 0xFD)) /* STOP_TRAN token */
+        count = 1;
+    }
+  }
+  deselect();
+
+  return count ? RES_ERROR : RES_OK;
+}
+// -----------------------------------------------------------------------------
+// This function controls miscellaneous functions other than generic read/write.
+DRESULT disk_ioctl(BYTE drv, BYTE ctrl, void *buff)
+{
+  DRESULT res;
+  BYTE n, csd[16];
+  DWORD cs;
+
+
+  if (disk_status(drv) & STA_NOINIT) return RES_NOTRDY; /* Check if card is in the socket */
+
+  res = RES_ERROR;
+  switch (ctrl) {
+    case CTRL_SYNC :    /* Make sure that no pending write process */
+      if (select()) res = RES_OK;
+      break;
+
+    case GET_SECTOR_COUNT : /* Get number of sectors on the disk (DWORD) */
+      if ((send_cmd(CMD9, 0) == 0) && rcvr_datablock(csd, 16)) {
+        if ((csd[0] >> 6) == 1) { /* SDC ver 2.00 */
+          cs = csd[9] + ((WORD)csd[8] << 8) + ((DWORD)(csd[7] & 63) << 16) + 1;
+          *(DWORD*)buff = cs << 10;
+        } else {          /* SDC ver 1.XX or MMC */
+          n = (csd[5] & 15) + ((csd[10] & 128) >> 7) + ((csd[9] & 3) << 1) + 2;
+          cs = (csd[8] >> 6) + ((WORD)csd[7] << 2) + ((WORD)(csd[6] & 3) << 10) + 1;
+          *(DWORD*)buff = cs << (n - 9);
+        }
+        res = RES_OK;
+      }
+      break;
+
+    case GET_BLOCK_SIZE : /* Get erase block size in unit of sector (DWORD) */
+      *(DWORD*)buff = 128;
+      res = RES_OK;
+      break;
+
+    default:
+      res = RES_PARERR;
+  }
+
+  deselect();
+
+  return res;
 }

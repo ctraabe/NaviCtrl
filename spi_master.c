@@ -3,8 +3,6 @@
 #include "91x_lib.h"
 #include "config.h"
 #include "timing.h"
-// TODO: Remove
-#include "uart.h"
 
 
 // =============================================================================
@@ -66,9 +64,9 @@ void SPIMasterInit(void)
   SSP_Init(SSP1, &ssp_init);
   SSP_Cmd(SSP1, ENABLE);
 
-  SSP_ITConfig(SSP1, SSP_IT_RxFifo, ENABLE);
-  VIC_Config(SSP1_ITLine, VIC_IRQ, PRIORITY_SSP1);
-  VIC_ITCmd(SSP1_ITLine, ENABLE);
+  // SSP_ITConfig(SSP1, SSP_IT_RxFifo, ENABLE);
+  // VIC_Config(SSP1_ITLine, VIC_IRQ, PRIORITY_SSP1);
+  // VIC_ITCmd(SSP1_ITLine, ENABLE);
 }
 
 // -----------------------------------------------------------------------------

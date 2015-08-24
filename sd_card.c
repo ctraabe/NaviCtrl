@@ -2,13 +2,14 @@
 
 #include "91x_lib.h"
 #include "diskio.h"  // from libfatfs
-#include "spi_master.h"
 #include "timing.h"
 #include "uart.h"
 
 
 // =============================================================================
 // Private data:
+
+#define CLOCK_DIVIDER_SPI1 (6)  // Must be even
 
 // MMC/SD SPI mode commands
 enum SDCommands {
@@ -45,6 +46,9 @@ enum R1ResponseBits {
   R1_PARAMETER_ERROR = 1<<6,
 };
 
+static volatile UINT bytes_remaining_ = 0;
+static volatile UINT rx_bytes_remaining_ = 0, tx_bytes_remaining_ = 0;
+static volatile BYTE * rx_buffer_ = 0, * tx_buffer_ = 0;
 static DSTATUS status_ = STA_NODISK | STA_NOINIT;
 static BYTE card_type_;
 
@@ -52,17 +56,20 @@ static BYTE card_type_;
 // =============================================================================
 // Private function declarations:
 
-static void CSPinHigh(void);
-static void CSPinLow(void);
-static inline void ClearRxFIFO(void);
-static void Tx(const BYTE* buff, UINT bc);
-static void Rx(BYTE *buff, UINT bc);
-static uint32_t WaitForSDCard(void);
-static void Deselect(void);
+static inline void CSPinHigh(void);
+static inline void CSPinLow(void);
+static inline void Deselect(void);
 static uint32_t Select(void);
-static uint32_t RxDataBlock(BYTE *buff, UINT btr);
-static uint32_t TxDataBlock(const BYTE *buff, BYTE token);
-static BYTE TxCommand( BYTE cmd, DWORD arg);
+static void RxBuffer(BYTE *buffer, UINT length);
+static BYTE RxByte(void);
+static void TxBuffer(const BYTE* buffer, UINT length);
+static void TxByte(BYTE byte);
+static uint32_t WaitForSDCard(void);
+static uint32_t RxDataBlock(BYTE *buffer, UINT length);
+static uint32_t TxDataBlock(const BYTE *buffer, BYTE token);
+static BYTE TxCommand(BYTE command, DWORD argument);
+static void SetBaud(uint32_t baud_rate);
+static uint32_t WaitForSPI(uint32_t time_limit_ms);
 
 
 // =============================================================================
@@ -70,23 +77,36 @@ static BYTE TxCommand( BYTE cmd, DWORD arg);
 
 void SDCardInit(void)
 {
+  SCU_APBPeriphClockConfig(__GPIO3 ,ENABLE);
   SCU_APBPeriphClockConfig(__GPIO5, ENABLE);
+  SCU_APBPeriphClockConfig(__SSP1 ,ENABLE);
 
   GPIO_InitTypeDef gpio_init;
-
-  // Configure SD_SWITCH at pin GPIO5.3 as an external irq 11
-  gpio_init.GPIO_Direction = GPIO_PinInput;
-  gpio_init.GPIO_Pin = GPIO_Pin_3;
-  gpio_init.GPIO_Type = GPIO_Type_PushPull;
-  gpio_init.GPIO_IPInputConnected = GPIO_IPInputConnected_Disable;
-  gpio_init.GPIO_Alternate = GPIO_InputAlt1;
-  GPIO_Init(GPIO5, &gpio_init);
 
   // Configure P5.4 -> SD-CS as an output pin.
   gpio_init.GPIO_Direction = GPIO_PinOutput;
   gpio_init.GPIO_Pin = GPIO_Pin_4;
+  gpio_init.GPIO_Type = GPIO_Type_PushPull;
+  gpio_init.GPIO_IPInputConnected = GPIO_IPInputConnected_Disable;
   gpio_init.GPIO_Alternate = GPIO_OutputAlt1;
   GPIO_Init (GPIO5, &gpio_init);
+
+  // Configure SD_SWITCH at pin GPIO5.3 as an external irq 11
+  gpio_init.GPIO_Direction = GPIO_PinInput;
+  gpio_init.GPIO_Pin = GPIO_Pin_3;
+  gpio_init.GPIO_Alternate = GPIO_InputAlt1;
+  GPIO_Init(GPIO5, &gpio_init);
+
+  // Configure P3.5 <- MISO1 as an input pin.
+  gpio_init.GPIO_Pin = GPIO_Pin_5;
+  gpio_init.GPIO_IPInputConnected = GPIO_IPInputConnected_Enable;
+  GPIO_Init (GPIO3, &gpio_init);
+
+  // Configure P3.4 -> SCK1 and P3.6 -> MOSI1 as output pins.
+  gpio_init.GPIO_Direction = GPIO_PinOutput;
+  gpio_init.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_6;
+  gpio_init.GPIO_Alternate = GPIO_OutputAlt2;
+  GPIO_Init (GPIO3, &gpio_init);
 
   GPIO_WriteBit(GPIO5, GPIO_Pin_4, Bit_SET);
 }
@@ -126,43 +146,41 @@ DSTATUS disk_initialize(BYTE drive_number)
   CSPinHigh();
 
   // Initiate at least 74 clock cycles at 100 - 400 kHz to initialize the card.
-  SPIMasterSetBaud(1000000L);
-  for (uint32_t i = 10; --i; )
+  SetBaud(1000000L);
+  for (uint32_t i = 10; i; --i)
   {
     while (!SSP_GetFlagStatus(SSP1, SSP_FLAG_TxFifoNotFull)) continue;
     SSP_SendData(SSP1, 0xFF);
   }
-  SPIMasterWaitUntilCompletion(1);  // Should require <= 0.8 ms to complete
-  ClearRxFIFO();
-  SPIMasterSetBaud(4000000L);
+  WaitForSPI(10);  // Should require <= 0.8 ms to complete
+  while (SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty))
+    SSP_ReceiveData(SSP1);
+  SetBaud(4000000L);
 
   // First assume an unidentified card type.
   card_type_ = 0;
   status_ = STA_NOINIT;
 
   // Request idle (reset) state.
-  if (TxCommand(SD_CMD0, 0) == R1_IDLE)
+  if (TxCommand(SD_CMD0, 0x00000000) == R1_IDLE)
   {
     // Request voltage range (only SD v2 or greater will respond).
-    if (TxCommand(SD_CMD8, 0x1AA) == R1_IDLE)
+    if (TxCommand(SD_CMD8, 0x000001AA) == R1_IDLE)
     {
       BYTE rx_buffer[4];
       // Get the OCR (trailing 32-bits of the R7 response).
-      Rx(rx_buffer, 4);
+      RxBuffer(rx_buffer, 4);
       // Check for a valid response (indicates SD v2 or greater).
       if (rx_buffer[2] == 0x01 && rx_buffer[3] == 0xAA)
       {
-        // Wait for the card to leave idle state.
-        uint32_t timer = 1000;  // Wait up to a second
-        while (timer--)
-        {
-          if (TxCommand(SD_ACMD41, 0x40000000) == 0x00) break;
+        // Wait up to a second for the card to leave idle state.
+        UINT ms_timer = 1000;
+        while ((TxCommand(SD_ACMD41, 0x40000000) != 0x00) && --ms_timer)
           Wait(1);
-        }
-        if ((timer != 0) && (TxCommand(SD_CMD58, 0) == 0))
+        if ((ms_timer != 0) && (TxCommand(SD_CMD58, 0x00000000) == 0x00))
         {
           // Check the HCS bit in the OCR, if set, card is SDHC/SDXC.
-          Rx(rx_buffer, 4);
+          RxBuffer(rx_buffer, 4);
           card_type_ = (rx_buffer[0] & 0x40) ? CT_SD2 | CT_BLOCK : CT_SD2;
         }
         else
@@ -179,7 +197,7 @@ DSTATUS disk_initialize(BYTE drive_number)
     {  // SD v1 or MMC v3
       BYTE command;
       // Send an initialization command (only SD cards will respond).
-      if ((TxCommand(SD_ACMD41, 0) | R1_IDLE) == R1_IDLE)
+      if ((TxCommand(SD_ACMD41, 0x00000000) | R1_IDLE) == R1_IDLE)
       {
         card_type_ = CT_SD1;  // SD v1
         command = SD_ACMD41;
@@ -189,14 +207,10 @@ DSTATUS disk_initialize(BYTE drive_number)
         card_type_ = CT_MMC;  // MMC v3
         command = SD_CMD1;
       }
-        // Wait for the card to leave idle state.
-      uint32_t timer = 1000;  // Wait up to a second
-      while (timer--)
-      {
-        if (TxCommand(command, 0) == 0) break;
-        Wait(1);
-      }
-      if (timer == 0)
+        // Wait up to a second for the card to leave idle state.
+      UINT ms_timer = 1000;
+      while ((TxCommand(command, 0x00000000) != 0) && --ms_timer) Wait(1);
+      if (ms_timer == 0)
       {
         UARTPrintf("sd_card: SD card failed to leave idle state");
         card_type_ = 0;
@@ -228,7 +242,7 @@ DSTATUS disk_initialize(BYTE drive_number)
 
 // -----------------------------------------------------------------------------
 // This function reads sector(s) from the SD card.
-DRESULT disk_read(BYTE drive_number, BYTE *buff, DWORD sector, UINT count)
+DRESULT disk_read(BYTE drive_number, BYTE *buffer, DWORD sector, UINT count)
 {
   BYTE cmd;
 
@@ -238,8 +252,8 @@ DRESULT disk_read(BYTE drive_number, BYTE *buff, DWORD sector, UINT count)
   cmd = count > 1 ? SD_CMD18 : SD_CMD17;      /*  READ_MULTIPLE_BLOCK : READ_SINGLE_BLOCK */
   if (TxCommand(cmd, sector) == 0) {
     do {
-      if (!RxDataBlock(buff, 512)) break;
-      buff += 512;
+      if (!RxDataBlock(buffer, 512)) break;
+      buffer += 512;
     } while (--count);
     if (cmd == SD_CMD18) TxCommand(SD_CMD12, 0); /* STOP_TRANSMISSION */
   }
@@ -250,22 +264,22 @@ DRESULT disk_read(BYTE drive_number, BYTE *buff, DWORD sector, UINT count)
 
 // -----------------------------------------------------------------------------
 // This function writes sector(s) to the SD card.
-DRESULT disk_write(BYTE drive_number, const BYTE *buff, DWORD sector, UINT count)
+DRESULT disk_write(BYTE drive_number, const BYTE *buffer, DWORD sector, UINT count)
 {
   if (disk_status(drive_number) & STA_NOINIT) return RES_NOTRDY;
   if (!(card_type_ & CT_BLOCK)) sector *= 512;  /* Convert LBA to byte address if needed */
 
   if (count == 1) { /* Single block write */
     if ((TxCommand(SD_CMD24, sector) == 0)  /* WRITE_BLOCK */
-      && TxDataBlock(buff, 0xFE))
+      && TxDataBlock(buffer, 0xFE))
       count = 0;
   }
   else {        /* Multiple block write */
     if (card_type_ & CT_SDC) TxCommand(SD_ACMD23, count);
     if (TxCommand(SD_CMD25, sector) == 0) { /* WRITE_MULTIPLE_BLOCK */
       do {
-        if (!TxDataBlock(buff, 0xFC)) break;
-        buff += 512;
+        if (!TxDataBlock(buffer, 0xFC)) break;
+        buffer += 512;
       } while (--count);
       if (!TxDataBlock(0, 0xFD)) /* STOP_TRAN token */
         count = 1;
@@ -277,7 +291,7 @@ DRESULT disk_write(BYTE drive_number, const BYTE *buff, DWORD sector, UINT count
 }
 // -----------------------------------------------------------------------------
 // This function controls miscellaneous functions other than generic read/write.
-DRESULT disk_ioctl(BYTE drive_number, BYTE ctrl, void *buff)
+DRESULT disk_ioctl(BYTE drive_number, BYTE ctrl, void *buffer)
 {
   DRESULT res;
   BYTE n, csd[16];
@@ -296,18 +310,18 @@ DRESULT disk_ioctl(BYTE drive_number, BYTE ctrl, void *buff)
       if ((TxCommand(SD_CMD9, 0) == 0) && RxDataBlock(csd, 16)) {
         if ((csd[0] >> 6) == 1) { /* SDC ver 2.00 */
           cs = csd[9] + ((WORD)csd[8] << 8) + ((DWORD)(csd[7] & 63) << 16) + 1;
-          *(DWORD*)buff = cs << 10;
+          *(DWORD*)buffer = cs << 10;
         } else {          /* SDC ver 1.XX or MMC */
           n = (csd[5] & 15) + ((csd[10] & 128) >> 7) + ((csd[9] & 3) << 1) + 2;
           cs = (csd[8] >> 6) + ((WORD)csd[7] << 2) + ((WORD)(csd[6] & 3) << 10) + 1;
-          *(DWORD*)buff = cs << (n - 9);
+          *(DWORD*)buffer = cs << (n - 9);
         }
         res = RES_OK;
       }
       break;
 
     case GET_BLOCK_SIZE : /* Get erase block size in unit of sector (DWORD) */
-      *(DWORD*)buff = 128;
+      *(DWORD*)buffer = 128;
       res = RES_OK;
       break;
 
@@ -324,166 +338,232 @@ DRESULT disk_ioctl(BYTE drive_number, BYTE ctrl, void *buff)
 // =============================================================================
 // Private functions:
 
-static void CSPinHigh(void)
+static inline void CSPinHigh(void)
 {
   GPIO_WriteBit(GPIO5, GPIO_Pin_4 , Bit_SET);
 }
 
 // -----------------------------------------------------------------------------
-static void CSPinLow(void)
+static inline void CSPinLow(void)
 {
   GPIO_WriteBit(GPIO5, GPIO_Pin_4 , Bit_RESET);
 }
 
 // -----------------------------------------------------------------------------
-static inline void ClearRxFIFO(void)
-{
-  // Read bytes until the Rx FIFO is empty.
-  if (SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty)) SSP_ReceiveData(SSP1);
-}
-
-// -----------------------------------------------------------------------------
-static void Tx(const BYTE* buff, UINT bc)
-{
-  do {
-    SSP_SendData(SSP1, *buff++);
-    while(SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty)==RESET);
-    SSP_ReceiveData(SSP1);
-  } while (--bc);
-}
-
-// -----------------------------------------------------------------------------
-// Receive bytes from the card
-static void Rx(BYTE *buff, UINT bc)
-{
-  do {
-    SSP_SendData(SSP1, 0xFF);
-    while(SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty)==RESET);
-    *buff++ = SSP_ReceiveData(SSP1);
-  } while (--bc);
-}
-
-// -----------------------------------------------------------------------------
-// Wait for card ready
-static uint32_t WaitForSDCard(void)  /* 1:OK, 0:Timeout */
-{
-  BYTE d;
-
-  uint32_t timeout = GetTimestampMillisFromNow(500);
-  while (!TimestampInPast(timeout))
-  {
-    Rx(&d, 1);
-    if (d == 0xFF) break;
-    Wait(1);  // dly_us(100);
-  }
-
-  return !TimestampInPast(timeout);
-}
-
-// -----------------------------------------------------------------------------
 // Deselect the card and release SPI bus
-static void Deselect(void)
+static inline void Deselect(void)
 {
-  BYTE d;
-
-  CSPinHigh();       /* Set CS# high */
-  Rx(&d, 1);  /* Dummy clock (force DO hi-z for multiple slave SPI) */
+  CSPinHigh();
+  RxByte();  // Run the clock for one frame
 }
 
 // -----------------------------------------------------------------------------
 // Select the card and wait for ready
 static uint32_t Select(void)  /* 1:OK, 0:Timeout */
 {
-  BYTE d;
-
-  CSPinLow();       /* Set CS# low */
-  Rx(&d, 1);  /* Dummy clock (force DO enabled) */
-  if (WaitForSDCard()) return 1; /* Wait for card ready */
+  CSPinLow();
+  RxByte();  // Run the clock for one frame
+  if (WaitForSDCard()) return 1;  // Success
 
   Deselect();
-  return 0;     /* Failed */
+  return 0;  // Failure
 }
 
 // -----------------------------------------------------------------------------
-// Receive a data packet from the card
-static uint32_t RxDataBlock(BYTE *buff, UINT btr)
+// Receive bytes from the card
+static void RxBuffer(BYTE *buffer, UINT length)
 {
-  BYTE d[2];
-  UINT tmr;
-
-
-  for (tmr = 1000; tmr; tmr--) {  /* Wait for data packet in timeout of 100ms */
-    Rx(d, 1);
-    if (d[0] != 0xFF) break;
-    Wait(1);  // dly_us(100);
-  }
-  if (d[0] != 0xFE) return 0;   /* If not valid data token, return with error */
-
-  Rx(buff, btr);      /* Receive the data block into buffer */
-  Rx(d, 2);         /* Discard CRC */
-
-  return 1;           /* Return with success */
+  do
+  {
+    *buffer++ = RxByte();
+  } while (--length);
 }
 
 // -----------------------------------------------------------------------------
-// Send a data packet to the card
-static uint32_t TxDataBlock(const BYTE *buff, BYTE token)
+static BYTE RxByte(void)
 {
-  BYTE d[2];
+  SSP_SendData(SSP1, 0xFF);
+  while (!SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty)) continue;
+  return SSP_ReceiveData(SSP1);
+}
 
+// -----------------------------------------------------------------------------
+static void TxBuffer(const BYTE* buffer, UINT length)
+{
+  do
+  {
+    TxByte(*buffer++);
+  } while (--length);
+}
 
-  if (!WaitForSDCard()) return 0;
+// -----------------------------------------------------------------------------
+static void TxByte(BYTE byte)
+{
+  SSP_SendData(SSP1, byte);
+  while (!SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty)) continue;
+  SSP_ReceiveData(SSP1);
+}
 
-  d[0] = token;
-  Tx(d, 1);       /* Xmit a token */
-  if (token != 0xFD) {    /* Is it data token? */
-    Tx(buff, 512);  /* Xmit the 512 byte data block to MMC */
-    Rx(d, 2);     /* Xmit dummy CRC (0xFF,0xFF) */
-    Rx(d, 1);     /* Receive data response */
-    if ((d[0] & 0x1F) != 0x05)  /* If not accepted, return with error */
-      return 0;
+// -----------------------------------------------------------------------------
+// Wait up to 500 ms for the SD card to exit the busy state.
+static uint32_t WaitForSDCard(void)  /* 1:OK, 0:Timeout */
+{
+  uint32_t timeout = GetTimestampMillisFromNow(500);
+  while ((RxByte() != 0xFF) && !TimestampInPast(timeout)) MicroWait(100);
+  return !TimestampInPast(timeout);
+}
+
+// -----------------------------------------------------------------------------
+// Receive a data packet from the card.
+static uint32_t RxDataBlock(BYTE *buffer, UINT length)
+{
+  // Wait for the leading data token (DO is held high until then).
+  BYTE temp;
+  for (UINT timer = 1000; timer; --timer)
+  {
+    temp = RxByte();
+    if (temp != 0xFF) break;
+    MicroWait(100);
+  }
+  if (temp != 0xFE) return 0;  // Received byte differs from the expected token
+
+  RxBuffer(buffer, length);
+  RxByte();  // Discard the first CRC byte
+  RxByte();  // Discard the second CRC byte
+
+  return 1;  // Success
+}
+
+// -----------------------------------------------------------------------------
+// Send a data packet to the card.
+static uint32_t TxDataBlock(const BYTE *buffer, BYTE token)
+{
+  if (!WaitForSDCard()) return 0;  // Timed out
+
+  TxByte(token);  // Transmit the token that leads the data block
+
+  // If this is a data token, then follow up with the data block.
+  if (token != 0xFD)
+  {
+    TxBuffer(buffer, 512);
+    RxByte();  // Just transmit 0xFF for the first CRC byte (ignored)
+    RxByte();  // Just transmit 0xFF for the second CRC byte (ignored)
+    if ((RxByte() & 0x1F) != 0x05) return 0;  // Data not accepted
   }
 
-  return 1;
+  return 1;  // Success
 }
 
 // -----------------------------------------------------------------------------
 // Send a command packet to the card
-static BYTE TxCommand( BYTE cmd, DWORD arg)
+static BYTE TxCommand(BYTE command, DWORD argument)
 {
-  BYTE n, d, buf[6];
-
-
-  if (cmd & 0x80) { /* SD_ACMD<n> is the command sequense of SD_CMD55-SD_CMD<n> */
-    cmd &= 0x7F;
-    n = TxCommand(SD_CMD55, 0);
-    if (n > 1) return n;
+  // SD_ACMDxx must be preceded by CMD55
+  if (command & 0x80)
+  {
+    command &= 0x7F;
+    BYTE response = TxCommand(SD_CMD55, 0);
+    if (response > 0x01) return response;
   }
 
-  /* Select the card and wait for ready except to stop multiple block read */
-  if (cmd != SD_CMD12) {
+  // Select the card and wait for ready (except to stop a multiple block read)
+  if (command != SD_CMD12)
+  {
     Deselect();
     if (!Select()) return 0xFF;
   }
 
-  /* Send a command packet */
-  buf[0] = 0x40 | cmd;      /* Start + Command index */
-  buf[1] = (BYTE)(arg >> 24);   /* arg[31..24] */
-  buf[2] = (BYTE)(arg >> 16);   /* arg[23..16] */
-  buf[3] = (BYTE)(arg >> 8);    /* arg[15..8] */
-  buf[4] = (BYTE)arg;       /* arg[7..0] */
-  n = 0x01;           /* Dummy CRC + Stop */
-  if (cmd == SD_CMD0) n = 0x95;    /* (valid CRC for SD_CMD0(0)) */
-  if (cmd == SD_CMD8) n = 0x87;    /* (valid CRC for SD_CMD8(0x1AA)) */
-  buf[5] = n;
-  Tx(buf, 6);
+  // Send the command packet
+  BYTE buffer[6];
+  buffer[0] = 0x40 | command;  // Start + command index
+  buffer[1] = (BYTE)(argument >> 24);
+  buffer[2] = (BYTE)(argument >> 16);
+  buffer[3] = (BYTE)(argument >> 8);
+  buffer[4] = (BYTE)argument;
+  // Note that the CRC is ignored for all commands except CMD0 and CMD8, but
+  // must contain a trailing 1. Just send the CRC for CMD0 unless CMD8.
+  buffer[5] = 0x95;  // valid CRC for CMD0+0x00000000
+  if (command == SD_CMD8) buffer[5] = 0x87;  // valid CRC for CMD8+0x000001AA
+  TxBuffer(buffer, 6);
 
-  /* Receive command response */
-  if (cmd == SD_CMD12) Rx(&d, 1);  /* Skip a stuff byte when stop reading */
-  n = 10;               /* Wait for a valid response in timeout of 10 attempts */
+  // Receive the response
+  BYTE response;
+  if (command == SD_CMD12) RxByte();  // Skip one byte of junk
+  UINT timer = 10;
   do
-    Rx(&d, 1);
-  while ((d & 0x80) && --n);
+  {
+    response = RxByte();
+  } while ((response & 0x80) && --timer);
 
-  return d;     /* Return with the response value */
+  return response;
+}
+/*
+// -----------------------------------------------------------------------------
+static void SPIStart(size_t exchange_length, size_t rx_length, size_t tx_length)
+{
+  if (exchange_length < rx_length) exchange_length = rx_length;
+  if (exchange_length < tx_length) exchange_length = tx_length;
+  bytes_remaining_ = exchange_length;
+  rx_bytes_remaining_ = rx_length;
+  tx_bytes_remaining_ = tx_length;
+  SSP_ITConfig(SSP1, SSP_IT_TxFifo, ENABLE);
+}
+*/
+// -----------------------------------------------------------------------------
+static void SetBaud(uint32_t baud_rate)
+{
+  uint32_t baud_rate_clock = SCU_GetMCLKFreqValue() * 1000;
+  if (!(SCU->CLKCNTR & SCU_BRCLK_Div1)) baud_rate_clock /= 2;
+  // TODO: make sure baud_rate is achievable
+  uint32_t prescaler = baud_rate_clock / (CLOCK_DIVIDER_SPI1 * baud_rate) - 1;
+
+  SSP_InitTypeDef ssp_init;
+
+  SSP_StructInit(&ssp_init);
+  ssp_init.SSP_ClockRate = CLOCK_DIVIDER_SPI1;
+  ssp_init.SSP_ClockPrescaler = (uint8_t)prescaler;
+  SSP_DeInit(SSP1);
+  SSP_Init(SSP1, &ssp_init);
+  SSP_Cmd(SSP1, ENABLE);
+}
+
+// -----------------------------------------------------------------------------
+static uint32_t WaitForSPI(uint32_t time_limit_ms)
+{
+  uint32_t timeout = GetTimestampMillisFromNow(time_limit_ms);
+  while (SSP_GetFlagStatus(SSP1, SSP_FLAG_Busy) && !TimestampInPast(timeout))
+    continue;
+  return TimestampInPast(timeout);
+}
+
+// -----------------------------------------------------------------------------
+void SSP1_IRQHandler(void)
+{
+  while (SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty))
+  {
+    if (rx_bytes_remaining_ == 0)
+    {
+      SSP_ReceiveData(SSP1);
+    }
+    else
+    {
+      *rx_buffer_++ = SSP_ReceiveData(SSP1);
+      --rx_bytes_remaining_;
+    }
+  }
+
+  while (SSP_GetFlagStatus(SSP1, SSP_FLAG_TxFifoNotFull) && bytes_remaining_--)
+  {
+    if (tx_bytes_remaining_ == 0)
+    {
+      SSP_SendData(SSP1, 0xFF);
+    }
+    else
+    {
+      SSP_SendData(SSP1, *tx_buffer_++);
+      --tx_bytes_remaining_;
+    }
+  }
+
+  if (bytes_remaining_ == 0) SSP_ITConfig(SSP1, SSP_IT_TxFifo, DISABLE);
 }

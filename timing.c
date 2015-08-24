@@ -2,6 +2,7 @@
 
 #include "91x_lib.h"
 #include "config.h"
+#include "custom_math.h"
 
 
 // =============================================================================
@@ -71,12 +72,29 @@ uint32_t MillisSinceTimestamp(uint32_t t)
 // -----------------------------------------------------------------------------
 // This function delays execution of the program for "t" ms. Functions triggered
 // by interrupts will still execute during this period.
-void Wait(uint32_t w)
+void Wait(uint32_t t)
 {
-  uint32_t timestamp = GetTimestampMillisFromNow(w);
-  while (!TimestampInPast(timestamp));
+  uint32_t timestamp = GetTimestampMillisFromNow(t);
+  while (!TimestampInPast(timestamp)) continue;
 }
 
+// -----------------------------------------------------------------------------
+// This function delays execution of the program for APPROXIMATELY
+// "t_microsends" microseconds. Note that time spent in an interrupt routine
+// will NOT count towards this delay.
+void MicroWait(uint32_t t_microseconds)
+{
+  // The has been hand-tuned to match the execution time of the loop, which
+  // to be in the neighborhood of 20 cycles for some reason.
+  uint32_t countdown = U32RoundRShiftU32(SCU_GetMCLKFreqValue(), 14)
+    * t_microseconds;
+  asm(
+    "LOOP:\n\t"
+    "subs %[countdown], %[countdown], #1\n\t"
+    "bne LOOP\n\t"
+    : : [countdown] "r" (countdown)
+  );
+}
 
 // =============================================================================
 // Private functions:
@@ -86,7 +104,7 @@ void TIM1_IRQHandler(void)
   if(TIM_GetFlagStatus(TIM1, TIM_FLAG_OC1) == SET)
   {
     TIM_ClearFlag(TIM1, TIM_FLAG_OC1); // clear IRQ pending bit
-    TIM1->OC1R += 200;  // Timerfreq is 200kHz, generate an interrupt every 1ms
+    TIM1->OC1R += 200;  // F_TIM1 is 200kHz, generate an interrupt every 1 ms
     ms_timestamp_++;
   }
   // write any value to VIC0 Vector address register

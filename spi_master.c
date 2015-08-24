@@ -8,8 +8,7 @@
 // =============================================================================
 // Private data:
 
-#define F_SPI1 (2000000L)
-#define CLOCK_RATE_SPI1 (5)
+#define CLOCK_DIVIDER_SPI1 (6)  // Must be even
 #define SPI_MASTER_RX_FIFO_LENGTH (1 << 7)  // 2^7 = 128
 
 static volatile uint8_t rx_fifo_[SPI_MASTER_RX_FIFO_LENGTH], * tx_ptr_ = 0;
@@ -23,8 +22,6 @@ static uint8_t tx_overflow_counter_ = 0;
 
 // =============================================================================
 // Private function declarations:
-
-static uint8_t SPIClockPrescaler(uint32_t target_frequency, uint8_t clock_rate);
 
 
 // =============================================================================
@@ -55,18 +52,27 @@ void SPIMasterInit(void)
   gpio_init.GPIO_Alternate = GPIO_OutputAlt2;
   GPIO_Init (GPIO3, &gpio_init);
 
-  SSP_InitTypeDef ssp_init;
-
-  SSP_StructInit(&ssp_init);
-  ssp_init.SSP_ClockRate = CLOCK_RATE_SPI1;
-  ssp_init.SSP_ClockPrescaler = SPIClockPrescaler(F_SPI1, CLOCK_RATE_SPI1);
-  SSP_DeInit(SSP1);
-  SSP_Init(SSP1, &ssp_init);
-  SSP_Cmd(SSP1, ENABLE);
-
   // SSP_ITConfig(SSP1, SSP_IT_RxFifo, ENABLE);
   // VIC_Config(SSP1_ITLine, VIC_IRQ, PRIORITY_SSP1);
   // VIC_ITCmd(SSP1_ITLine, ENABLE);
+}
+
+// -----------------------------------------------------------------------------
+void SPIMasterSetBaud(uint32_t baud_rate)
+{
+  uint32_t baud_rate_clock = SCU_GetMCLKFreqValue() * 1000;
+  if (!(SCU->CLKCNTR & SCU_BRCLK_Div1)) baud_rate_clock /= 2;
+  // TODO: make sure baud_rate is achievable
+  uint32_t prescaler = baud_rate_clock / (CLOCK_DIVIDER_SPI1 * baud_rate) - 1;
+
+  SSP_InitTypeDef ssp_init;
+
+  SSP_StructInit(&ssp_init);
+  ssp_init.SSP_ClockRate = CLOCK_DIVIDER_SPI1;
+  ssp_init.SSP_ClockPrescaler = (uint8_t)prescaler;
+  SSP_DeInit(SSP1);
+  SSP_Init(SSP1, &ssp_init);
+  SSP_Cmd(SSP1, ENABLE);
 }
 
 // -----------------------------------------------------------------------------
@@ -129,14 +135,6 @@ uint32_t SPIMasterWaitUntilCompletion(uint32_t time_limit_ms)
 // =============================================================================
 // Private functions:
 
-static uint8_t SPIClockPrescaler(uint32_t target_frequency, uint8_t clock_rate)
-{
-  uint32_t baud_rate_clock = SCU_GetMCLKFreqValue() * 1000;
-  if (!(SCU->CLKCNTR & SCU_BRCLK_Div1)) baud_rate_clock /= 2;
-  return (uint8_t)(baud_rate_clock / (clock_rate + 1) / target_frequency);
-}
-
-// -----------------------------------------------------------------------------
 void SSP1_IRQHandler(void)
 {
   while (SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty))

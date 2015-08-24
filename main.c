@@ -76,19 +76,19 @@ int main(void)
   LSM303DLInit();
 
   SDCardInit();
-  FATFS FatFs;    /* FatFs work area needed for each volume */
-  FIL Fil;      /* File object needed for each open file */
+  FATFS FatFs;
+  FIL Fil;
   UINT bw;
   FRESULT r = f_mount(&FatFs, "", 0);
   UARTPrintf("");
   UARTPrintf("f_mount returned: %X", r);
-  r = f_open(&Fil, "test.txt", FA_WRITE | FA_CREATE_ALWAYS);
+  r = f_open(&Fil, "test002.txt", FA_WRITE | FA_CREATE_ALWAYS);
   UARTPrintf("");
   UARTPrintf("f_open returned: %X", r);
-  if (r == FR_OK) {  /* Create a file */
-    f_write(&Fil, "Test data\r\n", 11, &bw);  /* Write data to the file */
-    f_close(&Fil);                /* Close the file */
-    if (bw == 11) {   /* Lights red LED if data written well */
+  if (r == FR_OK) {
+    f_write(&Fil, "Test 0002\r\n", 11, &bw);
+    f_close(&Fil);
+    if (bw == 11) {
       RedLEDOn();
     }
   }

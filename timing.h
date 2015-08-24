@@ -35,7 +35,13 @@ uint32_t MillisSinceTimestamp(uint32_t t);
 // -----------------------------------------------------------------------------
 // This function delays execution of the program for "t" ms. Functions triggered
 // by interrupts will still execute during this period.
-void Wait(uint32_t w);
+void Wait(uint32_t t);
+
+// -----------------------------------------------------------------------------
+// This function delays execution of the program for APPROXIMATELY
+// "t_microsends" microseconds. Note that time spent in an interrupt routine
+// will NOT count towards this delay.
+void MicroWait(uint32_t t_microseconds);
 
 
 #endif  // TIMING_H_

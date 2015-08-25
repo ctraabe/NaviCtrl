@@ -1,6 +1,7 @@
 #include "sd_card.h"
 
 #include "91x_lib.h"
+#include "config.h"
 #include "diskio.h"  // from libfatfs
 #include "timing.h"
 #include "uart.h"
@@ -9,7 +10,7 @@
 // =============================================================================
 // Private data:
 
-#define CLOCK_DIVIDER_SPI1 (6)  // Must be even
+#define CLOCK_DIVIDER_SPI1 (2)  // Must be even
 
 // MMC/SD SPI mode commands
 enum SDCommands {
@@ -48,9 +49,10 @@ enum R1ResponseBits {
 
 static volatile UINT bytes_remaining_ = 0;
 static volatile UINT rx_bytes_remaining_ = 0, tx_bytes_remaining_ = 0;
-static volatile BYTE * rx_buffer_ = 0, * tx_buffer_ = 0;
+static volatile BYTE * volatile rx_buffer_ = 0;
+static const BYTE * volatile tx_buffer_ = 0;
 static DSTATUS status_ = STA_NODISK | STA_NOINIT;
-static BYTE card_type_;
+static BYTE card_type_ = 0;
 
 
 // =============================================================================
@@ -68,6 +70,8 @@ static uint32_t WaitForSDCard(void);
 static uint32_t RxDataBlock(BYTE *buffer, UINT length);
 static uint32_t TxDataBlock(const BYTE *buffer, BYTE token);
 static BYTE TxCommand(BYTE command, DWORD argument);
+static void SPIStart(size_t exchange_length, BYTE * rx_buffer, size_t rx_length,
+  const BYTE * tx_buffer, size_t tx_length);
 static void SetBaud(uint32_t baud_rate);
 static uint32_t WaitForSPI(uint32_t time_limit_ms);
 
@@ -146,16 +150,14 @@ DSTATUS disk_initialize(BYTE drive_number)
   CSPinHigh();
 
   // Initiate at least 74 clock cycles at 100 - 400 kHz to initialize the card.
-  SetBaud(1000000L);
-  for (uint32_t i = 10; i; --i)
-  {
-    while (!SSP_GetFlagStatus(SSP1, SSP_FLAG_TxFifoNotFull)) continue;
-    SSP_SendData(SSP1, 0xFF);
-  }
+  SetBaud(400000L);
+  SPIStart(10, 0, 0, 0, 0);
   WaitForSPI(10);  // Should require <= 0.8 ms to complete
   while (SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty))
     SSP_ReceiveData(SSP1);
-  SetBaud(4000000L);
+
+  // Reinitialize SPI at 1 MHz.
+  SetBaud(1000000L);
 
   // First assume an unidentified card type.
   card_type_ = 0;
@@ -236,7 +238,6 @@ DSTATUS disk_initialize(BYTE drive_number)
   }
 
   Deselect();
-
   return status_;
 }
 
@@ -257,8 +258,8 @@ DRESULT disk_read(BYTE drive_number, BYTE *buffer, DWORD sector, UINT count)
     } while (--count);
     if (cmd == SD_CMD18) TxCommand(SD_CMD12, 0); /* STOP_TRANSMISSION */
   }
-  Deselect();
 
+  Deselect();
   return count ? RES_ERROR : RES_OK;
 }
 
@@ -296,7 +297,6 @@ DRESULT disk_ioctl(BYTE drive_number, BYTE ctrl, void *buffer)
   DRESULT res;
   BYTE n, csd[16];
   DWORD cs;
-
 
   if (disk_status(drive_number) & STA_NOINIT) return RES_NOTRDY; /* Check if card is in the socket */
 
@@ -371,12 +371,12 @@ static uint32_t Select(void)  /* 1:OK, 0:Timeout */
 
 // -----------------------------------------------------------------------------
 // Receive bytes from the card
-static void RxBuffer(BYTE *buffer, UINT length)
+static void RxBuffer(BYTE * buffer, UINT length)
 {
-  do
-  {
-    *buffer++ = RxByte();
-  } while (--length);
+  SPIStart(length, buffer, length, 0, 0);
+  WaitForSPI(1000);
+  while (SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty))
+    *rx_buffer_++ = SSP_ReceiveData(SSP1);
 }
 
 // -----------------------------------------------------------------------------
@@ -388,12 +388,12 @@ static BYTE RxByte(void)
 }
 
 // -----------------------------------------------------------------------------
-static void TxBuffer(const BYTE* buffer, UINT length)
+static void TxBuffer(const BYTE * buffer, UINT length)
 {
-  do
-  {
-    TxByte(*buffer++);
-  } while (--length);
+  SPIStart(length, 0, 0, buffer, length);
+  WaitForSPI(1000);
+  while (SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty))
+    SSP_ReceiveData(SSP1);
 }
 
 // -----------------------------------------------------------------------------
@@ -415,7 +415,7 @@ static uint32_t WaitForSDCard(void)  /* 1:OK, 0:Timeout */
 
 // -----------------------------------------------------------------------------
 // Receive a data packet from the card.
-static uint32_t RxDataBlock(BYTE *buffer, UINT length)
+static uint32_t RxDataBlock(BYTE * buffer, UINT length)
 {
   // Wait for the leading data token (DO is held high until then).
   BYTE temp;
@@ -436,7 +436,7 @@ static uint32_t RxDataBlock(BYTE *buffer, UINT length)
 
 // -----------------------------------------------------------------------------
 // Send a data packet to the card.
-static uint32_t TxDataBlock(const BYTE *buffer, BYTE token)
+static uint32_t TxDataBlock(const BYTE * buffer, BYTE token)
 {
   if (!WaitForSDCard()) return 0;  // Timed out
 
@@ -497,19 +497,29 @@ static BYTE TxCommand(BYTE command, DWORD argument)
 
   return response;
 }
-/*
+
 // -----------------------------------------------------------------------------
-static void SPIStart(size_t exchange_length, size_t rx_length, size_t tx_length)
+static void SPIStart(size_t exchange_length, BYTE * rx_buffer, size_t rx_length,
+  const BYTE * tx_buffer, size_t tx_length)
 {
+  // First, do some sanity checking.
   if (exchange_length < rx_length) exchange_length = rx_length;
   if (exchange_length < tx_length) exchange_length = tx_length;
+
+  // Set the static variables.
   bytes_remaining_ = exchange_length;
+  rx_buffer_ = rx_buffer;
+  tx_buffer_ = tx_buffer;
   rx_bytes_remaining_ = rx_length;
   tx_bytes_remaining_ = tx_length;
+
+  // Enable the TX FIFO interrupt.
   SSP_ITConfig(SSP1, SSP_IT_TxFifo, ENABLE);
 }
-*/
+
 // -----------------------------------------------------------------------------
+// Note that NaviCtrl does not seem to be capable of baud faster than 0.5 MHz @
+// 48 MHz master clock and 1 MHz @ 96 MHz master clock.
 static void SetBaud(uint32_t baud_rate)
 {
   uint32_t baud_rate_clock = SCU_GetMCLKFreqValue() * 1000;
@@ -525,6 +535,10 @@ static void SetBaud(uint32_t baud_rate)
   SSP_DeInit(SSP1);
   SSP_Init(SSP1, &ssp_init);
   SSP_Cmd(SSP1, ENABLE);
+
+  SSP_ITConfig(SSP1, SSP_IT_RxFifo, ENABLE);
+  VIC_Config(SSP1_ITLine, VIC_IRQ, PRIORITY_SSP1);
+  VIC_ITCmd(SSP1_ITLine, ENABLE);
 }
 
 // -----------------------------------------------------------------------------
@@ -541,28 +555,29 @@ void SSP1_IRQHandler(void)
 {
   while (SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty))
   {
-    if (rx_bytes_remaining_ == 0)
-    {
-      SSP_ReceiveData(SSP1);
-    }
-    else
+    if (rx_bytes_remaining_ != 0 && rx_buffer_)
     {
       *rx_buffer_++ = SSP_ReceiveData(SSP1);
       --rx_bytes_remaining_;
     }
+    else
+    {
+      SSP_ReceiveData(SSP1);
+    }
   }
 
-  while (SSP_GetFlagStatus(SSP1, SSP_FLAG_TxFifoNotFull) && bytes_remaining_--)
+  while (SSP_GetFlagStatus(SSP1, SSP_FLAG_TxFifoNotFull) && bytes_remaining_)
   {
-    if (tx_bytes_remaining_ == 0)
-    {
-      SSP_SendData(SSP1, 0xFF);
-    }
-    else
+    if (tx_bytes_remaining_ != 0 && tx_buffer_)
     {
       SSP_SendData(SSP1, *tx_buffer_++);
       --tx_bytes_remaining_;
     }
+    else
+    {
+      SSP_SendData(SSP1, 0xFF);
+    }
+    --bytes_remaining_;
   }
 
   if (bytes_remaining_ == 0) SSP_ITConfig(SSP1, SSP_IT_TxFifo, DISABLE);

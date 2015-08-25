@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "91x_lib.h"
 #include "config.h"
 #include "i2c.h"
@@ -26,22 +28,22 @@ int main(void) __attribute__ ((noreturn));
 // system clocks, see the STR91xFM reference manual section 2.4.
 void SCUConfig(void)
 {
-  // Set master clock source to external oscillator (25MHz).
+  // Set master clock source to external oscillator (25 MHz).
   SCU_MCLKSourceConfig(SCU_MCLK_OSC);
-  // Configure the PLL to run at 48 MHz = (2 * N * f_OSC) / (M * 2 ^ P).
-  // where feedback divider N = 192, pre-divider M = 25, & post-divider P = 3
-  SCU_PLLFactorsConfig(192,25,3);
+  // Configure the PLL to run at 96 MHz = (2 * N * f_OSC) / (M * 2 ^ P).
+  // where feedback divider N = 192, pre-divider M = 25, & post-divider P = 2
+  SCU_PLLFactorsConfig(192, 25, 2);
   // Enable the PLL.
   SCU_PLLCmd(ENABLE);
   // Set the RCLK (reference clock) divisor to 1.
   SCU_RCLKDivisorConfig(SCU_RCLK_Div1);
   // Set the HCLK (AHB (advanced high-performance bus) clock) divisor to 1.
   SCU_HCLKDivisorConfig(SCU_HCLK_Div1);
-  // Set the PCLK (peripheral clock) divisor to 2.
+  // Set the PCLK (peripheral clock) divisor to 2 (48 MHz).
   SCU_PCLKDivisorConfig(SCU_PCLK_Div2);
   // Set the PLL as the master clock source.
   SCU_MCLKSourceConfig(SCU_MCLK_PLL);
-  // Set the BRCLK (baud rate clock) divisor to 2.
+  // Set the BRCLK (baud rate clock) divisor to 2 (48 MHz).
   SCU_BRCLKDivisorConfig(SCU_BRCLK_Div2);
 }
 
@@ -70,26 +72,35 @@ int main(void)
   UARTInit();
   I2CInit();
 
-  UBloxInit();
-  LSM303DLInit();
+  // UBloxInit();
+  // LSM303DLInit();
 
   SDCardInit();
+
   FATFS FatFs;
   FIL Fil;
   UINT bw;
   FRESULT r = f_mount(&FatFs, "", 0);
   UARTPrintf("");
   UARTPrintf("f_mount returned: %X", r);
-  r = f_open(&Fil, "test002.txt", FA_WRITE | FA_CREATE_ALWAYS);
+  r = f_open(&Fil, "test001.txt", FA_WRITE | FA_CREATE_ALWAYS);
   UARTPrintf("");
   UARTPrintf("f_open returned: %X", r);
-  if (r == FR_OK) {
-    f_write(&Fil, "Test 0002\r\n", 11, &bw);
-    f_close(&Fil);
-    if (bw == 11) {
-      RedLEDOn();
-    }
+
+  uint32_t timestamp = GetTimestamp();
+  for (uint32_t counter = 1000; counter && (r == FR_OK); --counter)
+  {
+    char ascii[16];
+    uint32_t n = snprintf((char *)ascii, 16, "%lu\r\n", GetTimestamp());
+    r = f_write(&Fil, ascii, n, &bw);
+    timestamp += 7;
+    RedLEDToggle();
+    while (!TimestampInPast(timestamp)) continue;
   }
+
+  r = f_close(&Fil);
+  UARTPrintf("");
+  UARTPrintf("f_close returned: %X", r);
 
   UARTPrintf("University of Tokyo NaviCtrl firmware V2");
 
@@ -98,9 +109,9 @@ int main(void)
   {
     Wait(1000);
     ProcessIncomingUART();
-    ProcessIncomingUBlox();
-    LSM303DLReadMag();
+    // ProcessIncomingUBlox();
+    // LSM303DLReadMag();
     GreenLEDToggle();
-    UARTPrintf("%i %i %i", Magnetometer()[0], Magnetometer()[1], Magnetometer()[2]);
+    // UARTPrintf("%i %i %i", Magnetometer()[0], Magnetometer()[1], Magnetometer()[2]);
   }
 }

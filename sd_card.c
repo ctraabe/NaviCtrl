@@ -60,19 +60,20 @@ static BYTE card_type_ = 0;
 
 static inline void CSPinHigh(void);
 static inline void CSPinLow(void);
+static inline uint32_t SDCardPresent(void);
 static inline void Deselect(void);
 static uint32_t Select(void);
-static void RxBuffer(BYTE *buffer, UINT length);
+static void RxBuffer(BYTE * buffer, UINT length);
 static BYTE RxByte(void);
-static void TxBuffer(const BYTE* buffer, UINT length);
+static void TxBuffer(const BYTE * buffer, UINT length);
 static void TxByte(BYTE byte);
-static uint32_t WaitForSDCard(void);
-static uint32_t RxDataBlock(BYTE *buffer, UINT length);
-static uint32_t TxDataBlock(const BYTE *buffer, BYTE token);
+static uint32_t RxDataBlock(BYTE * buffer, UINT length);
+static uint32_t TxDataBlock(const BYTE * buffer, BYTE token);
 static BYTE TxCommand(BYTE command, DWORD argument);
 static void SPIStart(size_t exchange_length, BYTE * rx_buffer, size_t rx_length,
   const BYTE * tx_buffer, size_t tx_length);
 static void SetBaud(uint32_t baud_rate);
+static uint32_t WaitForSDCard(void);
 static uint32_t WaitForSPI(uint32_t time_limit_ms);
 
 
@@ -125,12 +126,6 @@ DSTATUS disk_status(BYTE drive_number)
   // NaviCtrl only has one card slot, so there can be only drive 0.
   if (drive_number == 0) return status_;
   return STA_NODISK | STA_NOINIT;
-}
-
-// -----------------------------------------------------------------------------
-static inline uint32_t SDCardPresent(void)
-{
-  return !(GPIO_ReadBit(GPIO5, GPIO_Pin_3));
 }
 
 // -----------------------------------------------------------------------------
@@ -245,18 +240,24 @@ DSTATUS disk_initialize(BYTE drive_number)
 // This function reads sector(s) from the SD card.
 DRESULT disk_read(BYTE drive_number, BYTE *buffer, DWORD sector, UINT count)
 {
-  BYTE cmd;
-
   if (disk_status(drive_number) & STA_NOINIT) return RES_NOTRDY;
-  if (!(card_type_ & CT_BLOCK)) sector *= 512;  /* Convert LBA to byte address if needed */
 
-  cmd = count > 1 ? SD_CMD18 : SD_CMD17;      /*  READ_MULTIPLE_BLOCK : READ_SINGLE_BLOCK */
-  if (TxCommand(cmd, sector) == 0) {
-    do {
-      if (!RxDataBlock(buffer, 512)) break;
+  // Cards that are not high capacity should be byte addressed.
+  if (!(card_type_ & CT_BLOCK)) sector *= 512;
+
+  // Choose the single-byte or multiple-byte read command.
+  BYTE command;
+  command = count > 1 ? SD_CMD18 : SD_CMD17;
+
+  if (TxCommand(command, sector) == 0)
+  {
+    do
+    {
+      if (RxDataBlock(buffer, 512)) break;
       buffer += 512;
     } while (--count);
-    if (cmd == SD_CMD18) TxCommand(SD_CMD12, 0); /* STOP_TRANSMISSION */
+
+    if (command == SD_CMD18) TxCommand(SD_CMD12, 0);  // Stop transmission
   }
 
   Deselect();
@@ -265,73 +266,84 @@ DRESULT disk_read(BYTE drive_number, BYTE *buffer, DWORD sector, UINT count)
 
 // -----------------------------------------------------------------------------
 // This function writes sector(s) to the SD card.
-DRESULT disk_write(BYTE drive_number, const BYTE *buffer, DWORD sector, UINT count)
+DRESULT disk_write(BYTE drive_number, const BYTE *buffer, DWORD sector,
+  UINT count)
 {
   if (disk_status(drive_number) & STA_NOINIT) return RES_NOTRDY;
-  if (!(card_type_ & CT_BLOCK)) sector *= 512;  /* Convert LBA to byte address if needed */
+ 
+  // Cards that are not high capacity should be byte addressed.
+  if (!(card_type_ & CT_BLOCK)) sector *= 512;
 
-  if (count == 1) { /* Single block write */
-    if ((TxCommand(SD_CMD24, sector) == 0)  /* WRITE_BLOCK */
-      && TxDataBlock(buffer, 0xFE))
+  if (count == 1)
+  {
+    if ((TxCommand(SD_CMD24, sector) == 0) && !TxDataBlock(buffer, 0xFE))
       count = 0;
   }
-  else {        /* Multiple block write */
+  else
+  {  // Multiple block write
     if (card_type_ & CT_SDC) TxCommand(SD_ACMD23, count);
-    if (TxCommand(SD_CMD25, sector) == 0) { /* WRITE_MULTIPLE_BLOCK */
+    if (TxCommand(SD_CMD25, sector) == 0)
+    {
       do {
-        if (!TxDataBlock(buffer, 0xFC)) break;
+        if (TxDataBlock(buffer, 0xFC)) break;
         buffer += 512;
       } while (--count);
-      if (!TxDataBlock(0, 0xFD)) /* STOP_TRAN token */
-        count = 1;
+
+      // Check for the "stop transmission" token.
+      if (TxDataBlock(0, 0xFD)) count = 1;
     }
   }
-  Deselect();
 
+  Deselect();
   return count ? RES_ERROR : RES_OK;
 }
+
 // -----------------------------------------------------------------------------
 // This function controls miscellaneous functions other than generic read/write.
 DRESULT disk_ioctl(BYTE drive_number, BYTE ctrl, void *buffer)
 {
-  DRESULT res;
-  BYTE n, csd[16];
+  if (disk_status(drive_number) & STA_NOINIT) return RES_NOTRDY;
+
   DWORD cs;
-
-  if (disk_status(drive_number) & STA_NOINIT) return RES_NOTRDY; /* Check if card is in the socket */
-
-  res = RES_ERROR;
-  switch (ctrl) {
-    case CTRL_SYNC :    /* Make sure that no pending write process */
-      if (Select()) res = RES_OK;
+  BYTE csd[16];
+  DRESULT response = RES_ERROR;
+  switch (ctrl)
+  {
+    case CTRL_SYNC:  // Make sure that there is no pending write process
+      if (!Select()) response = RES_OK;
       break;
 
-    case GET_SECTOR_COUNT : /* Get number of sectors on the disk (DWORD) */
-      if ((TxCommand(SD_CMD9, 0) == 0) && RxDataBlock(csd, 16)) {
-        if ((csd[0] >> 6) == 1) { /* SDC ver 2.00 */
+    case GET_SECTOR_COUNT:  // Get number of sectors on the disk (DWORD)
+      if ((TxCommand(SD_CMD9, 0) == 0) && !RxDataBlock(csd, 16))
+      {
+        if ((csd[0] >> 6) == 1)
+        {  // SDC v2
           cs = csd[9] + ((WORD)csd[8] << 8) + ((DWORD)(csd[7] & 63) << 16) + 1;
           *(DWORD*)buffer = cs << 10;
-        } else {          /* SDC ver 1.XX or MMC */
-          n = (csd[5] & 15) + ((csd[10] & 128) >> 7) + ((csd[9] & 3) << 1) + 2;
-          cs = (csd[8] >> 6) + ((WORD)csd[7] << 2) + ((WORD)(csd[6] & 3) << 10) + 1;
+        }
+        else
+        {  // SDC v1 or MMC
+          BYTE n = (csd[5] & 15) + ((csd[10] & 128) >> 7) + ((csd[9] & 3) << 1)
+            + 2;
+          cs = (csd[8] >> 6) + ((WORD)csd[7] << 2) + ((WORD)(csd[6] & 3) << 10)
+            + 1;
           *(DWORD*)buffer = cs << (n - 9);
         }
-        res = RES_OK;
+        response = RES_OK;
       }
       break;
 
-    case GET_BLOCK_SIZE : /* Get erase block size in unit of sector (DWORD) */
+    case GET_BLOCK_SIZE:  // Get erase block size in unit of sector (DWORD)
       *(DWORD*)buffer = 128;
-      res = RES_OK;
+      response = RES_OK;
       break;
 
     default:
-      res = RES_PARERR;
+      response = RES_PARERR;
   }
 
   Deselect();
-
-  return res;
+  return response;
 }
 
 
@@ -350,6 +362,12 @@ static inline void CSPinLow(void)
 }
 
 // -----------------------------------------------------------------------------
+static inline uint32_t SDCardPresent(void)
+{
+  return !(GPIO_ReadBit(GPIO5, GPIO_Pin_3));
+}
+
+// -----------------------------------------------------------------------------
 // Deselect the card and release SPI bus
 static inline void Deselect(void)
 {
@@ -363,10 +381,10 @@ static uint32_t Select(void)  /* 1:OK, 0:Timeout */
 {
   CSPinLow();
   RxByte();  // Run the clock for one frame
-  if (WaitForSDCard()) return 1;  // Success
+  if (!WaitForSDCard()) return 0;  // Success
 
   Deselect();
-  return 0;  // Failure
+  return 1;  // Failure
 }
 
 // -----------------------------------------------------------------------------
@@ -405,15 +423,6 @@ static void TxByte(BYTE byte)
 }
 
 // -----------------------------------------------------------------------------
-// Wait up to 500 ms for the SD card to exit the busy state.
-static uint32_t WaitForSDCard(void)  /* 1:OK, 0:Timeout */
-{
-  uint32_t timeout = GetTimestampMillisFromNow(500);
-  while ((RxByte() != 0xFF) && !TimestampInPast(timeout)) MicroWait(100);
-  return !TimestampInPast(timeout);
-}
-
-// -----------------------------------------------------------------------------
 // Receive a data packet from the card.
 static uint32_t RxDataBlock(BYTE * buffer, UINT length)
 {
@@ -425,20 +434,20 @@ static uint32_t RxDataBlock(BYTE * buffer, UINT length)
     if (temp != 0xFF) break;
     MicroWait(100);
   }
-  if (temp != 0xFE) return 0;  // Received byte differs from the expected token
+  if (temp != 0xFE) return 1;  // Received byte differs from the expected token
 
   RxBuffer(buffer, length);
   RxByte();  // Discard the first CRC byte
   RxByte();  // Discard the second CRC byte
 
-  return 1;  // Success
+  return 0;  // Success
 }
 
 // -----------------------------------------------------------------------------
 // Send a data packet to the card.
 static uint32_t TxDataBlock(const BYTE * buffer, BYTE token)
 {
-  if (!WaitForSDCard()) return 0;  // Timed out
+  if (WaitForSDCard()) return 1;  // Timed out
 
   TxByte(token);  // Transmit the token that leads the data block
 
@@ -448,10 +457,10 @@ static uint32_t TxDataBlock(const BYTE * buffer, BYTE token)
     TxBuffer(buffer, 512);
     RxByte();  // Just transmit 0xFF for the first CRC byte (ignored)
     RxByte();  // Just transmit 0xFF for the second CRC byte (ignored)
-    if ((RxByte() & 0x1F) != 0x05) return 0;  // Data not accepted
+    if ((RxByte() & 0x1F) != 0x05) return 1;  // Data not accepted
   }
 
-  return 1;  // Success
+  return 0;  // Success
 }
 
 // -----------------------------------------------------------------------------
@@ -470,7 +479,7 @@ static BYTE TxCommand(BYTE command, DWORD argument)
   if (command != SD_CMD12)
   {
     Deselect();
-    if (!Select()) return 0xFF;
+    if (Select()) return 0xFF;
   }
 
   // Send the command packet
@@ -524,7 +533,6 @@ static void SetBaud(uint32_t baud_rate)
 {
   uint32_t baud_rate_clock = SCU_GetMCLKFreqValue() * 1000;
   if (!(SCU->CLKCNTR & SCU_BRCLK_Div1)) baud_rate_clock /= 2;
-  // TODO: make sure baud_rate is achievable
   uint32_t prescaler = baud_rate_clock / (CLOCK_DIVIDER_SPI1 * baud_rate) - 1;
 
   SSP_InitTypeDef ssp_init;
@@ -539,6 +547,15 @@ static void SetBaud(uint32_t baud_rate)
   SSP_ITConfig(SSP1, SSP_IT_RxFifo, ENABLE);
   VIC_Config(SSP1_ITLine, VIC_IRQ, PRIORITY_SSP1);
   VIC_ITCmd(SSP1_ITLine, ENABLE);
+}
+
+// -----------------------------------------------------------------------------
+// Wait up to 500 ms for the SD card to exit the busy state.
+static uint32_t WaitForSDCard(void)
+{
+  uint32_t timeout = GetTimestampMillisFromNow(500);
+  while ((RxByte() != 0xFF) && !TimestampInPast(timeout)) MicroWait(100);
+  return TimestampInPast(timeout);
 }
 
 // -----------------------------------------------------------------------------

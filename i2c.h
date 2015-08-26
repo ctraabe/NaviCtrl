@@ -3,6 +3,7 @@
 
 
 #include <inttypes.h>
+#include <stddef.h>
 
 
 typedef void (*I2CCallback)(void);
@@ -31,41 +32,41 @@ enum I2CError I2CError(void);
 void I2CInit(void);
 
 // -----------------------------------------------------------------------------
-uint8_t I2CIsIdle(void);
+uint32_t I2CIsIdle(void);
 
 // -----------------------------------------------------------------------------
 void I2CReset(void);
 
 // -----------------------------------------------------------------------------
 enum I2CError I2CRx(uint8_t slave_address, volatile uint8_t *rx_destination_ptr,
-  uint8_t rx_destination_len);
+  size_t rx_destination_len);
 
 // -----------------------------------------------------------------------------
 enum I2CError I2CRxFromRegister(uint8_t slave_address, uint8_t register_address,
-  volatile uint8_t *rx_destination_ptr, uint8_t rx_destination_len);
+  volatile uint8_t *rx_destination_ptr, size_t rx_destination_len);
 
 // -----------------------------------------------------------------------------
 enum I2CError I2CRxThenCallback(uint8_t slave_address,
-  volatile uint8_t *rx_destination_ptr, uint8_t rx_destination_len,
+  volatile uint8_t *rx_destination_ptr, size_t rx_destination_len,
   I2CCallback callback_ptr);
 
 // -----------------------------------------------------------------------------
 enum I2CError I2CTx(uint8_t slave_address, const uint8_t *tx_source_ptr,
-  const uint8_t tx_source_len);
+  const size_t tx_source_len);
 
 // -----------------------------------------------------------------------------
 enum I2CError I2CTxToRegister(uint8_t slave_address, uint8_t register_address,
-  const uint8_t *tx_source_ptr, uint8_t tx_source_len);
+  const uint8_t *tx_source_ptr, size_t tx_source_len);
 
 // -----------------------------------------------------------------------------
 enum I2CError I2CTxThenRx(uint8_t slave_address, const uint8_t *tx_source_ptr,
-  uint8_t tx_source_len, volatile uint8_t *rx_destination_ptr,
-  uint8_t rx_destination_len);
+  size_t tx_source_len, volatile uint8_t *rx_destination_ptr,
+  size_t rx_destination_len);
 
 // -----------------------------------------------------------------------------
 enum I2CError I2CTxThenRxThenCallback(uint8_t slave_address,
-  const uint8_t *tx_source_ptr, uint8_t tx_source_len,
-  volatile uint8_t *rx_destination_ptr, uint8_t rx_destination_len,
+  const uint8_t *tx_source_ptr, size_t tx_source_len,
+  volatile uint8_t *rx_destination_ptr, size_t rx_destination_len,
   I2CCallback callback_ptr);
 
 // -----------------------------------------------------------------------------

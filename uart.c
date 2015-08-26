@@ -14,8 +14,8 @@
 
 #define UART_BAUD (57600)
 
-static volatile uint8_t rx_buffer_[UART_RX_BUFFER_LENGTH], *tx_ptr_ = 0;
-static volatile size_t rx_buffer_head_ = 0, tx_bytes_remaining_ = 0;
+static volatile uint8_t rx_fifo_[UART_RX_FIFO_LENGTH], *tx_ptr_ = 0;
+static volatile size_t rx_fifo_head_ = 0, tx_bytes_remaining_ = 0;
 static uint8_t data_buffer_[UART_DATA_BUFFER_LENGTH];
 static uint8_t tx_buffer_[UART_TX_BUFFER_LENGTH];
 static uint8_t tx_overflow_counter_ = 0;
@@ -76,25 +76,25 @@ void UARTInit(void)
 
 // -----------------------------------------------------------------------------
 // This function processes bytes that have been read into the Rx ring buffer
-// (rx_buffer_) by the Rx interrupt handler. Each byte is passed to the
+// (rx_fifo_) by the Rx interrupt handler. Each byte is passed to the
 // appropriate Rx handler, which may place it into the temporary data buffer
 // (data_buffer_).
 void ProcessIncomingUART(void)
 {
-  static size_t rx_buffer_tail = 0;
+  static size_t rx_fifo_tail = 0;
   static enum UARTRxMode mode = UART_RX_MODE_IDLE;
 
   ReceiveUARTData();
 
-  while (rx_buffer_tail != rx_buffer_head_)
+  while (rx_fifo_tail != rx_fifo_head_)
   {
     // Move the ring buffer tail forward.
-    rx_buffer_tail = (rx_buffer_tail + 1) % UART_RX_BUFFER_LENGTH;
+    rx_fifo_tail = (rx_fifo_tail + 1) % UART_RX_FIFO_LENGTH;
 
     // Add other Rx protocols here.
     if (mode != UART_RX_MODE_IDLE)
-      mode = MKSerialRx(rx_buffer_[rx_buffer_tail], data_buffer_);
-    else if (rx_buffer_[rx_buffer_tail] == '#')  // MK protocol start character
+      mode = MKSerialRx(rx_fifo_[rx_fifo_tail], data_buffer_);
+    else if (rx_fifo_[rx_fifo_tail] == '#')  // MK protocol start character
       mode = UART_RX_MODE_MK_ONGOING;
   }
 }
@@ -170,8 +170,8 @@ void ReceiveUARTData(void)
   VIC_ITCmd(UART1_ITLine, DISABLE);
   while (!UART_GetFlagStatus(UART1, UART_FLAG_RxFIFOEmpty))
   {
-    rx_buffer_head_ = (rx_buffer_head_ + 1) % UART_RX_BUFFER_LENGTH;
-    rx_buffer_[rx_buffer_head_] = UART_ReceiveData(UART1);
+    rx_fifo_head_ = (rx_fifo_head_ + 1) % UART_RX_FIFO_LENGTH;
+    rx_fifo_[rx_fifo_head_] = UART_ReceiveData(UART1);
   }
   VIC_ITCmd(UART1_ITLine, ENABLE);
 }

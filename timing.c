@@ -10,7 +10,8 @@
 
 #define F_TIM1 (200000)  // 200kHz
 
-volatile uint32_t ms_timestamp_ = 0;
+static volatile uint32_t ms_timestamp_ = 0;
+static uint32_t micro_wait_multiplier = 1;
 
 
 // =============================================================================
@@ -35,6 +36,8 @@ void TimingInit(void)
   TIM_ITConfig(TIM1, TIM_IT_OC1, ENABLE);
   VIC_Config(TIM1_ITLine, VIC_IRQ, IRQ_PRIORITY_TIMER1);
   VIC_ITCmd(TIM1_ITLine, ENABLE);
+
+  micro_wait_multiplier = 3 * SCU_GetMCLKFreqValue() / (1000 * 24);
 }
 
 // -----------------------------------------------------------------------------
@@ -84,12 +87,12 @@ void Wait(uint32_t t)
 // will NOT count towards this delay.
 void MicroWait(uint32_t t_microseconds)
 {
-  // The has been hand-tuned to match the execution time of the loop, which
-  // to be in the neighborhood of 20 cycles for some reason.
-  uint32_t countdown = U32RoundRShiftU32(SCU_GetMCLKFreqValue(), 14)
-    * t_microseconds;
+  // The following loop seems to take 24 cycles... for some reason.
+  uint32_t countdown = micro_wait_multiplier * t_microseconds;
   asm(
     "LOOP:\n\t"
+    "subs %[countdown], %[countdown], #1\n\t"
+    "subs %[countdown], %[countdown], #1\n\t"
     "subs %[countdown], %[countdown], #1\n\t"
     "bne LOOP\n\t"
     : : [countdown] "r" (countdown)

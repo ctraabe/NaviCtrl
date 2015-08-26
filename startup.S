@@ -160,14 +160,14 @@ ResetHandler:
 .if DEBUG_MODE
   mov r0, #0x4000
 DebugStartupLoop:
-  subs r0,r0, #1
-  subs r0,r0, #1
-  subs r0,r0, #1
-  subs r0,r0, #1
-  subs r0,r0, #1
-  subs r0,r0, #1
-  subs r0,r0, #1
-  subs r0,r0, #1
+  subs r0, r0, #1
+  subs r0, r0, #1
+  subs r0, r0, #1
+  subs r0, r0, #1
+  subs r0, r0, #1
+  subs r0, r0, #1
+  subs r0, r0, #1
+  subs r0, r0, #1
   bne DebugStartupLoop
 .endif
 
@@ -229,9 +229,8 @@ InitializeStackPointers:
   mov sp, r0
   sub r0, r0, #SUPERVISOR_MODE_STACK_SIZE
   // Initialize the stack pointer for user mode.
-  msr CPSR_c, #USER_MODE | I_BIT | F_BIT
+  msr CPSR_c, #SYSTEM_MODE
   mov sp, r0
-  sub r0, r0, #USER_MODE_STACK_SIZE
 
 //------------------------------------------------------------------------------
   // Initialize RAM

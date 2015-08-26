@@ -3,13 +3,11 @@
 #include "91x_lib.h"
 #include "i2c.h"
 #include "led.h"
+#include "logging.h"
 #include "lsm303dl.h"
-#include "sd_card.h"
 #include "timing.h"
 #include "uart.h"
 #include "ublox.h"
-
-#include "ff.h"
 
 
 // =============================================================================
@@ -71,46 +69,21 @@ int main(void)
   UARTInit();
   I2CInit();
 
-  UBloxInit();
-  LSM303DLInit();
-
-  SDCardInit();
-
-  FATFS FatFs;
-  FIL Fil;
-  UINT bw;
-  FRESULT r = f_mount(&FatFs, "", 0);
-  UARTPrintf("");
-  UARTPrintf("f_mount returned: %X", r);
-  r = f_open(&Fil, "test001.txt", FA_WRITE | FA_CREATE_ALWAYS);
-  UARTPrintf("");
-  UARTPrintf("f_open returned: %X", r);
-
-  uint32_t timestamp = GetTimestamp();
-  for (uint32_t counter = 1000; counter && (r == FR_OK); --counter)
-  {
-    char ascii[16];
-    uint32_t n = snprintf((char *)ascii, 16, "%lu\r\n", GetTimestamp());
-    r = f_write(&Fil, ascii, n, &bw);
-    timestamp += 7;
-    RedLEDToggle();
-    while (!TimestampInPast(timestamp)) continue;
-  }
-
-  r = f_close(&Fil);
-  UARTPrintf("");
-  UARTPrintf("f_close returned: %X", r);
-
   UARTPrintf("University of Tokyo NaviCtrl firmware V2");
 
+  UBloxInit();
+  LSM303DLInit();
+  LoggingInit();
+
   // Main loop.
+  uint32_t led_timer = GetTimestamp();
   for (;;)
   {
-    Wait(1000);
-    ProcessIncomingUART();
-    ProcessIncomingUBlox();
-    LSM303DLReadMag();
-    GreenLEDToggle();
-    UARTPrintf("%i %i %i", Magnetometer()[0], Magnetometer()[1], Magnetometer()[2]);
+    ProcessLogging();
+    if (TimestampInPast(led_timer))
+    {
+      GreenLEDToggle();
+      led_timer += 500;
+    }
   }
 }

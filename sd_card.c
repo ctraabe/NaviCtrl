@@ -60,7 +60,6 @@ static BYTE card_type_ = 0;
 
 static inline void CSPinHigh(void);
 static inline void CSPinLow(void);
-static inline uint32_t SDCardPresent(void);
 static inline void Deselect(void);
 static uint32_t Select(void);
 static void RxBuffer(BYTE * buffer, UINT length);
@@ -116,6 +115,12 @@ void SDCardInit(void)
   GPIO_WriteBit(GPIO5, GPIO_Pin_4, Bit_SET);
 }
 
+// -----------------------------------------------------------------------------
+uint32_t SDCardNotPresent(void)
+{
+  return (GPIO_ReadBit(GPIO5, GPIO_Pin_3));
+}
+
 
 // =============================================================================
 // Disk I/O functions required for FatFs (declared in diskio.h and ff.h):
@@ -134,9 +139,8 @@ DSTATUS disk_initialize(BYTE drive_number)
 {
   // NaviCtrl only has one card slot, so there can be only drive 0.
   if (drive_number != 0) return STA_NODISK | STA_NOINIT;
-  if (!SDCardPresent())
+  if (SDCardNotPresent())
   {
-    UARTPrintf("sd_card: No SD card present");
     status_ = STA_NODISK | STA_NOINIT;
     return status_;
   }
@@ -240,7 +244,7 @@ DSTATUS disk_initialize(BYTE drive_number)
 // This function reads sector(s) from the SD card.
 DRESULT disk_read(BYTE drive_number, BYTE *buffer, DWORD sector, UINT count)
 {
-  if (disk_status(drive_number) & STA_NOINIT) return RES_NOTRDY;
+  if ((status_ & STA_NOINIT) || (drive_number != 0)) return RES_NOTRDY;
 
   // Cards that are not high capacity should be byte addressed.
   if (!(card_type_ & CT_BLOCK)) sector *= 512;
@@ -269,8 +273,8 @@ DRESULT disk_read(BYTE drive_number, BYTE *buffer, DWORD sector, UINT count)
 DRESULT disk_write(BYTE drive_number, const BYTE *buffer, DWORD sector,
   UINT count)
 {
-  if (disk_status(drive_number) & STA_NOINIT) return RES_NOTRDY;
- 
+  if ((status_ & STA_NOINIT) || (drive_number != 0)) return RES_NOTRDY;
+
   // Cards that are not high capacity should be byte addressed.
   if (!(card_type_ & CT_BLOCK)) sector *= 512;
 
@@ -302,7 +306,7 @@ DRESULT disk_write(BYTE drive_number, const BYTE *buffer, DWORD sector,
 // This function controls miscellaneous functions other than generic read/write.
 DRESULT disk_ioctl(BYTE drive_number, BYTE ctrl, void *buffer)
 {
-  if (disk_status(drive_number) & STA_NOINIT) return RES_NOTRDY;
+  if ((status_ & STA_NOINIT) || (drive_number != 0)) return RES_NOTRDY;
 
   DWORD cs;
   BYTE csd[16];
@@ -359,12 +363,6 @@ static inline void CSPinHigh(void)
 static inline void CSPinLow(void)
 {
   GPIO_WriteBit(GPIO5, GPIO_Pin_4 , Bit_RESET);
-}
-
-// -----------------------------------------------------------------------------
-static inline uint32_t SDCardPresent(void)
-{
-  return !(GPIO_ReadBit(GPIO5, GPIO_Pin_3));
 }
 
 // -----------------------------------------------------------------------------

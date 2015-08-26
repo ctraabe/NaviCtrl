@@ -10,5 +10,8 @@
 
 void SDCardInit(void);
 
+// -----------------------------------------------------------------------------
+uint32_t SDCardNotPresent(void);
+
 
 #endif  // SD_CARD_H_

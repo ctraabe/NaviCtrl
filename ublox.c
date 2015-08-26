@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "91x_lib.h"
-#include "config.h"
+#include "irq_priority.h"
 #include "timing.h"
 
 
@@ -109,7 +109,7 @@ void UBloxInit(void)
 
   // Enable UART Rx interrupt.
   UART_ITConfig(UART0, UART_IT_Receive, ENABLE);
-  VIC_Config(UART0_ITLine, VIC_IRQ, PRIORITY_UART0);
+  VIC_Config(UART0_ITLine, VIC_IRQ, IRQ_PRIORITY_UART0);
   VIC_ITCmd(UART0_ITLine, ENABLE);
 
   {
@@ -332,6 +332,12 @@ static void UART0Init(uint32_t baud_rate)
 // -----------------------------------------------------------------------------
 void UART0_IRQHandler(void)
 {
+  DAISY_VIC();
+  IENABLE;
+
   UART_ClearITPendingBit(UART0, UART_IT_Receive);
   ReceiveUBloxData();
+
+  IDISABLE;
+  VIC1->VAR = 0xFF;
 }

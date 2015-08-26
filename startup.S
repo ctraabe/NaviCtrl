@@ -79,19 +79,15 @@
 // =============================================================================
 // Macros:
 
-// Save context before entering an interrupt handler.
-.macro SAVE_CONTEXT $r0, $r3
-  stmfd sp!, {r0-r3,lr}
-  mrs r1, spsr
-  stmfd sp!, {r1}
+// Save the workspace plus the current return address lr_ mode into the stack.
+.macro SAVE_CONTEXT $r0, $r4
+  stmfd sp!, {r0-r4,lr}
 .endm
 
 //------------------------------------------------------------------------------
-// Restore the context (reverse order from SAVE_CONTEXT).
-.macro RESTORE_CONTEXT $r0, $r3
-  ldmfd sp!, {r1}
-  msr spsr_cxsf, r1
-  ldmfd sp!, {r0-r3,pc}^
+// Return to the instruction following the exception interrupt.
+.macro RESTORE_CONTEXT $r0, $r4
+  ldmfd sp!, {r0-r4,pc}^
 .endm
 
 //------------------------------------------------------------------------------
@@ -133,42 +129,25 @@ _cllp_\sec_name:
 //------------------------------------------------------------------------------
 FIQHandler:
   sub lr, lr, #4  // Update the link register
-  SAVE_CONTEXT r0, r3
+  SAVE_CONTEXT r0, r4
   bl FIQ_Handler  // Branch to FIQ_Handler
-  RESTORE_CONTEXT r0, r3
+  RESTORE_CONTEXT r0, r4
 
 //------------------------------------------------------------------------------
 SWIHandler:
-  SAVE_CONTEXT r0, r3
+  SAVE_CONTEXT r0, r4
   bl SWI_Handler  // Branch to SWI_Handler
-  RESTORE_CONTEXT r0, r3
+  RESTORE_CONTEXT r0, r4
 
 //------------------------------------------------------------------------------
 IRQHandler:
-  sub lr, lr ,#4  // Update the link register
-  SAVE_CONTEXT r0, r12
-  ldr r0, =VIC0_VAR_ADDRESS
-  ldr r0, [r0]  // Read VIC0 current vector address
-  ldr r1, =VIC1_VAR_ADDRESS
-  ldr r1, [r1]  // Read VIC1 current vector address
-  // Padding between the acknowledge and re-enable of interrupts.
-  // For more details, see arm.com/support/faqip/3682.html
-  nop
-  nop
-  ldr lr, =ReturnFromHandler  // Read the return address
-  cmp r0, #0  // Is VIC0 current vector unset?
-  beq SkipVIC0
-  bx r0  // Branch to the IRQ handler
-SkipVIC0:
-  cmp r1, #0  // Is VIC1 current vector unset?
-  beq ReturnFromHandler
-  bx r1  // Branch to the IRQ handler
-ReturnFromHandler:
-  ldr r0, =VIC0_VAR_ADDRESS  // Write to the VIC0_VAR_ADDRESS to clear the
-  str r0, [r0]  // respective interrupt in the internal interrupt
-  ldr r1, =VIC1_VAR_ADDRESS  // Write to the VIC1_VAR_ADDRESS to clear the
-  str r1, [r1]  // Respective interrupt in the internal interrupt
-  RESTORE_CONTEXT r0, r12  // Restore the context and return to program execution
+  sub lr, lr ,#4
+  SAVE_CONTEXT r0, r4
+  LDR r0, =VIC0_VAR_ADDRESS
+  LDR r0, [r0]  // Read the handler address from VIC0 Vector Address register
+  BLX r0  // Branch with link to the handler
+  RESTORE_CONTEXT r0, r4
+
 
 //------------------------------------------------------------------------------
 ResetHandler:
@@ -262,4 +241,4 @@ InitializeStackPointers:
   CLEAR_SECTION bss, __bss_start__, __bss_end__
 
 //------------------------------------------------------------------------------
-  ldr    PC, =main
+  ldr PC, =main

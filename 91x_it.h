@@ -20,6 +20,26 @@
 #include "91x_lib.h"
 
 
+#define IENABLE \
+  asm(" MRS R0, SPSR\n\t");  /* Copy SPSR_irq to R0 */\
+  asm("STMFD SP!, {R0}\n\t");  /* Save SPSR_irq */\
+  asm("MSR CPSR_c, #0x1F\n\t");  /* Switch to SYS mode (interrupts enabled) */\
+  asm("STMFD SP!, {LR}\n\t");  /* Save SYS_lr */
+
+#define IDISABLE \
+  asm("LDMFD SP!, {LR}\n\t");  /* Restore SYS_lr */\
+  asm("MSR CPSR_c, #0x92\n\t");  /* Switch to IRQ mode (interrupts disabled) */\
+  asm("LDMFD SP!, {R0}\n\t");  /* Restore SPSR_irq to R0 */\
+  asm("MSR SPSR_cxsf, R0\n\t");  /* Copy R0 to SPSR_irq */
+
+#define DAISY_VIC() \
+  asm("MOV r11, #0xFC000000\n\t");  /* VectorAddressDaisy address */\
+  asm("ADD r11, r11, #0x30\n\t");  /* VectorAddressDaisy address */\
+  asm("LDR r11, [r11]\n\t");  /* Update VIC1 hardware priority */\
+  asm("ADD r11 ,r11 , #0x18\n\t");  /* Skip the preamble (+0x18) */\
+  asm("BX  r11\n\t");  /* Branch to the highest priority interrupt from VIC1 */
+
+
 void Undefined_Handler(void);
 void SWI_Handler(void);
 void Prefetch_Handler(void);

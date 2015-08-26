@@ -1,8 +1,8 @@
 #include "timing.h"
 
 #include "91x_lib.h"
-#include "config.h"
 #include "custom_math.h"
+#include "irq_priority.h"
 
 
 // =============================================================================
@@ -33,7 +33,7 @@ void TimingInit(void)
   TIM_CounterCmd(TIM1, TIM_START);
 
   TIM_ITConfig(TIM1, TIM_IT_OC1, ENABLE);
-  VIC_Config(TIM1_ITLine, VIC_IRQ, PRIORITY_TIMER1);
+  VIC_Config(TIM1_ITLine, VIC_IRQ, IRQ_PRIORITY_TIMER1);
   VIC_ITCmd(TIM1_ITLine, ENABLE);
 }
 
@@ -101,12 +101,15 @@ void MicroWait(uint32_t t_microseconds)
 
 void TIM1_IRQHandler(void)
 {
+  IENABLE;
+
   if(TIM_GetFlagStatus(TIM1, TIM_FLAG_OC1) == SET)
   {
     TIM_ClearFlag(TIM1, TIM_FLAG_OC1); // clear IRQ pending bit
     TIM1->OC1R += 200;  // F_TIM1 is 200kHz, generate an interrupt every 1 ms
     ms_timestamp_++;
   }
-  // write any value to VIC0 Vector address register
+
+  IDISABLE;
   VIC0->VAR = 0xFF;
 }

@@ -43,26 +43,26 @@ void DMA_IRQHandler(void) { VIC0->VAR = 0xFF; }
 void CAN_IRQHandler(void) { VIC0->VAR = 0xFF; }
 void MC_IRQHandler(void) { VIC0->VAR = 0xFF; }
 void ADC_IRQHandler(void) { VIC0->VAR = 0xFF; }
-// void UART0_IRQHandler(void) { }
-// void UART1_IRQHandler(void) { }
-void UART2_IRQHandler(void) { }
-void I2C0_IRQHandler(void) { }
-// void I2C1_IRQHandler(void) { }
-void SSP0_IRQHandler(void) { }
-// void SSP1_IRQHandler(void) { }
-void LVD_IRQHandler(void) { }
-void RTC_IRQHandler(void) { }
-void WIU_IRQHandler(void) { }
-void EXTIT0_IRQHandler(void) { }
-void EXTIT1_IRQHandler(void) { }
-void EXTIT2_IRQHandler(void) { }
-void EXTIT3_IRQHandler(void) { }
-void USBWU_IRQHandler(void) { }
-void PFQBC_IRQHandler(void) { }
+// void UART0_IRQHandler(void) { VIC1->VAR = 0xFF; }
+// void UART1_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void UART2_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void I2C0_IRQHandler(void) { VIC1->VAR = 0xFF; }
+// void I2C1_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void SSP0_IRQHandler(void) { VIC1->VAR = 0xFF; }
+// void SSP1_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void LVD_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void RTC_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void WIU_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void EXTIT0_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void EXTIT1_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void EXTIT2_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void EXTIT3_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void USBWU_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void PFQBC_IRQHandler(void) { VIC1->VAR = 0xFF; }
 void DefaultVector_Handler(void)
 {
-    VIC0->VAR = 0xFF;
-    VIC1->VAR = 0xFF;
+  VIC0->VAR = 0xFF;
+  VIC1->VAR = 0xFF;
 }
 
 /******************* (C) COPYRIGHT 2008 STMicroelectronics *****END OF FILE****/

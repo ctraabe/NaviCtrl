@@ -1,7 +1,6 @@
 #include <stdio.h>
 
 #include "91x_lib.h"
-#include "config.h"
 #include "i2c.h"
 #include "led.h"
 #include "lsm303dl.h"
@@ -30,8 +29,8 @@ void SCUConfig(void)
 {
   // Set master clock source to external oscillator (25 MHz).
   SCU_MCLKSourceConfig(SCU_MCLK_OSC);
-  // Configure the PLL to run at 96 MHz = (2 * N * f_OSC) / (M * 2 ^ P).
-  // where feedback divider N = 192, pre-divider M = 25, & post-divider P = 2
+  // Configure the PLL to run at 96 MHz = (2 * N * f_OSC) / (M * 2 ^ P) where
+  // feedback divider N = 192, pre-divider M = 25, and post-divider P = 2.
   SCU_PLLFactorsConfig(192, 25, 2);
   // Enable the PLL.
   SCU_PLLCmd(ENABLE);
@@ -72,8 +71,8 @@ int main(void)
   UARTInit();
   I2CInit();
 
-  // UBloxInit();
-  // LSM303DLInit();
+  UBloxInit();
+  LSM303DLInit();
 
   SDCardInit();
 
@@ -109,9 +108,9 @@ int main(void)
   {
     Wait(1000);
     ProcessIncomingUART();
-    // ProcessIncomingUBlox();
-    // LSM303DLReadMag();
+    ProcessIncomingUBlox();
+    LSM303DLReadMag();
     GreenLEDToggle();
-    // UARTPrintf("%i %i %i", Magnetometer()[0], Magnetometer()[1], Magnetometer()[2]);
+    UARTPrintf("%i %i %i", Magnetometer()[0], Magnetometer()[1], Magnetometer()[2]);
   }
 }

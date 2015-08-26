@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 #include "91x_lib.h"
-#include "config.h"
+#include "irq_priority.h"
 #include "mk_serial_protocol.h"
 #include "mk_serial_tx.h"
 
@@ -70,7 +70,7 @@ void UARTInit(void)
 
   // Enable UART Rx interrupt.
   UART_ITConfig(UART1, UART_IT_Receive, ENABLE);
-  VIC_Config(UART1_ITLine, VIC_IRQ, PRIORITY_UART1);
+  VIC_Config(UART1_ITLine, VIC_IRQ, IRQ_PRIORITY_UART1);
   VIC_ITCmd(UART1_ITLine, ENABLE);
 }
 
@@ -179,6 +179,12 @@ void ReceiveUARTData(void)
 // -----------------------------------------------------------------------------
 void UART1_IRQHandler(void)
 {
+  DAISY_VIC();
+  IENABLE;
+
   UART_ClearITPendingBit(UART1, UART_IT_Receive);
   ReceiveUARTData();
+
+  IDISABLE;
+  VIC1->VAR = 0xFF;
 }

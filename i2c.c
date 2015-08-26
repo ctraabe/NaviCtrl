@@ -1,7 +1,7 @@
 #include "i2c.h"
 
 #include "91x_lib.h"
-#include "config.h"
+#include "irq_priority.h"
 #include "timing.h"
 
 
@@ -75,7 +75,7 @@ void I2CInit(void)
   I2C_Cmd(I2C1, ENABLE);
 
   I2C_ITConfig(I2C1, ENABLE);
-  VIC_Config(I2C1_ITLine, VIC_IRQ, PRIORITY_I2C1);
+  VIC_Config(I2C1_ITLine, VIC_IRQ, IRQ_PRIORITY_I2C1);
   VIC_ITCmd(I2C1_ITLine, ENABLE);
 }
 
@@ -227,6 +227,9 @@ static void I2CTxByte(uint8_t byte)
 // instruction.
 void I2C1_IRQHandler(void)
 {
+  DAISY_VIC();
+  IENABLE;
+
   uint16_t status = I2C_GetLastEvent(I2C1);
   if (status & (I2C_FLAG_AF | I2C_FLAG_BERR))
   {
@@ -287,4 +290,7 @@ void I2C1_IRQHandler(void)
       if (callback_ptr_) (*callback_ptr_)();
       break;
   }
+
+  IDISABLE;
+  VIC1->VAR = 0xFF;
 }

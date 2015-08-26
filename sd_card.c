@@ -1,8 +1,8 @@
 #include "sd_card.h"
 
 #include "91x_lib.h"
-#include "config.h"
 #include "diskio.h"  // from libfatfs
+#include "irq_priority.h"
 #include "timing.h"
 #include "uart.h"
 
@@ -545,7 +545,7 @@ static void SetBaud(uint32_t baud_rate)
   SSP_Cmd(SSP1, ENABLE);
 
   SSP_ITConfig(SSP1, SSP_IT_RxFifo, ENABLE);
-  VIC_Config(SSP1_ITLine, VIC_IRQ, PRIORITY_SSP1);
+  VIC_Config(SSP1_ITLine, VIC_IRQ, IRQ_PRIORITY_SSP1);
   VIC_ITCmd(SSP1_ITLine, ENABLE);
 }
 
@@ -570,6 +570,9 @@ static uint32_t WaitForSPI(uint32_t time_limit_ms)
 // -----------------------------------------------------------------------------
 void SSP1_IRQHandler(void)
 {
+  DAISY_VIC();
+  IENABLE;
+
   while (SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty))
   {
     if (rx_bytes_remaining_ != 0 && rx_buffer_)
@@ -598,4 +601,7 @@ void SSP1_IRQHandler(void)
   }
 
   if (bytes_remaining_ == 0) SSP_ITConfig(SSP1, SSP_IT_TxFifo, DISABLE);
+
+  IDISABLE;
+  VIC1->VAR = 0xFF;
 }

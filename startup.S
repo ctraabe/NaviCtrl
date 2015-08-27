@@ -44,14 +44,19 @@
 .set NON_BOOT_BANK_SIZE, 0x2  // 2^NON_BOOT_BANK_SIZE * 8KB = 32KB
 
 .set SCU_BASE_ADDRESS, 0x5C002000
-.set SCU_SCR0_OFFSET, 0x00000034
+.set SCU_CLKCNTR_OFFSET, 0x00  // Clock control register offset
+.set SCU_PLLCONF_OFFSET, 0x04  // PLL configuration register offset
+.set SCU_SYSSTATUS_OFFSET, 0x08  // SCU status register offset
+.set SCU_PCGR0_OFFSET, 0x14 // Peripheral clock gating register 0 offset
+.set SCU_PRR0_OFFSET, 0x1C
+.set SCU_SCR0_OFFSET, 0x34  // System configuration register 0 offset
 
 .set FMI_BASE_ADDRESS, 0x54000000  // FMI base address
-.set FMI_BBSR_OFFSET, 0x00000000  // Boot bank size register offset
-.set FMI_NBBSR_OFFSET, 0x00000004  // Non-boot bank size register offset
-.set FMI_BBADR_OFFSET, 0x0000000C  // Boot bank base address register offset
-.set FMI_NBBADR_OFFSET, 0x00000010  // Non-boot bank base address register offset
-.set FMI_CR_OFFSET, 0x00000018  // Control register offset
+.set FMI_BBSR_OFFSET, 0x00  // Boot bank size register offset
+.set FMI_NBBSR_OFFSET, 0x04  // Non-boot bank size register offset
+.set FMI_BBADR_OFFSET, 0x0C  // Boot bank base address register offset
+.set FMI_NBBADR_OFFSET, 0x10  // Non-boot bank base address register offset
+.set FMI_CR_OFFSET, 0x18  // Control register offset
 
 .set RAM_BASE_ADDRESS, 0x04000000
 .set RAM_SIZE, 0x18000  // 96KB
@@ -152,11 +157,28 @@ IRQHandler:
 //------------------------------------------------------------------------------
 ResetHandler:
 
+  ldr R0, =SCU_BASE_ADDRESS
+
+  // Configure PLL to 48 MHZ (seems to be the only possibility)
+  ldr R1, =0x000BC019  // PLL enabled with P = 3, N = 192, M = 25 (48 MHz)
+  str R1, [R0, #SCU_PLLCONF_OFFSET]
+WaitForPLLLock:
+  ldr R1, [R0, #SCU_SYSSTATUS_OFFSET]
+  ands R1, R1, #0x00000001  // PLL locked bit
+  beq WaitForPLLLock  // Wait until PLL is Locked
+  ldr R1, =0x00020000  // Set PLL as the master clock source
+  str R1, [R0, #SCU_CLKCNTR_OFFSET]
+
+  //Set up RAM
+  ldr R1, =0x00000197  // 96 KB
+  str R1, [R0, #SCU_SCR0_OFFSET]
+
+
 //------------------------------------------------------------------------------
-// This delay is added to let JTAG debuggers able to connect to STR91x micro then
-// load the program even if a previously flash code is halting the CPU core. This
-// may happen when the flash content is corrupt by containing a "bad" code like
-// entering soon to IDLE or SLEEP low power modes.
+// This delay is added to let JTAG debuggers able to connect to STR91x micro
+// then load the program even if a previously flash code is halting the CPU
+// core. This may happen when the flash content is corrupt by containing a "bad"
+// code like entering soon to IDLE or SLEEP low power modes.
 .if DEBUG_MODE
   mov r0, #0x4000
 DebugStartupLoop:

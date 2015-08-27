@@ -19,41 +19,13 @@ int main(void) __attribute__ ((noreturn));
 // =============================================================================
 // Private functions:
 
-// Set the system clocks via the SCU (system control unit). The PLL (phase loop
-// lock) will be the master clock, but it will be disabled while setting all of
-// the other clocks before being re-enabled. For more information about the
-// system clocks, see the STR91xFM reference manual section 2.4.
-void SCUConfig(void)
-{
-  // Set master clock source to external oscillator (25 MHz).
-  SCU_MCLKSourceConfig(SCU_MCLK_OSC);
-  // Configure the PLL to run at 96 MHz = (2 * N * f_OSC) / (M * 2 ^ P) where
-  // feedback divider N = 192, pre-divider M = 25, and post-divider P = 2.
-  SCU_PLLFactorsConfig(192, 25, 2);
-  // Enable the PLL.
-  SCU_PLLCmd(ENABLE);
-  // Set the RCLK (reference clock) divisor to 1.
-  SCU_RCLKDivisorConfig(SCU_RCLK_Div1);
-  // Set the HCLK (AHB (advanced high-performance bus) clock) divisor to 1.
-  SCU_HCLKDivisorConfig(SCU_HCLK_Div1);
-  // Set the PCLK (peripheral clock) divisor to 2 (48 MHz).
-  SCU_PCLKDivisorConfig(SCU_PCLK_Div2);
-  // Set the PLL as the master clock source.
-  SCU_MCLKSourceConfig(SCU_MCLK_PLL);
-  // Set the BRCLK (baud rate clock) divisor to 2 (48 MHz).
-  SCU_BRCLKDivisorConfig(SCU_BRCLK_Div2);
-}
-
-//------------------------------------------------------------------------------
 // Configure the interrupt vector.
 void VICConfig(void)
 {
   // Enable the AHB (advanced high-performance but) clock for VIC (vectored
   // interrupt controller).
   SCU_AHBPeriphClockConfig(__VIC,ENABLE);
-  // Disable the reset state for the VIC.
-  SCU_AHBPeriphReset(__VIC, DISABLE);
-  // De-initialize the VIC module registers (to their default reset values).
+  // Reset the VIC registers (to their default reset values).
   VIC_DeInit();
   // Initialize VICs default vector registers.
   VIC_InitDefaultVectors();
@@ -62,7 +34,6 @@ void VICConfig(void)
 //------------------------------------------------------------------------------
 int main(void)
 {
-  SCUConfig();
   VICConfig();
   TimingInit();
   LEDInit();

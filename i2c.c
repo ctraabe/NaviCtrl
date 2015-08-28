@@ -103,10 +103,19 @@ enum I2CError I2CRx(uint8_t slave_address, volatile uint8_t *rx_destination_ptr,
 enum I2CError I2CRxFromRegister(uint8_t slave_address, uint8_t register_address,
   volatile uint8_t *rx_destination_ptr, size_t rx_destination_len)
 {
+  return I2CRxFromRegisterThenCallback(slave_address, register_address,
+    rx_destination_ptr, rx_destination_len, 0);
+}
+
+// -----------------------------------------------------------------------------
+enum I2CError I2CRxFromRegisterThenCallback(uint8_t slave_address,
+  uint8_t register_address, volatile uint8_t *rx_destination_ptr,
+  size_t rx_destination_len, I2CCallback callback_ptr)
+{
   register_address_ = register_address;
   register_address_specified_ = 1;
-  return I2CTxThenRx(slave_address, 0, 0, rx_destination_ptr,
-    rx_destination_len);
+  return I2CTxThenRxThenCallback(slave_address, 0, 0, rx_destination_ptr,
+    rx_destination_len, callback_ptr);
 }
 
 // -----------------------------------------------------------------------------

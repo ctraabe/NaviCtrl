@@ -6,6 +6,18 @@
 #include <stddef.h>
 
 
+enum DataReadyBits {
+  DATA_READY_BIT_GPS = 1<<0,
+  DATA_READY_BIT_MAG = 1<<1,
+};
+
+
+// =============================================================================
+// Accessors:
+
+uint32_t LoggingActive(void);
+
+
 // =============================================================================
 // Public functions:
 
@@ -15,12 +27,16 @@ void LoggingInit(void);
 void OpenLogFile(const char * filename);
 
 // -----------------------------------------------------------------------------
-void WriteToLog(const char * ascii, size_t length);
-
-// -----------------------------------------------------------------------------
 void CloseLogFile(void);
 
 // -----------------------------------------------------------------------------
-void ProcessLogging(void);
+void DataReadyToLog(enum DataReadyBits data_ready);
+
+// -----------------------------------------------------------------------------
+void ProcessLoggingFast(void);
+
+// -----------------------------------------------------------------------------
+void ProcessLoggingSlow(void);
+
 
 #endif  // LOGGING_H_

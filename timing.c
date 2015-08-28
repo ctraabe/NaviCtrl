@@ -1,14 +1,13 @@
 #include "timing.h"
 
 #include "91x_lib.h"
-#include "custom_math.h"
 #include "irq_priority.h"
 
 
 // =============================================================================
 // Private data:
 
-#define F_TIM1 (200000)  // 200kHz
+#define F_TIM1 (200000)  // 200 kHz
 
 static volatile uint32_t ms_timestamp_ = 0;
 static uint32_t micro_wait_multiplier = 10;
@@ -100,6 +99,7 @@ void MicroWait(uint32_t t_microseconds)
 // =============================================================================
 // Private functions:
 
+// This interrupt should be triggered at 200 kHz
 void TIM1_IRQHandler(void)
 {
   IENABLE;
@@ -109,6 +109,14 @@ void TIM1_IRQHandler(void)
     TIM_ClearFlag(TIM1, TIM_FLAG_OC1); // clear IRQ pending bit
     TIM1->OC1R += 200;  // F_TIM1 is 200kHz, generate an interrupt every 1 ms
     ms_timestamp_++;
+
+    // Trigger a low-priority interrupt at 50Hz.
+    static uint32_t counter_50hz = (1000 / 50);
+    if (!--counter_50hz)
+    {
+      VIC_SWITCmd(EXTIT2_ITLine, ENABLE);
+      counter_50hz = (1000 / 50);
+    }
   }
 
   IDISABLE;

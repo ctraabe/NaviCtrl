@@ -112,7 +112,8 @@ void SDCardInit(void)
   gpio_init.GPIO_Alternate = GPIO_OutputAlt2;
   GPIO_Init (GPIO3, &gpio_init);
 
-  GPIO_WriteBit(GPIO5, GPIO_Pin_4, Bit_SET);
+  // Deselect the SD Card.
+  CSPinHigh();
 }
 
 // -----------------------------------------------------------------------------
@@ -224,6 +225,10 @@ DSTATUS disk_initialize(BYTE drive_number)
       UARTPrintf("sd_card: request for 512-byte block length was not honored");
       card_type_ = 0;
     }
+  }
+  else
+  {
+    UARTPrintf("sd_card: SD card failed to respond");
   }
 
   if (card_type_ != 0)
@@ -356,13 +361,13 @@ DRESULT disk_ioctl(BYTE drive_number, BYTE ctrl, void *buffer)
 
 static inline void CSPinHigh(void)
 {
-  GPIO_WriteBit(GPIO5, GPIO_Pin_4 , Bit_SET);
+  GPIO_WriteBit(GPIO5, GPIO_Pin_4, Bit_SET);
 }
 
 // -----------------------------------------------------------------------------
 static inline void CSPinLow(void)
 {
-  GPIO_WriteBit(GPIO5, GPIO_Pin_4 , Bit_RESET);
+  GPIO_WriteBit(GPIO5, GPIO_Pin_4, Bit_RESET);
 }
 
 // -----------------------------------------------------------------------------

@@ -1,10 +1,8 @@
 #include "lsm303dl.h"
 
-#include "i2c.h"
-#include "timing.h"
-// TODO: remove
 #include "91x_lib.h"
-#include "uart.h"
+#include "i2c.h"
+#include "logging.h"
 
 
 // =============================================================================
@@ -35,6 +33,12 @@ static enum LSM303DLModel {
 
 static int16_t magnetometer_[3] = { 0 };
 static volatile uint8_t magnetometer_raw_[6] = { 0 };
+
+
+// =============================================================================
+// Private function declarations:
+
+static void DataReceivedCallback(void);
 
 
 // =============================================================================
@@ -69,10 +73,16 @@ void LSM303DLInit(void)
 // -----------------------------------------------------------------------------
 void LSM303DLReadMag(void)
 {
-  I2CRxFromRegister(LSM303DL_ADDRESS_M, LSM303DL_RA_OUT_M
-    | LSM303DL_MULTI_BYTE_READ, magnetometer_raw_, sizeof(magnetometer_raw_));
-  I2CWaitUntilCompletion(10);
+  I2CRxFromRegisterThenCallback(LSM303DL_ADDRESS_M, LSM303DL_RA_OUT_M
+    | LSM303DL_MULTI_BYTE_READ, magnetometer_raw_, sizeof(magnetometer_raw_),
+    DataReceivedCallback);
+}
 
+// =============================================================================
+// Private functions:
+
+static void DataReceivedCallback(void)
+{
   magnetometer_[0] = (int16_t)(((uint16_t)magnetometer_raw_[0] << 8)
     | magnetometer_raw_[1]);
   if (lsm303dl_model_ == LSM303DL_MODEL_H)
@@ -89,4 +99,8 @@ void LSM303DLReadMag(void)
     magnetometer_[1] = (int16_t)(((uint16_t)magnetometer_raw_[4] << 8)
       | magnetometer_raw_[5]);
   }
+
+  // Trigger the data logging interrupt.
+  DataReadyToLog(DATA_READY_BIT_MAG);
+  VIC_SWITCmd(EXTIT1_ITLine, ENABLE);
 }

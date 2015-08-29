@@ -1,3 +1,5 @@
+#include "main.h"
+
 #include "91x_lib.h"
 #include "i2c.h"
 #include "irq_priority.h"
@@ -7,6 +9,33 @@
 #include "timing.h"
 #include "uart.h"
 #include "ublox.h"
+
+
+// =============================================================================
+// Private function declarations:
+
+int main(void) __attribute__ ((noreturn));
+
+
+// =============================================================================
+// Public functions:
+
+void FiftyHzInterruptHandler(void)
+{
+  uint16_t button = GPIO_ReadBit(GPIO3, GPIO_Pin_1);
+  static uint16_t button_pv = 0;
+  if (button && (button_pv == 0x7FFF))
+  {
+    if (!LoggingActive()) OpenLogFile("test.csv");
+    else CloseLogFile();
+  }
+  else
+  {
+    LSM303DLReadMag();
+    ProcessIncomingUART();
+  }
+  button_pv = (button_pv << 1) | button;
+}
 
 
 // =============================================================================
@@ -41,7 +70,6 @@ static void ExternalButtonInit(void)
 }
 
 //------------------------------------------------------------------------------
-int main(void) __attribute__ ((noreturn));
 int main(void)
 {
   VICConfig();
@@ -70,7 +98,7 @@ int main(void)
   // uint32_t led_timer = GetTimestamp();
   for (;;)
   {
-    ProcessLoggingSlow();
+    ProcessLogging();
 
     // if (TimestampInPast(led_timer))
     // {
@@ -78,44 +106,4 @@ int main(void)
     //   led_timer += 500;
     // }
   }
-}
-
-//------------------------------------------------------------------------------
-// New data received
-void EXTIT1_IRQHandler(void)
-{
-  DAISY_VIC();
-  IENABLE;
-  VIC_SWITCmd(EXTIT1_ITLine, DISABLE);
-
-  ProcessLoggingFast();
-
-  IDISABLE;
-  VIC1->VAR = 0xFF;
-}
-
-//------------------------------------------------------------------------------
-// 50 Hz interrupt
-void EXTIT2_IRQHandler(void)
-{
-  DAISY_VIC();
-  IENABLE;
-  VIC_SWITCmd(EXTIT2_ITLine, DISABLE);
-
-  uint16_t button = GPIO_ReadBit(GPIO3, GPIO_Pin_1);
-  static uint16_t button_pv = 0;
-  if (button && (button_pv == 0x7FFF))
-  {
-    if (!LoggingActive()) OpenLogFile("test.csv");
-    else CloseLogFile();
-  }
-  else
-  {
-    LSM303DLReadMag();
-    ProcessIncomingUART();
-  }
-  button_pv = (button_pv << 1) | button;
-
-  IDISABLE;
-  VIC1->VAR = 0xFF;
 }

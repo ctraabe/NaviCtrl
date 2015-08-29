@@ -21,6 +21,9 @@
 
 #include "91x_it.h"
 
+#include "logging.h"
+#include "main.h"
+
 
 void Undefined_Handler(void) { for (;;) continue; }
 void SWI_Handler(void) { }
@@ -54,9 +57,29 @@ void LVD_IRQHandler(void) { VIC1->VAR = 0xFF; }
 void RTC_IRQHandler(void) { VIC1->VAR = 0xFF; }
 void WIU_IRQHandler(void) { VIC1->VAR = 0xFF; }
 void EXTIT0_IRQHandler(void) { VIC1->VAR = 0xFF; }
-// void EXTIT1_IRQHandler(void) { VIC1->VAR = 0xFF; }
-// void EXTIT2_IRQHandler(void) { VIC1->VAR = 0xFF; }
-void EXTIT3_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void EXTIT1_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void EXTIT2_IRQHandler(void)
+{
+  DAISY_VIC();
+  IENABLE;
+  VIC_SWITCmd(EXTIT2_ITLine, DISABLE);
+
+  NewDataInterruptHandler();
+
+  IDISABLE;
+  VIC1->VAR = 0xFF;
+}
+void EXTIT3_IRQHandler(void)
+{
+  DAISY_VIC();
+  IENABLE;
+  VIC_SWITCmd(EXTIT3_ITLine, DISABLE);
+
+  FiftyHzInterruptHandler();
+
+  IDISABLE;
+  VIC1->VAR = 0xFF;
+}
 void USBWU_IRQHandler(void) { VIC1->VAR = 0xFF; }
 void PFQBC_IRQHandler(void) { VIC1->VAR = 0xFF; }
 void DefaultVector_Handler(void)

@@ -82,7 +82,7 @@ void DataReadyToLog(enum DataReadyBits data_ready)
 }
 
 // -----------------------------------------------------------------------------
-void ProcessLoggingFast(void)
+void NewDataInterruptHandler(void)
 {
   if (!logging_active_) return;
 
@@ -98,7 +98,7 @@ void ProcessLoggingFast(void)
 }
 
 // -----------------------------------------------------------------------------
-void ProcessLoggingSlow(void)
+void ProcessLogging(void)
 {
   if (SDCardNotPresent()) return;
 

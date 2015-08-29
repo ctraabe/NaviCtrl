@@ -33,10 +33,10 @@ void CloseLogFile(void);
 void DataReadyToLog(enum DataReadyBits data_ready);
 
 // -----------------------------------------------------------------------------
-void ProcessLoggingFast(void);
+void NewDataInterruptHandler(void);
 
 // -----------------------------------------------------------------------------
-void ProcessLoggingSlow(void);
+void ProcessLogging(void);
 
 
 #endif  // LOGGING_H_

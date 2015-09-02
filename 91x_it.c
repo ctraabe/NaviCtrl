@@ -21,15 +21,21 @@
 
 #include "91x_it.h"
 
+#include "i2c.h"
+#include "led.h"
 #include "logging.h"
 #include "main.h"
+#include "sd_card.h"
+#include "spi_slave.h"
+#include "uart.h"
+#include "ublox.h"
 
 
-void Undefined_Handler(void) { for (;;) continue; }
-void SWI_Handler(void) { }
-void Prefetch_Handler(void) { for (;;) continue; }
+void Undefined_Handler(void) { GreenLEDOn(); for (;;) continue; }
+void SWI_Handler(void) { for (;;) continue; }
+void Prefetch_Handler(void) { RedLEDOn(); for (;;) continue; }
 void Abort_Handler(void) { for (;;) continue; }
-void FIQ_Handler(void) { }
+void FIQ_Handler(void) { for (;;) continue; }
 void WDG_IRQHandler(void) { VIC0->VAR = 0xFF; }
 void SW_IRQHandler(void) { VIC0->VAR = 0xFF; }
 void ARMRX_IRQHandler(void) { VIC0->VAR = 0xFF; }
@@ -46,22 +52,56 @@ void DMA_IRQHandler(void) { VIC0->VAR = 0xFF; }
 void CAN_IRQHandler(void) { VIC0->VAR = 0xFF; }
 void MC_IRQHandler(void) { VIC0->VAR = 0xFF; }
 void ADC_IRQHandler(void) { VIC0->VAR = 0xFF; }
-// void UART0_IRQHandler(void) { VIC1->VAR = 0xFF; }
-// void UART1_IRQHandler(void) { VIC1->VAR = 0xFF; }
-void UART2_IRQHandler(void) { VIC1->VAR = 0xFF; }
-void I2C0_IRQHandler(void) { VIC1->VAR = 0xFF; }
-// void I2C1_IRQHandler(void) { VIC1->VAR = 0xFF; }
-void SSP0_IRQHandler(void) { VIC1->VAR = 0xFF; }
-// void SSP1_IRQHandler(void) { VIC1->VAR = 0xFF; }
-void LVD_IRQHandler(void) { VIC1->VAR = 0xFF; }
-void RTC_IRQHandler(void) { VIC1->VAR = 0xFF; }
-void WIU_IRQHandler(void) { VIC1->VAR = 0xFF; }
-void EXTIT0_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void UART0_IRQHandler(void)
+{
+  DAISY_VIC();
+
+  UBloxUARTHandler();
+
+  VIC1->VAR = 0xFF;
+}
+void UART1_IRQHandler(void)
+{
+  DAISY_VIC();
+
+  UART1Handler();
+
+  VIC1->VAR = 0xFF;
+}
+void UART2_IRQHandler(void) { }
+void I2C0_IRQHandler(void) { }
+void I2C1_IRQHandler(void)
+{
+  DAISY_VIC();
+
+  I2CHandler();
+
+  VIC1->VAR = 0xFF;
+}
+void SSP0_IRQHandler(void)
+{
+  DAISY_VIC();
+
+  SPISlaveHandler();
+
+  VIC1->VAR = 0xFF;
+}
+void SSP1_IRQHandler(void)
+{
+  DAISY_VIC();
+
+  SDSPIHandler();
+
+  VIC1->VAR = 0xFF;
+}
+void LVD_IRQHandler(void) { }
+void RTC_IRQHandler(void) { }
+void WIU_IRQHandler(void) { }
+void EXTIT0_IRQHandler(void) { }
 void EXTIT1_IRQHandler(void)
 {
   DAISY_VIC();
   IENABLE;
-  VIC_SWITCmd(EXTIT1_ITLine, DISABLE);
 
   NewDataInterruptHandler();
 
@@ -71,12 +111,9 @@ void EXTIT1_IRQHandler(void)
 void EXTIT2_IRQHandler(void)
 {
   DAISY_VIC();
-  IENABLE;
-  VIC_SWITCmd(EXTIT2_ITLine, DISABLE);
 
   FiftyHzInterruptHandler();
 
-  IDISABLE;
   VIC1->VAR = 0xFF;
 }
 void EXTIT3_IRQHandler(void) { VIC1->VAR = 0xFF; }

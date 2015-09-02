@@ -18,5 +18,8 @@ void UBloxInit(void);
 // (data_buffer_).
 void ProcessIncomingUBlox(void);
 
+// -----------------------------------------------------------------------------
+void UBloxUARTHandler(void);
+
 
 #endif  // UBLOX_H_

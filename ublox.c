@@ -330,14 +330,8 @@ static void UART0Init(uint32_t baud_rate)
 }
 
 // -----------------------------------------------------------------------------
-void UART0_IRQHandler(void)
+void UBloxUARTHandler(void)
 {
-  DAISY_VIC();
-  IENABLE;
-
   UART_ClearITPendingBit(UART0, UART_IT_Receive);
   ReceiveUBloxData();
-
-  IDISABLE;
-  VIC1->VAR = 0xFF;
 }

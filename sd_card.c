@@ -129,6 +129,8 @@ uint32_t SDCardNotPresent(void)
 // This function returns the card status.
 DSTATUS disk_status(BYTE drive_number)
 {
+  // UARTPrintf("sd_card: disk_status(%u)", drive_number);
+
   // NaviCtrl only has one card slot, so there can be only drive 0.
   if (drive_number == 0) return status_;
   return STA_NODISK | STA_NOINIT;
@@ -138,6 +140,8 @@ DSTATUS disk_status(BYTE drive_number)
 // This function initialize the SD card.
 DSTATUS disk_initialize(BYTE drive_number)
 {
+  // UARTPrintf("sd_card: disk_initialize(%u)", drive_number);
+
   // NaviCtrl only has one card slot, so there can be only drive 0.
   if (drive_number != 0) return STA_NODISK | STA_NOINIT;
   if (SDCardNotPresent())
@@ -242,6 +246,7 @@ DSTATUS disk_initialize(BYTE drive_number)
   }
 
   Deselect();
+  // UARTPrintf("sd_card: disk_initialize(): 0x%02X", status_);
   return status_;
 }
 
@@ -249,14 +254,15 @@ DSTATUS disk_initialize(BYTE drive_number)
 // This function reads sector(s) from the SD card.
 DRESULT disk_read(BYTE drive_number, BYTE *buffer, DWORD sector, UINT count)
 {
+  // UARTPrintf("sd_card: disk_read(%u,x,%u,%u)", drive_number, sector, count);
+
   if ((status_ & STA_NOINIT) || (drive_number != 0)) return RES_NOTRDY;
 
   // Cards that are not high capacity should be byte addressed.
   if (!(card_type_ & CT_BLOCK)) sector *= 512;
 
   // Choose the single-byte or multiple-byte read command.
-  BYTE command;
-  command = count > 1 ? SD_CMD18 : SD_CMD17;
+  BYTE command = count > 1 ? SD_CMD18 : SD_CMD17;
 
   if (TxCommand(command, sector) == 0)
   {
@@ -270,6 +276,7 @@ DRESULT disk_read(BYTE drive_number, BYTE *buffer, DWORD sector, UINT count)
   }
 
   Deselect();
+  // UARTPrintf("sd_card: disk_read(): 0x%02X", count ? RES_ERROR : RES_OK);
   return count ? RES_ERROR : RES_OK;
 }
 
@@ -278,6 +285,8 @@ DRESULT disk_read(BYTE drive_number, BYTE *buffer, DWORD sector, UINT count)
 DRESULT disk_write(BYTE drive_number, const BYTE *buffer, DWORD sector,
   UINT count)
 {
+  // UARTPrintf("sd_card: disk_write(%u,x,%u,%u)", drive_number, sector, count);
+
   if ((status_ & STA_NOINIT) || (drive_number != 0)) return RES_NOTRDY;
 
   // Cards that are not high capacity should be byte addressed.
@@ -304,6 +313,7 @@ DRESULT disk_write(BYTE drive_number, const BYTE *buffer, DWORD sector,
   }
 
   Deselect();
+  // UARTPrintf("sd_card: disk_write(): 0x%02X", count ? RES_ERROR : RES_OK);
   return count ? RES_ERROR : RES_OK;
 }
 
@@ -311,6 +321,8 @@ DRESULT disk_write(BYTE drive_number, const BYTE *buffer, DWORD sector,
 // This function controls miscellaneous functions other than generic read/write.
 DRESULT disk_ioctl(BYTE drive_number, BYTE ctrl, void *buffer)
 {
+  // UARTPrintf("sd_card: disk_io_ctrl(%u, %u, x)", drive_number, ctrl);
+
   if ((status_ & STA_NOINIT) || (drive_number != 0)) return RES_NOTRDY;
 
   DWORD cs;
@@ -352,6 +364,7 @@ DRESULT disk_ioctl(BYTE drive_number, BYTE ctrl, void *buffer)
   }
 
   Deselect();
+  // UARTPrintf("sd_card: disk_io_ctrl(): 0x%02X", response);
   return response;
 }
 
@@ -571,11 +584,8 @@ static uint32_t WaitForSPI(uint32_t time_limit_ms)
 }
 
 // -----------------------------------------------------------------------------
-void SSP1_IRQHandler(void)
+void SDSPIHandler(void)
 {
-  DAISY_VIC();
-  IENABLE;
-
   while (SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty))
   {
     if (rx_bytes_remaining_ != 0 && rx_buffer_)
@@ -604,7 +614,4 @@ void SSP1_IRQHandler(void)
   }
 
   if (bytes_remaining_ == 0) SSP_ITConfig(SSP1, SSP_IT_TxFifo, DISABLE);
-
-  IDISABLE;
-  VIC1->VAR = 0xFF;
 }

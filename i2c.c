@@ -234,11 +234,8 @@ static void I2CTxByte(uint8_t byte)
 // -----------------------------------------------------------------------------
 // I2C interrupt indicating that the I2C is active and waiting for the next
 // instruction.
-void I2C1_IRQHandler(void)
+void I2CHandler(void)
 {
-  DAISY_VIC();
-  IENABLE;
-
   uint16_t status = I2C_GetLastEvent(I2C1);
   if (status & (I2C_FLAG_AF | I2C_FLAG_BERR))
   {
@@ -299,7 +296,4 @@ void I2C1_IRQHandler(void)
       if (callback_ptr_) (*callback_ptr_)();
       break;
   }
-
-  IDISABLE;
-  VIC1->VAR = 0xFF;
 }

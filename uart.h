@@ -52,5 +52,8 @@ void UARTTxByte(uint8_t byte);
 // exceeded. Note that this function is slow and blocking.
 void UARTPrintf(const char *format, ...);
 
+// -----------------------------------------------------------------------------
+void UART1Handler(void);
+
 
 #endif  // UART_H_

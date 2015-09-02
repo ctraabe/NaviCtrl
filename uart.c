@@ -32,7 +32,6 @@ static void ReceiveUARTData(void);
 
 void UARTInit(void)
 {
-
   SCU_APBPeriphClockConfig(__GPIO3, ENABLE);  // Enable the GPIO3 Clock
   SCU_APBPeriphClockConfig(__UART1, ENABLE);  // Enable the UART1 Clock
 
@@ -177,14 +176,8 @@ void ReceiveUARTData(void)
 }
 
 // -----------------------------------------------------------------------------
-void UART1_IRQHandler(void)
+void UART1Handler(void)
 {
-  DAISY_VIC();
-  IENABLE;
-
   UART_ClearITPendingBit(UART1, UART_IT_Receive);
   ReceiveUARTData();
-
-  IDISABLE;
-  VIC1->VAR = 0xFF;
 }

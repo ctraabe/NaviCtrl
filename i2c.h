@@ -77,5 +77,10 @@ enum I2CError I2CTxThenRxThenCallback(uint8_t slave_address,
 // -----------------------------------------------------------------------------
 uint32_t I2CWaitUntilCompletion(uint32_t time_limit_ms);
 
+// -----------------------------------------------------------------------------
+// I2C interrupt indicating that the I2C is active and waiting for the next
+// instruction.
+void I2CHandler(void);
+
 
 #endif  // I2C_H_

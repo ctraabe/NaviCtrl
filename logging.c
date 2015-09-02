@@ -7,6 +7,7 @@
 #include "lsm303dl.h"
 #include "uart.h"
 #include "sd_card.h"
+#include "spi_slave.h"
 // TODO: Remove
 #include "led.h"
 
@@ -58,13 +59,20 @@ void OpenLogFile(const char * filename)
 {
   if (file_status_ == FR_INVALID_DRIVE) return;
 
-  // Copy the filename.
-  char * filename_ptr = filename_;
-  size_t max_filename_length = MAX_FILENAME_LENGTH;
-  do
+  if (filename)
   {
-    *filename_ptr++ = *filename;
-  } while (*filename++ && --max_filename_length);
+    // Copy the filename.
+    char * filename_ptr = filename_;
+    size_t max_filename_length = MAX_FILENAME_LENGTH;
+    do
+    {
+      *filename_ptr++ = *filename;
+    } while (*filename++ && --max_filename_length);
+  }
+  else
+  {
+    filename_[0] = 0;
+  }
 
   logging_active_ = 1;
 }
@@ -84,6 +92,13 @@ void DataReadyToLog(enum DataReadyBits data_ready)
 // -----------------------------------------------------------------------------
 void NewDataInterruptHandler(void)
 {
+  VIC_SWITCmd(EXTIT1_ITLine, DISABLE);
+
+  if (data_ready_ & DATA_READY_BIT_FC)
+  {
+    for (uint32_t i = 0; i < 17; ++i) UARTTxByte(SPITemp()[i]);
+  }
+
   if (!logging_active_) return;
 
   if (data_ready_ & DATA_READY_BIT_MAG)
@@ -107,17 +122,24 @@ void ProcessLogging(void)
   {
     GreenLEDOn();
 
-    // Disable all VIC1 interrupts.
-    uint32_t vic0 = VIC1->INTER && 0xFFFF;
-    uint32_t vic1 = VIC1->INTER && 0xFFFF;
-    VIC0->INTECR = vic0;
-    VIC1->INTECR = vic1;
+    VIC_ITCmd(EXTIT2_ITLine, DISABLE);
 
-    // Enable Timer1 and I2C interrupts only.
-    VIC_ITCmd(TIM1_ITLine, ENABLE);
-    VIC_ITCmd(I2C1_ITLine, ENABLE);
+    if (filename_[0] == 0)
+    {
+      // Try to open a default filename.
+      uint32_t i = 0;
+      do
+      {
+        snprintf(filename_, MAX_FILENAME_LENGTH, "LOG%04lu.CSV", ++i);
+        UARTPrintf("Trying %s", filename_);
+        file_status_ = f_open(&file_, filename_, FA_WRITE | FA_CREATE_NEW);
+      } while ((file_status_ == FR_EXIST) && (i < 1000));
+    }
+    else
+    {
+      file_status_ = f_open(&file_, filename_, FA_WRITE | FA_CREATE_NEW);
+    }
 
-    file_status_ = f_open(&file_, filename_, FA_WRITE | FA_OPEN_ALWAYS);
     if (file_status_ != FR_OK)
     {
       UARTPrintf("logging: f_open returned error code: 0x%02X", file_status_);
@@ -126,9 +148,7 @@ void ProcessLogging(void)
       return;
     }
 
-    // Re-enable interrupts.
-    VIC0->INTER = vic0;
-    VIC1->INTER = vic1;
+    VIC_ITCmd(EXTIT2_ITLine, ENABLE);
 
     GreenLEDOff();
     RedLEDOn();

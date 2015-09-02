@@ -6,6 +6,7 @@
 #include "led.h"
 #include "logging.h"
 #include "lsm303dl.h"
+#include "spi_slave.h"
 #include "timing.h"
 #include "uart.h"
 #include "ublox.h"
@@ -22,11 +23,13 @@ int main(void) __attribute__ ((noreturn));
 
 void FiftyHzInterruptHandler(void)
 {
+  VIC_SWITCmd(EXTIT2_ITLine, DISABLE);
+
   uint16_t button = GPIO_ReadBit(GPIO3, GPIO_Pin_1);
   static uint16_t button_pv = 0;
   if (button && (button_pv == 0x7FFF))
   {
-    if (!LoggingActive()) OpenLogFile("test.csv");
+    if (!LoggingActive()) OpenLogFile(0);
     else CloseLogFile();
   }
   else
@@ -66,7 +69,7 @@ static void ExternalButtonInit(void)
   gpio_init.GPIO_Type = GPIO_Type_PushPull;
   gpio_init.GPIO_IPInputConnected = GPIO_IPInputConnected_Disable;
   gpio_init.GPIO_Alternate = GPIO_InputAlt1;
-  GPIO_Init (GPIO3, &gpio_init);
+  GPIO_Init(GPIO3, &gpio_init);
 }
 
 //------------------------------------------------------------------------------
@@ -77,6 +80,7 @@ int main(void)
   LEDInit();
   UARTInit();
   I2CInit();
+  SPISlaveInit();
 
   UARTPrintf("University of Tokyo NaviCtrl firmware V2");
 
@@ -95,15 +99,15 @@ int main(void)
   VIC_ITCmd(EXTIT2_ITLine, ENABLE);
 
   // Main loop.
-  // uint32_t led_timer = GetTimestamp();
+  uint32_t led_timer = GetTimestamp();
   for (;;)
   {
     ProcessLogging();
 
-    // if (TimestampInPast(led_timer))
-    // {
-    //   GreenLEDToggle();
-    //   led_timer += 500;
-    // }
+    if (TimestampInPast(led_timer))
+    {
+      // GreenLEDToggle();
+      led_timer += 500;
+    }
   }
 }

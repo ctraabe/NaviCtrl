@@ -92,7 +92,7 @@ void MicroWait(uint32_t t_microseconds)
     "LOOP:\n\t"
     "subs %[countdown], %[countdown], #1\n\t"
     "bne LOOP\n\t"
-    : : [countdown] "r" (countdown)
+    : : [countdown] "r" (countdown) : "cc"
   );
 }
 
@@ -102,8 +102,6 @@ void MicroWait(uint32_t t_microseconds)
 // This interrupt should be triggered at 200 kHz
 void TIM1_IRQHandler(void)
 {
-  IENABLE;
-
   if(TIM_GetFlagStatus(TIM1, TIM_FLAG_OC1) == SET)
   {
     TIM_ClearFlag(TIM1, TIM_FLAG_OC1); // clear IRQ pending bit
@@ -119,6 +117,5 @@ void TIM1_IRQHandler(void)
     }
   }
 
-  IDISABLE;
   VIC0->VAR = 0xFF;
 }

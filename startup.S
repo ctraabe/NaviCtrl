@@ -109,12 +109,12 @@ _cplp_\sec_name:
 
 //------------------------------------------------------------------------------
 .macro CLEAR_SECTION sec_name, source, source_end
-  mov R0, #0
-  ldr R1, =\source
-  ldr R2, =\source_end
+  mov r0, #0
+  ldr r1, =\source
+  ldr r2, =\source_end
 _cllp_\sec_name:
-  cmp R1, R2
-  strlo R0, [R1], #4
+  cmp r1, r2
+  strlo r0, [r1], #4
   blo _cllp_\sec_name
 .endm
 
@@ -157,21 +157,21 @@ IRQHandler:
 //------------------------------------------------------------------------------
 ResetHandler:
 
-  ldr R0, =SCU_BASE_ADDRESS
+  ldr r0, =SCU_BASE_ADDRESS
 
   // Configure PLL to 48 MHZ (seems to be the only possibility)
-  ldr R1, =0x000BC019  // PLL enabled with P = 3, N = 192, M = 25 (48 MHz)
-  str R1, [R0, #SCU_PLLCONF_OFFSET]
+  ldr r1, =0x000BC019  // PLL enabled with P = 3, N = 192, M = 25 (48 MHz)
+  str r1, [r0, #SCU_PLLCONF_OFFSET]
 WaitForPLLLock:
-  ldr R1, [R0, #SCU_SYSSTATUS_OFFSET]
-  ands R1, R1, #0x00000001  // PLL locked bit
+  ldr r1, [r0, #SCU_SYSSTATUS_OFFSET]
+  ands r1, r1, #0x00000001  // PLL locked bit
   beq WaitForPLLLock  // Wait until PLL is Locked
-  ldr R1, =0x00020000  // Set PLL as the master clock source
-  str R1, [R0, #SCU_CLKCNTR_OFFSET]
+  ldr r1, =0x00020000  // Set PLL as the master clock source
+  str r1, [r0, #SCU_CLKCNTR_OFFSET]
 
   //Set up RAM
-  ldr R1, =0x00000197  // 96 KB
-  str R1, [R0, #SCU_SCR0_OFFSET]
+  ldr r1, =0x00000197  // 96 KB
+  str r1, [r0, #SCU_SCR0_OFFSET]
 
 
 //------------------------------------------------------------------------------
@@ -224,7 +224,7 @@ DebugStartupLoop:
   str r7, [r6, #FMI_CR_OFFSET]
   ldr r0, =SCU_BASE_ADDRESS
   ldr r1, =0x3  // Clear the status registers
-  str r1, [R0, #SCU_SCR0_OFFSET]
+  str r1, [r0, #SCU_SCR0_OFFSET]
 .endif
 
 //------------------------------------------------------------------------------

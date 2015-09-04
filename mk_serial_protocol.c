@@ -46,7 +46,7 @@
 // Private function declarations:
 
 static void DecodeMKSerialRx(uint8_t * data_buffer, size_t length);
-static void AddMKChecksum(uint8_t * buffer, size_t length);
+static void AddMKChecksum(uint8_t * buffer, size_t * const length);
 static int VerifyMKChecksum(uint8_t * data_buffer, size_t length);
 
 
@@ -84,7 +84,7 @@ enum UARTRxMode MKSerialRx(uint8_t byte, uint8_t * data_buffer)
 // The message must contain at least a destination address and a label. If no
 // additional data is necessary, then the source pointer and length can both be
 // set to zero.
-void MKSerialTx(uint8_t address, uint8_t label, uint8_t * source,
+void MKSerialTx(uint8_t address, uint8_t label, const uint8_t * source,
   size_t length)
 {
   uint8_t * tx_buffer = RequestUARTTxBuffer();
@@ -106,8 +106,7 @@ void MKSerialTx(uint8_t address, uint8_t label, uint8_t * source,
     tx_buffer[i++] = '=' + (y[0] & 0x3f);
   }
 
-  AddMKChecksum(tx_buffer, i);
-  i += sizeof(uint16_t);
+  AddMKChecksum(tx_buffer, &i);
 
   tx_buffer[i++] = '\r';
 
@@ -150,7 +149,7 @@ static void DecodeMKSerialRx(uint8_t * data_buffer, size_t length)
 // -----------------------------------------------------------------------------
 // This function computes the MikroKopter checksum for encoded data. Here,
 // length excludes the start and end characters and the checksum.
-static uint16_t MKChecksum(uint8_t * buffer, size_t length)
+static uint16_t MKChecksum(const uint8_t * buffer, size_t length)
 {
   union U16Bytes result = { '#' };
   for (size_t i = length; i--; ) result.u16 += buffer[i];
@@ -167,10 +166,11 @@ static uint16_t MKChecksum(uint8_t * buffer, size_t length)
 // -----------------------------------------------------------------------------
 // This function appends the MikroKopter checksum to the end of some encoded
 // data. Here, length excludes the start and end characters and the checksum.
-static void AddMKChecksum(uint8_t * buffer, size_t length)
+static void AddMKChecksum(uint8_t * buffer, size_t * const length)
 {
-  uint16_t * checksum_ptr = (uint16_t *)&buffer[length];
-  *checksum_ptr = MKChecksum(++buffer, --length);
+  union U16Bytes checksum = { MKChecksum(buffer + 1, *length - 1) };
+  buffer[(*length)++] = checksum.bytes[0];
+  buffer[(*length)++] = checksum.bytes[1];
 }
 
 // -----------------------------------------------------------------------------

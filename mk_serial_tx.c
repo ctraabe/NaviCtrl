@@ -1,7 +1,10 @@
 #include "mk_serial_tx.h"
 
 #include "mk_serial_protocol.h"
+#include "lsm303dl.h"
 #include "timing.h"
+// TODO: remove
+#include "led.h"
 
 
 // =============================================================================
@@ -17,6 +20,7 @@ static uint32_t stream_period_ = 0, stream_timer_ = 0, stream_timeout_ = 0;
 // =============================================================================
 // Private function declarations:
 
+static void SendMagData(void);
 static void SendVersion(void);
 
 
@@ -31,12 +35,16 @@ void SendPendingMKSerial(void)
   {
     // A one-time request has higher priority than a periodic "stream" of data.
     if (tx_request_ & MK_TX_VERSION) SendVersion();
+    if (tx_request_ & MK_TX_MAG) SendMagData();
   }
   else if (mk_stream_ && TimestampInPast(stream_timer_))
   {
     // A data stream is active and it is time for another transmission.
     switch (mk_stream_)
     {
+      case MK_STREAM_MAG:
+        SendMagData();
+        break;
       default:
         break;
     }
@@ -46,7 +54,7 @@ void SendPendingMKSerial(void)
     if (TimestampInPast(stream_timer_)) stream_timer_ = GetTimestamp();
 
     // Disable the stream if no request has been renewing received in a while.
-    if (TimestampInPast(stream_timeout_)) mk_stream_ = MK_STREAM_NONE;
+    // if (TimestampInPast(stream_timeout_)) mk_stream_ = MK_STREAM_NONE;
   }
 }
 
@@ -59,6 +67,8 @@ void SendPendingMKSerial(void)
 void SetMKDataStream(enum MKStream mk_stream, uint32_t period_10ms)
 {
   mk_stream_ = mk_stream;
+  if (mk_stream == MK_STREAM_MAG) RedLEDOn();
+  else RedLEDOff();
 
   uint32_t stream_period = period_10ms * 10;  // ms
   if (!stream_period_)
@@ -80,6 +90,13 @@ void SetMKTxRequest(enum MKTxBits tx_request)
 // =============================================================================
 // Private functions:
 
+static void SendMagData(void)
+{
+  MKSerialTx(1, 'M', (uint8_t *)Magnetometer(), 6);
+  tx_request_ &= ~MK_TX_MAG;
+}
+
+// -----------------------------------------------------------------------------
 static void SendVersion(void)
 {
   MKSerialTx(1, 'V', 0, 0);

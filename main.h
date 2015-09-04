@@ -7,5 +7,11 @@
 
 void FiftyHzInterruptHandler(void);
 
+//------------------------------------------------------------------------------
+void NewDataInterruptHandler(void);
+
+//------------------------------------------------------------------------------
+void DataReadyToLog(void);
+
 
 #endif  // MAIN_H_

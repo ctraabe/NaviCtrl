@@ -14,7 +14,8 @@
 
 #define UART_BAUD (57600)
 
-static volatile uint8_t rx_fifo_[UART_RX_FIFO_LENGTH], *tx_ptr_ = 0;
+static volatile uint8_t rx_fifo_[UART_RX_FIFO_LENGTH];
+static const uint8_t * volatile tx_ptr_ = 0;
 static volatile size_t rx_fifo_head_ = 0, tx_bytes_remaining_ = 0;
 static uint8_t data_buffer_[UART_DATA_BUFFER_LENGTH];
 static uint8_t tx_buffer_[UART_TX_BUFFER_LENGTH];
@@ -126,7 +127,7 @@ void UARTTxBuffer(size_t tx_length)
   if (tx_length == 0) return;
   tx_ptr_ = &tx_buffer_[0];
   tx_bytes_remaining_ = tx_length;
-  // UCSR0B |= _BV(UDRIE0);  // Enable the USART0 data register empty interrupt.
+  UART_ITConfig(UART1, UART_IT_Transmit, ENABLE);
 }
 
 // -----------------------------------------------------------------------------
@@ -178,6 +179,14 @@ void ReceiveUARTData(void)
 // -----------------------------------------------------------------------------
 void UART1Handler(void)
 {
-  UART_ClearITPendingBit(UART1, UART_IT_Receive);
   ReceiveUARTData();
+
+  while (tx_bytes_remaining_
+    && !UART_GetFlagStatus(UART1, UART_FLAG_TxFIFOFull))
+  {
+    UART_SendData(UART1, *tx_ptr_++);
+    --tx_bytes_remaining_;
+  }
+
+  if (tx_bytes_remaining_ == 0) UART_ITConfig(UART1, UART_IT_Transmit, DISABLE);
 }

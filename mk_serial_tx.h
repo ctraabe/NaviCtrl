@@ -7,11 +7,13 @@
 
 enum MKTxBits {
   MK_TX_VERSION = 1<<0,
+  MK_TX_MAG = 1<<1,
 };
 
 enum MKStream {
   MK_STREAM_NONE = 0,
   MK_STREAM_DEBUG,
+  MK_STREAM_MAG,
 };
 
 

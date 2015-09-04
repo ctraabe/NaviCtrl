@@ -2,7 +2,8 @@
 
 #include "91x_lib.h"
 #include "i2c.h"
-#include "logging.h"
+// #include "logging.h"
+#include "main.h"
 
 
 // =============================================================================
@@ -101,6 +102,6 @@ static void DataReceivedCallback(void)
   }
 
   // Trigger the data logging interrupt.
-  DataReadyToLog(DATA_READY_BIT_MAG);
-  VIC_SWITCmd(EXTIT1_ITLine, ENABLE);
+  DataReadyToLog();
+  // VIC_SWITCmd(EXTIT1_ITLine, ENABLE);
 }

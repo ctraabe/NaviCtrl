@@ -4,12 +4,18 @@
 #include "i2c.h"
 #include "irq_priority.h"
 #include "led.h"
-#include "logging.h"
+// #include "logging.h"
 #include "lsm303dl.h"
-#include "spi_slave.h"
+// #include "spi_slave.h"
 #include "timing.h"
 #include "uart.h"
-#include "ublox.h"
+// #include "ublox.h"
+
+
+// =============================================================================
+// Private data:
+
+static uint32_t data_ready_ = 0;
 
 
 // =============================================================================
@@ -25,19 +31,31 @@ void FiftyHzInterruptHandler(void)
 {
   VIC_SWITCmd(EXTIT2_ITLine, DISABLE);
 
-  uint16_t button = GPIO_ReadBit(GPIO3, GPIO_Pin_1);
-  static uint16_t button_pv = 0;
-  if (button && (button_pv == 0x7FFF))
-  {
-    if (!LoggingActive()) OpenLogFile(0);
-    else CloseLogFile();
-  }
-  else
-  {
+  // uint16_t button = GPIO_ReadBit(GPIO3, GPIO_Pin_1);
+  // static uint16_t button_pv = 0;
+  // if (button && (button_pv == 0x7FFF))
+  // {
+  //   if (!LoggingActive()) OpenLogFile(0);
+  //   else CloseLogFile();
+  // }
+  // else
+  // {
     LSM303DLReadMag();
     ProcessIncomingUART();
-  }
-  button_pv = (button_pv << 1) | button;
+  // }
+  // button_pv = (button_pv << 1) | button;
+}
+
+//------------------------------------------------------------------------------
+void NewDataInterruptHandler(void)
+{
+  SendPendingUART();
+}
+
+//------------------------------------------------------------------------------
+void DataReadyToLog(void)
+{
+  data_ready_ = 1;
 }
 
 
@@ -80,19 +98,19 @@ int main(void)
   LEDInit();
   UARTInit();
   I2CInit();
-  SPISlaveInit();
+  // SPISlaveInit();
 
   UARTPrintf("University of Tokyo NaviCtrl firmware V2");
 
-  UBloxInit();
+  // UBloxInit();
   LSM303DLInit();
-  LoggingInit();
+  // LoggingInit();
 
   ExternalButtonInit();
 
   // Enable the "new data" Interrupt.
-  VIC_Config(EXTIT1_ITLine, VIC_IRQ, IRQ_PRIORITY_NEW_DATA);
-  VIC_ITCmd(EXTIT1_ITLine, ENABLE);
+  // VIC_Config(EXTIT1_ITLine, VIC_IRQ, IRQ_PRIORITY_NEW_DATA);
+  // VIC_ITCmd(EXTIT1_ITLine, ENABLE);
 
   // Enable the 50Hz Interrupt.
   VIC_Config(EXTIT2_ITLine, VIC_IRQ, IRQ_PRIORITY_50HZ);
@@ -102,11 +120,16 @@ int main(void)
   uint32_t led_timer = GetTimestamp();
   for (;;)
   {
-    ProcessLogging();
+    // ProcessLogging();
+    if (data_ready_)
+    {
+      data_ready_ = 0;
+      SendPendingUART();
+    }
 
     if (TimestampInPast(led_timer))
     {
-      // GreenLEDToggle();
+      GreenLEDToggle();
       led_timer += 500;
     }
   }

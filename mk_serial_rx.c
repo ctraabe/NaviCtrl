@@ -22,6 +22,12 @@ void HandleMKRx(uint8_t address, uint8_t label, uint8_t * data_buffer)
   // First check for the following address independent messages.
   switch (label)
   {
+    case 'i':  // Request MK data stream
+      SetMKDataStream(MK_STREAM_MAG, 0);
+      break;
+    case 'r':  // Request data stream reset
+      SetMKDataStream(MK_STREAM_NONE, 0);
+      break;
     case 'd':  // Request MK debug stream
       SetMKDataStream(MK_STREAM_DEBUG, data_buffer[0]);
       break;

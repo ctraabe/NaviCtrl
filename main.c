@@ -99,15 +99,15 @@ int main(void)
   VIC_ITCmd(EXTIT2_ITLine, ENABLE);
 
   // Main loop.
-  uint32_t led_timer = GetTimestamp();
+  // uint32_t led_timer = GetTimestamp();
   for (;;)
   {
     ProcessLogging();
 
-    if (TimestampInPast(led_timer))
-    {
-      // GreenLEDToggle();
-      led_timer += 500;
-    }
+    // if (TimestampInPast(led_timer))
+    // {
+    //   GreenLEDToggle();
+    //   led_timer += 500;
+    // }
   }
 }

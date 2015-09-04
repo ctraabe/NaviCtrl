@@ -31,10 +31,10 @@
 #include "ublox.h"
 
 
-void Undefined_Handler(void) { GreenLEDOn(); for (;;) continue; }
-void SWI_Handler(void) { for (;;) continue; }
+void Undefined_Handler(void) { RedLEDOn(); for (;;) continue; }
+void SWI_Handler(void) { RedLEDOn(); for (;;) continue; }
 void Prefetch_Handler(void) { RedLEDOn(); for (;;) continue; }
-void Abort_Handler(void) { for (;;) continue; }
+void Abort_Handler(void) { RedLEDOn(); for (;;) continue; }
 void FIQ_Handler(void) { for (;;) continue; }
 void WDG_IRQHandler(void) { VIC0->VAR = 0xFF; }
 void SW_IRQHandler(void) { VIC0->VAR = 0xFF; }

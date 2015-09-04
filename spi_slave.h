@@ -10,10 +10,12 @@
 // Public functions:
 
 void SPISlaveInit(void);
+
+// -----------------------------------------------------------------------------
 void SPISlaveHandler(void);
-// TODO: Remove
-char * SPITemp(void);
-uint32_t SPIBytesReceived(void);
+
+// -----------------------------------------------------------------------------
+size_t PrintSensorData(char * ascii, size_t max_length);
 
 
 #endif  // SPI_SLAVE_H_

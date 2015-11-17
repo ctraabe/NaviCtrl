@@ -13,12 +13,6 @@
 
 
 // =============================================================================
-// Global data:
-
-volatile uint32_t g_logging_active_ = 0;
-
-
-// =============================================================================
 // Private data:
 
 #define LOG_FIFO_LENGTH (512)
@@ -31,6 +25,7 @@ static char filename_[MAX_FILENAME_LENGTH];
 static volatile char log_fifo_[LOG_FIFO_LENGTH];
 static volatile size_t log_fifo_head_ = 0;
 static volatile enum DataReadyBits data_ready_;
+static volatile uint32_t logging_active_ = 0;
 
 
 // =============================================================================
@@ -44,7 +39,7 @@ static void WriteToFIFO(const char * ascii, size_t length);
 
 uint32_t LoggingActive(void)
 {
-  return g_logging_active_;
+  return logging_active_;
 }
 
 
@@ -79,13 +74,13 @@ void OpenLogFile(const char * filename)
     filename_[0] = 0;
   }
 
-  g_logging_active_ = 1;
+  logging_active_ = 1;
 }
 
 // -----------------------------------------------------------------------------
 void CloseLogFile(void)
 {
-  g_logging_active_ = 0;
+  logging_active_ = 0;
 }
 
 // -----------------------------------------------------------------------------
@@ -99,7 +94,7 @@ void NewDataInterruptHandler(void)
 {
   VIC_SWITCmd(EXTIT1_ITLine, DISABLE);
 
-  if (!g_logging_active_) return;
+  if (!logging_active_) return;
 
   char ascii[80];
 
@@ -107,16 +102,9 @@ void NewDataInterruptHandler(void)
   {
     data_ready_ &= ~DATA_READY_BIT_MAG;
 
-    size_t length = snprintf(ascii, 80, "mag,%i,%i,%i\r\n", Magnetometer()[0],
-      Magnetometer()[1], Magnetometer()[2]);
-    WriteToFIFO(ascii, length);
-  }
-
-  if (data_ready_ & DATA_READY_BIT_FC)
-  {
-    data_ready_ &= ~DATA_READY_BIT_FC;
-
-    size_t length = PrintSensorData(ascii, 80);
+    size_t length = snprintf(ascii, 80, "mag,%i,%i,%i\r\n",
+      MagnetometerVector()[0], MagnetometerVector()[1],
+      MagnetometerVector()[2]);
     WriteToFIFO(ascii, length);
   }
 }
@@ -127,7 +115,7 @@ void ProcessLogging(void)
   if (SDCardNotPresent()) return;
 
   // Open the file if logging is supposed to be active but the file is closed.
-  if (g_logging_active_ && !file_.fs)
+  if (logging_active_ && !file_.fs)
   {
     GreenLEDOn();
 
@@ -156,7 +144,7 @@ void ProcessLogging(void)
     {
       UARTPrintf("logging: f_open returned error code: 0x%02X", file_status_);
       file_status_ = f_close(&file_);
-      g_logging_active_ = 0;
+      logging_active_ = 0;
       return;
     }
 
@@ -199,7 +187,7 @@ void ProcessLogging(void)
   }
 
   // Close the file if logging is not supposed to be active anymore.
-  if (!g_logging_active_)
+  if (!logging_active_)
   {
     GreenLEDOn();
     file_status_ = f_close(&file_);

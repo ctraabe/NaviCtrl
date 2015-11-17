@@ -74,7 +74,7 @@ static uint8_t data_buffer_[UBLOX_DATA_BUFFER_LENGTH];
 // =============================================================================
 // Private function declarations:
 
-static void ProcessUBloxData(uint8_t byte);
+static void ProcessUBloxDataByte(uint8_t byte);
 static void ReceiveUBloxData(void);
 static void UBloxTxBuffer(const uint8_t * buffer, size_t length);
 static void UART0Init(uint32_t baud_rate);
@@ -198,7 +198,7 @@ void ProcessIncomingUBlox(void)
   {
     // Move the ring buffer tail forward.
     rx_buffer_tail = (rx_buffer_tail + 1) % UBLOX_RX_BUFFER_LENGTH;
-    ProcessUBloxData(rx_buffer_[rx_buffer_tail]);
+    ProcessUBloxDataByte(rx_buffer_[rx_buffer_tail]);
   }
 }
 
@@ -233,7 +233,7 @@ static void UpdateChecksum(uint8_t byte, uint8_t * checksum_a,
 }
 
 // -----------------------------------------------------------------------------
-static void ProcessUBloxData(uint8_t byte)
+static void ProcessUBloxDataByte(uint8_t byte)
 {
   static size_t bytes_processed = 0, payload_length = 0;
   static uint8_t id, checksum_a, checksum_b;

@@ -3,31 +3,50 @@
 #include <stdio.h>
 
 #include "91x_lib.h"
+#include "crc16.h"
 #include "irq_priority.h"
-#include "logging.h"
-
-
-extern volatile uint32_t g_logging_active_;
+#include "union_types.h"
 
 
 // =============================================================================
 // Private data:
 
-#define SPI_START_BYTE (0xFE)
+#define SPI_RX_BUFFER_LENGTH_POWER_OF_2 (8)  // 2^8 = 256
+#define SPI_RX_BUFFER_LENGTH (1 << SPI_RX_BUFFER_LENGTH_POWER_OF_2)
+#define SPI_FC_START_BYTE (0xAA)
+#define SPI_DATA_BUFFER_LENGTH (64)
 
-static volatile size_t rx_bytes_remaining_ = 0;
-static volatile uint8_t * volatile rx_pointer_ = 0;
+struct FromFC {
+  float acceleration[3];
+  float angular_rate[3];
+  float quaternion[4];
+} __attribute__((packed));
 
-volatile struct SensorData {
-  int16_t accelerometer_sum[3];
-  int16_t gyro_sum[3];
-  uint16_t biased_pressure;
-  uint8_t counter_128_hz;
-} __attribute__((packed)) sensor_data_;
+static volatile uint8_t rx_buffer_[SPI_RX_BUFFER_LENGTH];
+static volatile size_t rx_buffer_head_ = 0;
+static struct FromFC data_buffer_[2];
+static size_t data_buffer_head_ = 0, data_buffer_tail_ = 0;
 
 
 // =============================================================================
 // Accessors:
+
+const float * AccelerationVector(void)
+{
+  return data_buffer_[data_buffer_tail_].acceleration;
+}
+
+// -----------------------------------------------------------------------------
+const float * AngularRateVector(void)
+{
+  return data_buffer_[data_buffer_tail_].angular_rate;
+}
+
+// -----------------------------------------------------------------------------
+const float * Quat(void)
+{
+  return data_buffer_[data_buffer_tail_].quaternion;
+}
 
 
 // =============================================================================
@@ -58,6 +77,7 @@ void SPISlaveInit(void)
 
   SSP_StructInit(&ssp_init);
   ssp_init.SSP_Mode = SSP_Mode_Slave;
+  ssp_init.SSP_SlaveOutput = SSP_SlaveOutput_Enable;
   SSP_DeInit(SSP0);
   SSP_Init(SSP0, &ssp_init);
   SSP_Cmd(SSP0, ENABLE);
@@ -68,42 +88,68 @@ void SPISlaveInit(void)
 }
 
 // -----------------------------------------------------------------------------
-void SPISlaveHandler(void)
+// This function processes bytes that have been read into the Rx ring buffer
+// (rx_buffer_) by the Rx interrupt handler.
+void ProcessIncomingSPISlave(void)
 {
-  while ((rx_bytes_remaining_ == 0) &&
-    SSP_GetFlagStatus(SSP0, SSP_FLAG_RxFifoNotEmpty))
-  {
-    if (SSP_ReceiveData(SSP0) == SPI_START_BYTE)
-    {
-      rx_bytes_remaining_ = sizeof(struct SensorData);
-      rx_pointer_ = (volatile uint8_t * volatile)&sensor_data_;
+  static size_t bytes_processed = 0, rx_buffer_tail = 0;
+  static uint8_t * data_buffer_ptr = (uint8_t *)&data_buffer_[0];
+  static union U16Bytes crc;
+  const size_t payload_length = sizeof(struct FromFC);
 
-      if (g_logging_active_) SSP_SendData(SSP0, 0xCC);
-    }
-  }
-
-  while ((rx_bytes_remaining_ != 0) &&
-    SSP_GetFlagStatus(SSP0, SSP_FLAG_RxFifoNotEmpty))
+  while (rx_buffer_tail != rx_buffer_head_)
   {
-    *rx_pointer_++ = SSP_ReceiveData(SSP0);
-    --rx_bytes_remaining_;
-    if (rx_bytes_remaining_ == 0)
+    // Move the ring buffer tail forward.
+    rx_buffer_tail = (rx_buffer_tail + 1) % SPI_RX_BUFFER_LENGTH;
+    uint8_t byte = rx_buffer_[rx_buffer_tail];
+    switch (bytes_processed)
     {
-      DataReadyToLog(DATA_READY_BIT_FC);
-      VIC_SWITCmd(EXTIT1_ITLine, ENABLE);
+      case 0:  // Check for start character
+        if (byte != SPI_FC_START_BYTE) goto RESET;
+        data_buffer_ptr = (uint8_t *)&data_buffer_[data_buffer_head_];
+        crc.u16 = 0xFFFF;
+        break;
+      case 1:  // Payload length
+        if (byte != sizeof(struct FromFC)) goto RESET;
+        crc.u16 = CRCUpdateCCITT(crc.u16, byte);
+        break;
+    default:  // Payload or checksum
+      if (bytes_processed < (2 + payload_length))  // Payload
+      {
+        *data_buffer_ptr++ = byte;
+        crc.u16 = CRCUpdateCCITT(crc.u16, byte);
+      }
+      else if (bytes_processed == (2 + payload_length))  // CRC lower byte
+      {
+        if (byte != crc.bytes[0]) goto RESET;
+      }
+      else  // CRC upper byte
+      {
+        if (byte == crc.bytes[1])
+        {
+          // Swap data buffers.
+          data_buffer_tail_ = data_buffer_head_;
+          data_buffer_head_ = !data_buffer_tail_;
+        }
+        goto RESET;
+      }
+      break;
     }
-    SSP_SendData(SSP0, 0);
+    bytes_processed++;
   }
+  return;
+
+  RESET:
+  bytes_processed = 0;
 }
 
 // -----------------------------------------------------------------------------
-size_t PrintSensorData(char * ascii, size_t max_length)
+void SPISlaveHandler(void)
 {
-    size_t length = snprintf(ascii, max_length,
-      "imu,%i,%i,%i,%i,%i,%i,%u,%u\r\n",
-      sensor_data_.accelerometer_sum[0], sensor_data_.accelerometer_sum[1],
-      sensor_data_.accelerometer_sum[2], sensor_data_.gyro_sum[0],
-      sensor_data_.gyro_sum[1], sensor_data_.gyro_sum[2],
-      sensor_data_.biased_pressure, sensor_data_.counter_128_hz);
-    return length;
+  while (SSP_GetFlagStatus(SSP0, SSP_FLAG_RxFifoNotEmpty))
+  {
+    rx_buffer_head_ = (rx_buffer_head_ + 1) % SPI_RX_BUFFER_LENGTH;
+    rx_buffer_[rx_buffer_head_] = SSP_ReceiveData(SSP0);
+    // SSP_SendData(SSP0, 0);
+  }
 }

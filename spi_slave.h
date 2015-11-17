@@ -7,6 +7,18 @@
 
 
 // =============================================================================
+// Accessors:
+
+const float * AccelerationVector(void);
+
+// -----------------------------------------------------------------------------
+const float * AngularRateVector(void);
+
+// -----------------------------------------------------------------------------
+const float * Quat(void);
+
+
+// =============================================================================
 // Public functions:
 
 void SPISlaveInit(void);
@@ -15,7 +27,7 @@ void SPISlaveInit(void);
 void SPISlaveHandler(void);
 
 // -----------------------------------------------------------------------------
-size_t PrintSensorData(char * ascii, size_t max_length);
+void ProcessIncomingSPISlave(void);
 
 
 #endif  // SPI_SLAVE_H_

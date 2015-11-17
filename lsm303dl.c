@@ -2,7 +2,6 @@
 
 #include "91x_lib.h"
 #include "i2c.h"
-#include "logging.h"
 
 
 // =============================================================================
@@ -44,7 +43,7 @@ static void DataReceivedCallback(void);
 // =============================================================================
 // Accessors:
 
-int16_t * Magnetometer(void)
+const int16_t * MagnetometerVector(void)
 {
   return magnetometer_;
 }
@@ -99,8 +98,4 @@ static void DataReceivedCallback(void)
     magnetometer_[1] = (int16_t)(((uint16_t)magnetometer_raw_[4] << 8)
       | magnetometer_raw_[5]);
   }
-
-  // Trigger the data logging interrupt.
-  DataReadyToLog(DATA_READY_BIT_MAG);
-  VIC_SWITCmd(EXTIT1_ITLine, ENABLE);
 }

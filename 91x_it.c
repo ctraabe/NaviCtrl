@@ -55,17 +55,21 @@ void ADC_IRQHandler(void) { VIC0->VAR = 0xFF; }
 void UART0_IRQHandler(void)
 {
   DAISY_VIC();
+  IENABLE;
 
   UBloxUARTHandler();
 
+  IDISABLE;
   VIC1->VAR = 0xFF;
 }
 void UART1_IRQHandler(void)
 {
   DAISY_VIC();
+  IENABLE;
 
   UART1Handler();
 
+  IDISABLE;
   VIC1->VAR = 0xFF;
 }
 void UART2_IRQHandler(void) { }
@@ -73,25 +77,31 @@ void I2C0_IRQHandler(void) { }
 void I2C1_IRQHandler(void)
 {
   DAISY_VIC();
+  IENABLE;
 
   I2CHandler();
 
+  IDISABLE;
   VIC1->VAR = 0xFF;
 }
 void SSP0_IRQHandler(void)
 {
   DAISY_VIC();
+  IENABLE;
 
   SPISlaveHandler();
 
+  IDISABLE;
   VIC1->VAR = 0xFF;
 }
 void SSP1_IRQHandler(void)
 {
   DAISY_VIC();
+  IENABLE;
 
   SDSPIHandler();
 
+  IDISABLE;
   VIC1->VAR = 0xFF;
 }
 void LVD_IRQHandler(void) { }
@@ -111,9 +121,11 @@ void EXTIT1_IRQHandler(void)
 void EXTIT2_IRQHandler(void)
 {
   DAISY_VIC();
+  IENABLE;
 
   FiftyHzInterruptHandler();
 
+  IDISABLE;
   VIC1->VAR = 0xFF;
 }
 void EXTIT3_IRQHandler(void) { VIC1->VAR = 0xFF; }

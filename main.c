@@ -4,7 +4,6 @@
 #include "i2c.h"
 #include "irq_priority.h"
 #include "led.h"
-#include "logging.h"
 #include "lsm303dl.h"
 #include "spi_slave.h"
 #include "timing.h"
@@ -27,17 +26,12 @@ void FiftyHzInterruptHandler(void)
 
   uint16_t button = GPIO_ReadBit(GPIO3, GPIO_Pin_1);
   static uint16_t button_pv = 0;
-  if (button && (button_pv == 0x7FFF))
-  {
-    if (!LoggingActive()) OpenLogFile(0);
-    else CloseLogFile();
-  }
-  else
-  {
-    LSM303DLReadMag();
-    ProcessIncomingUART();
-  }
+  if (button && (button_pv == 0x7FFF)) {}
   button_pv = (button_pv << 1) | button;
+
+  LSM303DLReadMag();
+  ProcessIncomingUART();
+  ProcessIncomingSPISlave();
 }
 
 
@@ -86,28 +80,25 @@ int main(void)
 
   UBloxInit();
   LSM303DLInit();
-  LoggingInit();
 
   ExternalButtonInit();
 
   // Enable the "new data" Interrupt.
-  VIC_Config(EXTIT1_ITLine, VIC_IRQ, IRQ_PRIORITY_NEW_DATA);
-  VIC_ITCmd(EXTIT1_ITLine, ENABLE);
+  // VIC_Config(EXTIT1_ITLine, VIC_IRQ, IRQ_PRIORITY_NEW_DATA);
+  // VIC_ITCmd(EXTIT1_ITLine, ENABLE);
 
   // Enable the 50Hz Interrupt.
   VIC_Config(EXTIT2_ITLine, VIC_IRQ, IRQ_PRIORITY_50HZ);
   VIC_ITCmd(EXTIT2_ITLine, ENABLE);
 
   // Main loop.
-  // uint32_t led_timer = GetTimestamp();
+  uint32_t led_timer = GetTimestamp();
   for (;;)
   {
-    ProcessLogging();
-
-    // if (TimestampInPast(led_timer))
-    // {
-    //   GreenLEDToggle();
-    //   led_timer += 500;
-    // }
+    if (TimestampInPast(led_timer))
+    {
+      GreenLEDToggle();
+      led_timer += 250;
+    }
   }
 }

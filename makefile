@@ -8,6 +8,7 @@ SOURCES  += libstr91x/src/91x_tim.c
 SOURCES  += libstr91x/src/91x_uart.c
 SOURCES  += libstr91x/src/91x_vic.c
 SOURCES  += libstr91x/src/91x_wdg.c
+SOURCES  += libstr91x/src/91x_wiu.c
 
 TARGET := $(notdir $(shell pwd))
 

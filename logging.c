@@ -119,7 +119,7 @@ void ProcessLogging(void)
   {
     GreenLEDOn();
 
-    VIC_ITCmd(EXTIT2_ITLine, DISABLE);  // Disable 50Hz interrupts
+    VIC_ITCmd(EXTIT3_ITLine, DISABLE);  // Disable 50Hz interrupts
     VIC_ITCmd(UART1_ITLine, DISABLE);  // Disable "Debug" UART interrupts
     VIC_ITCmd(UART0_ITLine, DISABLE);  // Disable UBlox interrupts
     VIC_ITCmd(SSP0_ITLine, DISABLE);  // Disable SPI Slave interrupts
@@ -151,7 +151,7 @@ void ProcessLogging(void)
     VIC_ITCmd(SSP0_ITLine, ENABLE);
     VIC_ITCmd(UART0_ITLine, ENABLE);
     VIC_ITCmd(UART1_ITLine, ENABLE);
-    VIC_ITCmd(EXTIT2_ITLine, ENABLE);
+    VIC_ITCmd(EXTIT3_ITLine, ENABLE);
 
     GreenLEDOff();
     // RedLEDOn();

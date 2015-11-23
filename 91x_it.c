@@ -21,6 +21,7 @@
 
 #include "91x_it.h"
 
+#include "flt_ctrl_comms.h"
 #include "i2c.h"
 #include "led.h"
 #include "logging.h"
@@ -106,7 +107,16 @@ void SSP1_IRQHandler(void)
 }
 void LVD_IRQHandler(void) { }
 void RTC_IRQHandler(void) { }
-void WIU_IRQHandler(void) { }
+void WIU_IRQHandler(void)
+{
+  DAISY_VIC();
+  IENABLE;
+
+  FltCtrlInterruptHandler();
+
+  IDISABLE;
+  VIC1->VAR = 0xFF;
+}
 void EXTIT0_IRQHandler(void) { }
 void EXTIT1_IRQHandler(void)
 {
@@ -118,7 +128,8 @@ void EXTIT1_IRQHandler(void)
   IDISABLE;
   VIC1->VAR = 0xFF;
 }
-void EXTIT2_IRQHandler(void)
+void EXTIT2_IRQHandler(void) {}
+void EXTIT3_IRQHandler(void)
 {
   DAISY_VIC();
   IENABLE;
@@ -128,7 +139,6 @@ void EXTIT2_IRQHandler(void)
   IDISABLE;
   VIC1->VAR = 0xFF;
 }
-void EXTIT3_IRQHandler(void) { VIC1->VAR = 0xFF; }
 void USBWU_IRQHandler(void) { VIC1->VAR = 0xFF; }
 void PFQBC_IRQHandler(void) { VIC1->VAR = 0xFF; }
 void DefaultVector_Handler(void)

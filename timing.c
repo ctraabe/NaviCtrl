@@ -112,7 +112,7 @@ void TIM1_IRQHandler(void)
     static uint32_t counter_50hz = (1000 / 50);
     if (!--counter_50hz)
     {
-      VIC_SWITCmd(EXTIT2_ITLine, ENABLE);
+      VIC_SWITCmd(EXTIT3_ITLine, ENABLE);
       counter_50hz = (1000 / 50);
     }
   }

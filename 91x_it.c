@@ -117,8 +117,7 @@ void WIU_IRQHandler(void)
   IDISABLE;
   VIC1->VAR = 0xFF;
 }
-void EXTIT0_IRQHandler(void) { }
-void EXTIT1_IRQHandler(void)
+void EXTIT0_IRQHandler(void)
 {
   DAISY_VIC();
   IENABLE;
@@ -128,7 +127,8 @@ void EXTIT1_IRQHandler(void)
   IDISABLE;
   VIC1->VAR = 0xFF;
 }
-void EXTIT2_IRQHandler(void) {}
+void EXTIT1_IRQHandler(void) { }
+void EXTIT2_IRQHandler(void) { }
 void EXTIT3_IRQHandler(void)
 {
   DAISY_VIC();

@@ -24,10 +24,8 @@ const float * Quat(void);
 void FltCtrlCommsInit(void);
 
 // -----------------------------------------------------------------------------
-void ReleaseFltCtrlInterrupt(void);
-
-// -----------------------------------------------------------------------------
-void SetFltCtrlInterrupt(void);
+// This function pulls the interrupt line down for about 1 microsecond.
+void NotifyFltCtlr(void);
 
 // -----------------------------------------------------------------------------
 // This function processes bytes that have been read into the Rx ring buffer

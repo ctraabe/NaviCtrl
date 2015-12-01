@@ -6,13 +6,6 @@
 #include <stddef.h>
 
 
-enum DataReadyBits {
-  DATA_READY_BIT_GPS = 1<<0,
-  DATA_READY_BIT_MAG = 1<<1,
-  DATA_READY_BIT_FC = 1<<2,
-};
-
-
 // =============================================================================
 // Accessors:
 
@@ -31,10 +24,7 @@ void OpenLogFile(const char * filename);
 void CloseLogFile(void);
 
 // -----------------------------------------------------------------------------
-void DataReadyToLog(enum DataReadyBits data_ready);
-
-// -----------------------------------------------------------------------------
-void NewDataInterruptHandler(void);
+void NewDataToLogInterruptHandler(void);
 
 // -----------------------------------------------------------------------------
 void ProcessLogging(void);

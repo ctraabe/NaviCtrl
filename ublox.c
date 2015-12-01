@@ -4,6 +4,7 @@
 
 #include "91x_lib.h"
 #include "irq_priority.h"
+#include "main.h"
 #include "timing.h"
 
 
@@ -13,7 +14,6 @@
 #define UBLOX_INITIAL_BAUD (9600)
 #define UBLOX_OPERATING_BAUD (57600)
 #define UBLOX_RX_BUFFER_LENGTH (1 << 8)  // 2^8 = 256
-#define UBLOX_DATA_BUFFER_LENGTH (70)
 #define UBX_SYNC_CHAR_1 (0xb5)
 #define UBX_SYNC_CHAR_2 (0x62)
 #define UBX_CLASS_NAV (0x01)
@@ -30,7 +30,7 @@ static struct UBXPosLLH
   int32_t height_mean_sea_level;
   uint32_t horizontal_accuracy;
   uint32_t vertical_accuracy;
-} __attribute__((packed)) ubx_pos_llh_;
+} __attribute__((packed)) ubx_pos_llh_[2];
 
 static struct UBXVelNED
 {
@@ -43,7 +43,7 @@ static struct UBXVelNED
   int32_t course;
   uint32_t speed_accuracy;
   uint32_t course_accuracy;
-} __attribute__((packed)) ubx_vel_ned_;
+} __attribute__((packed)) ubx_vel_ned_[2];
 
 static struct UBXSol
 {
@@ -64,17 +64,19 @@ static struct UBXSol
   uint8_t reserved1;
   uint8_t number_of_satelites_used;
   uint32_t reserved2;
-} __attribute__((packed)) ubx_sol_;
+} __attribute__((packed)) ubx_sol_[2];
 
 static volatile uint8_t rx_buffer_[UBLOX_RX_BUFFER_LENGTH];
 static volatile size_t rx_buffer_head_ = 0;
-static uint8_t data_buffer_[UBLOX_DATA_BUFFER_LENGTH];
 
+static size_t ubx_pos_llh_head_ = 1, ubx_pos_llh_tail_ = 0;
+static size_t ubx_vel_ned_head_ = 1, ubx_vel_ned_tail_ = 0;
+static size_t ubx_sol_head_ = 1, ubx_sol_tail_ = 0;
 
 // =============================================================================
 // Private function declarations:
 
-static void ProcessUBloxDataByte(uint8_t byte);
+static void ProcessIncomingUBloxByte(uint8_t byte);
 static void ReceiveUBloxData(void);
 static void UBloxTxBuffer(const uint8_t * buffer, size_t length);
 static void UART0Init(uint32_t baud_rate);
@@ -198,7 +200,7 @@ void ProcessIncomingUBlox(void)
   {
     // Move the ring buffer tail forward.
     rx_buffer_tail = (rx_buffer_tail + 1) % UBLOX_RX_BUFFER_LENGTH;
-    ProcessUBloxDataByte(rx_buffer_[rx_buffer_tail]);
+    ProcessIncomingUBloxByte(rx_buffer_[rx_buffer_tail]);
   }
 }
 
@@ -206,25 +208,6 @@ void ProcessIncomingUBlox(void)
 // =============================================================================
 // Private functions:
 
-static void DecodeUBloxRx(uint8_t id)
-{
-  switch (id)
-  {
-    case UBX_ID_POS_LLH:
-      memcpy((uint8_t *)&ubx_pos_llh_, data_buffer_, sizeof(struct UBXPosLLH));
-      break;
-    case UBX_ID_VEL_NED:
-      memcpy((uint8_t *)&ubx_vel_ned_, data_buffer_, sizeof(struct UBXVelNED));
-      break;
-    case UBX_ID_SOL:
-      memcpy((uint8_t *)&ubx_sol_, data_buffer_, sizeof(struct UBXSol));
-      break;
-    default:
-      break;
-  }
-}
-
-// -----------------------------------------------------------------------------
 static void UpdateChecksum(uint8_t byte, uint8_t * checksum_a,
   uint8_t * checksum_b)
 {
@@ -233,7 +216,52 @@ static void UpdateChecksum(uint8_t byte, uint8_t * checksum_a,
 }
 
 // -----------------------------------------------------------------------------
-static void ProcessUBloxDataByte(uint8_t byte)
+static uint8_t * DataBufferAddress(uint8_t id, uint8_t payload_length)
+{
+  switch (id)
+  {
+    case UBX_ID_POS_LLH:
+      if (payload_length != sizeof(struct UBXPosLLH)) return 0;
+      return (uint8_t *)&ubx_pos_llh_[ubx_pos_llh_head_];
+      break;
+    case UBX_ID_VEL_NED:
+      if (payload_length != sizeof(struct UBXVelNED)) return 0;
+      return (uint8_t *)&ubx_vel_ned_[ubx_vel_ned_head_];
+      break;
+    case UBX_ID_SOL:
+      if (payload_length != sizeof(struct UBXSol)) return 0;
+      return (uint8_t *)&ubx_sol_[ubx_sol_head_];
+      break;
+    default:
+      return 0;
+      break;
+  }
+}
+
+// -----------------------------------------------------------------------------
+static void SwapDataBuffers(uint8_t id)
+{
+  switch (id)
+  {
+    case UBX_ID_POS_LLH:
+      ubx_pos_llh_tail_ = ubx_pos_llh_head_;
+      ubx_pos_llh_head_ = !ubx_pos_llh_tail_;
+      break;
+    case UBX_ID_VEL_NED:
+      ubx_vel_ned_tail_ = ubx_vel_ned_head_;
+      ubx_vel_ned_head_ = !ubx_vel_ned_tail_;
+      break;
+    case UBX_ID_SOL:
+      ubx_sol_tail_ = ubx_sol_head_;
+      ubx_sol_head_ = !ubx_sol_tail_;
+      break;
+    default:
+      break;
+  }
+}
+
+// -----------------------------------------------------------------------------
+static void ProcessIncomingUBloxByte(uint8_t byte)
 {
   static size_t bytes_processed = 0, payload_length = 0;
   static uint8_t id, checksum_a, checksum_b;
@@ -251,30 +279,34 @@ static void ProcessUBloxDataByte(uint8_t byte)
       if (byte != UBX_CLASS_NAV) goto RESET;
       checksum_a = byte;
       checksum_b = byte;
-      data_buffer_ptr = data_buffer_;
       break;
     case 3:  // ID
       id = byte;
       UpdateChecksum(byte, &checksum_a, &checksum_b);
       break;
     case 4:  // Payload length (lower byte)
-      payload_length = byte > UBLOX_DATA_BUFFER_LENGTH ? 0 : byte;
+      data_buffer_ptr = DataBufferAddress(id, payload_length);
+      if (!data_buffer_ptr) goto RESET;
     case 5:  // Payload length (upper byte should always be zero)
       UpdateChecksum(byte, &checksum_a, &checksum_b);
       break;
     default:  // Payload or checksum
-      if (bytes_processed < (payload_length + 6))  // Payload
+      if (bytes_processed < (6 + payload_length))  // Payload
       {
         *data_buffer_ptr++ = byte;
         UpdateChecksum(byte, &checksum_a, &checksum_b);
       }
-      else if (bytes_processed == (payload_length + 6))  // Checksum A
+      else if (bytes_processed == (6 + payload_length))  // Checksum A
       {
         if (byte != checksum_a) goto RESET;
       }
       else  // Checksum B
       {
-        if (byte == checksum_b) DecodeUBloxRx(id);
+        if (byte == checksum_b)
+        {
+          SwapDataBuffers(id);
+          DataReady(DATA_READY_BIT_GPS);
+        }
         goto RESET;
       }
       break;

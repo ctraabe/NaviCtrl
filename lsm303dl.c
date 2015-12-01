@@ -2,6 +2,7 @@
 
 #include "91x_lib.h"
 #include "i2c.h"
+#include "main.h"
 
 
 // =============================================================================
@@ -98,4 +99,6 @@ static void DataReceivedCallback(void)
     magnetometer_[1] = (int16_t)(((uint16_t)magnetometer_raw_[4] << 8)
       | magnetometer_raw_[5]);
   }
+
+  DataReady(DATA_READY_BIT_MAG);
 }

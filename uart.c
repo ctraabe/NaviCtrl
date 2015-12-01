@@ -61,8 +61,8 @@ void UARTInit(void)
   uart_init.UART_HardwareFlowControl = UART_HardwareFlowControl_None;
   uart_init.UART_Mode = UART_Mode_Tx_Rx;
   uart_init.UART_FIFO = UART_FIFO_Enable;
-  uart_init.UART_TxFIFOLevel = UART_FIFOLevel_1_2;
-  uart_init.UART_RxFIFOLevel = UART_FIFOLevel_1_2;
+  uart_init.UART_TxFIFOLevel = UART_FIFOLevel_1_4;
+  uart_init.UART_RxFIFOLevel = UART_FIFOLevel_3_4;
   UART_DeInit(UART1);
   UART_Init(UART1, &uart_init);
   UART_Cmd(UART1, ENABLE);

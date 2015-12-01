@@ -2,6 +2,7 @@
 
 #include "91x_lib.h"
 #include "irq_priority.h"
+#include "main.h"
 #include "timing.h"
 
 
@@ -286,14 +287,16 @@ void I2CHandler(void)
       if (rx_destination_len_ == 2) I2C_AcknowledgeConfig(I2C1, DISABLE);
       else if (rx_destination_len_ == 1) I2CStop();
       I2CReadByte();
-      if (rx_destination_len_ == 0 && callback_ptr_) (*callback_ptr_)();
+      if (rx_destination_len_ == 0 && callback_ptr_)
+      {
+        SetNewDataCallback(callback_ptr_);
+      }
       break;
 
     default:
       // Unexpected status message. Send stop.
       i2c_error_ = I2C_ERROR_OTHER;
       I2CStop();
-      if (callback_ptr_) (*callback_ptr_)();
       break;
   }
 }

@@ -3,6 +3,7 @@
 #include "91x_lib.h"
 #include "flt_ctrl_comms.h"
 #include "irq_priority.h"
+#include "main.h"
 
 
 // =============================================================================
@@ -71,12 +72,12 @@ void ProcessIncomingSPISlave(void)
 // -----------------------------------------------------------------------------
 void SPISlaveHandler(void)
 {
-  // ReleaseFltCtrlInterrupt();
-
   while (SSP_GetFlagStatus(SSP0, SSP_FLAG_RxFifoNotEmpty))
   {
     rx_buffer_head_ = (rx_buffer_head_ + 1) % SPI_RX_BUFFER_LENGTH;
     rx_buffer_[rx_buffer_head_] = SSP_ReceiveData(SSP0);
     // SSP_SendData(SSP0, 0);
   }
+
+  SetNewDataCallback(ProcessIncomingSPISlave);
 }

@@ -24,7 +24,6 @@ static FRESULT file_status_ = FR_INVALID_DRIVE;
 static char filename_[MAX_FILENAME_LENGTH];
 static volatile char log_fifo_[LOG_FIFO_LENGTH];
 static volatile size_t log_fifo_head_ = 0;
-static volatile enum DataReadyBits data_ready_;
 static volatile uint32_t logging_active_ = 0;
 
 
@@ -84,13 +83,7 @@ void CloseLogFile(void)
 }
 
 // -----------------------------------------------------------------------------
-void DataReadyToLog(enum DataReadyBits data_ready)
-{
-  data_ready_ |= data_ready;
-}
-
-// -----------------------------------------------------------------------------
-void NewDataInterruptHandler(void)
+void NewDataToLogInterruptHandler(void)
 {
   VIC_SWITCmd(EXTIT1_ITLine, DISABLE);
 
@@ -98,15 +91,15 @@ void NewDataInterruptHandler(void)
 
   char ascii[80];
 
-  if (data_ready_ & DATA_READY_BIT_MAG)
-  {
-    data_ready_ &= ~DATA_READY_BIT_MAG;
+  // if (data_ready_ & DATA_READY_BIT_MAG)
+  // {
+  //   data_ready_ &= ~DATA_READY_BIT_MAG;
 
     size_t length = snprintf(ascii, 80, "mag,%i,%i,%i\r\n",
       MagnetometerVector()[0], MagnetometerVector()[1],
       MagnetometerVector()[2]);
     WriteToFIFO(ascii, length);
-  }
+  // }
 }
 
 // -----------------------------------------------------------------------------

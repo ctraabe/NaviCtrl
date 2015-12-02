@@ -6,16 +6,7 @@
 #include <stddef.h>
 
 
-// =============================================================================
-// Accessors:
-
-const float * AccelerationVector(void);
-
-// -----------------------------------------------------------------------------
-const float * AngularRateVector(void);
-
-// -----------------------------------------------------------------------------
-const float * Quat(void);
+#define SPI_TX_BUFFER_LENGTH (64)
 
 
 // =============================================================================
@@ -24,10 +15,18 @@ const float * Quat(void);
 void SPISlaveInit(void);
 
 // -----------------------------------------------------------------------------
-void SPISlaveHandler(void);
+void ProcessIncomingSPISlave(void);
 
 // -----------------------------------------------------------------------------
-void ProcessIncomingSPISlave(void);
+// This function returns the address of the shared Tx buffer (tx_buffer_) if it
+// is available or zero (NULL) if not.
+uint8_t * RequestSPITxBuffer(void);
+
+// -----------------------------------------------------------------------------
+void SPITxBuffer(uint8_t tx_length);
+
+// -----------------------------------------------------------------------------
+void SPISlaveHandler(void);
 
 
 #endif  // SPI_SLAVE_H_

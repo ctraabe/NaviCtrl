@@ -13,7 +13,9 @@
 #define SPI_RX_BUFFER_LENGTH (1 << SPI_RX_BUFFER_LENGTH_POWER_OF_2)
 
 static volatile uint8_t rx_buffer_[SPI_RX_BUFFER_LENGTH];
-static volatile size_t rx_buffer_head_ = 0;
+static volatile size_t rx_buffer_head_ = 0, tx_bytes_remaining_ = 0;
+static const uint8_t * volatile tx_ptr_ = 0;
+static uint8_t tx_buffer_[SPI_TX_BUFFER_LENGTH];
 
 
 // =============================================================================
@@ -70,13 +72,41 @@ void ProcessIncomingSPISlave(void)
 }
 
 // -----------------------------------------------------------------------------
+// This function returns the address of the shared Tx buffer (tx_buffer_) if it
+// is available or zero (NULL) if not.
+uint8_t * RequestSPITxBuffer(void)
+{
+  if (tx_bytes_remaining_ != 0) return 0;
+  return &tx_buffer_[0];
+}
+
+// -----------------------------------------------------------------------------
+void SPITxBuffer(uint8_t tx_length)
+{
+  if (tx_bytes_remaining_ != 0 || tx_length == 0
+    || tx_length > SPI_TX_BUFFER_LENGTH) return;
+  tx_ptr_ = &tx_buffer_[0];
+  tx_bytes_remaining_ = tx_length;
+  while (tx_bytes_remaining_ && SSP_GetFlagStatus(SSP0, SSP_FLAG_TxFifoNotFull))
+  {
+    SSP_SendData(SSP0, *(tx_ptr_++));
+    --tx_bytes_remaining_;
+  }
+}
+
+// -----------------------------------------------------------------------------
 void SPISlaveHandler(void)
 {
   while (SSP_GetFlagStatus(SSP0, SSP_FLAG_RxFifoNotEmpty))
   {
     rx_buffer_head_ = (rx_buffer_head_ + 1) % SPI_RX_BUFFER_LENGTH;
     rx_buffer_[rx_buffer_head_] = SSP_ReceiveData(SSP0);
-    // SSP_SendData(SSP0, 0);
+  }
+
+  while (tx_bytes_remaining_ && SSP_GetFlagStatus(SSP0, SSP_FLAG_TxFifoNotFull))
+  {
+    SSP_SendData(SSP0, *(tx_ptr_++));
+    --tx_bytes_remaining_;
   }
 
   SetNewDataCallback(ProcessIncomingSPISlave);

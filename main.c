@@ -55,9 +55,9 @@ void FltCtrlInterruptHandler(void)
   WIU_ClearITPendingBit(WIU_Line16);
   VIC_SWITCmd(WIU_ITLine, DISABLE);
 
-  RedLEDOn();
   LSM303DLReadMag();
   ProcessIncomingUBlox();
+  RedLEDOn();
 }
 
 //------------------------------------------------------------------------------
@@ -133,13 +133,13 @@ int main(void)
   LEDInit();
   UARTInit();
   I2CInit();
-  FltCtrlCommsInit();
   SPISlaveInit();
 
   UARTPrintf("University of Tokyo NaviCtrl firmware V2");
 
   UBloxInit();
   LSM303DLInit();
+  FltCtrlCommsInit();
 
   ExternalButtonInit();
 
@@ -158,7 +158,7 @@ int main(void)
     if (data_ready_ & DATA_READY_BIT_FC)
     {
       data_ready_ &= ~DATA_READY_BIT_FC;
-      NotifyFltCtlr();
+      SendDataToFltCtrl();
     }
 
     if (data_ready_ & DATA_READY_BIT_GPS)

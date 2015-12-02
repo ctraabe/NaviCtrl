@@ -15,5 +15,14 @@ static inline uint16_t CRCUpdateCCITT(uint16_t crc, uint8_t data)
   return (crc >> 8) ^ (data << 8) ^ (data << 3) ^ (data >> 4);
 }
 
+// -----------------------------------------------------------------------------
+// This function computes the CRC for an array of bytes.
+static inline uint16_t CRCCCITT(const uint8_t * array, size_t length)
+{
+  uint16_t crc = 0xFFFF;
+  for (size_t i = length; i--; ) crc = CRCUpdateCCITT(crc, *(array++));
+  return crc;
+}
+
 
 #endif  // CRC16_H_

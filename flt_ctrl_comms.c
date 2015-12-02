@@ -5,6 +5,7 @@
 #include "irq_priority.h"
 #include "main.h"
 #include "timing.h"
+#include "spi_slave.h"
 #include "union_types.h"
 
 
@@ -12,9 +13,8 @@
 // Private data:
 
 #define SPI_FC_START_BYTE (0xAA)
-#define SPI_from_fc_LENGTH (64)
 
-struct FromFC {
+static volatile struct FromFC {
   float acceleration[3];
   float angular_rate[3];
   float quaternion[4];
@@ -26,19 +26,19 @@ static size_t from_fc_head_ = 1, from_fc_tail_ = 0;
 // =============================================================================
 // Accessors:
 
-const float * AccelerationVector(void)
+const volatile float * AccelerationVector(void)
 {
   return from_fc_[from_fc_tail_].acceleration;
 }
 
 // -----------------------------------------------------------------------------
-const float * AngularRateVector(void)
+const volatile float * AngularRateVector(void)
 {
   return from_fc_[from_fc_tail_].angular_rate;
 }
 
 // -----------------------------------------------------------------------------
-const float * Quat(void)
+const volatile float * Quat(void)
 {
   return from_fc_[from_fc_tail_].quaternion;
 }
@@ -79,7 +79,7 @@ void FltCtrlCommsInit(void)
 
 // -----------------------------------------------------------------------------
 // This function pulls the interrupt line down for about 1 microsecond.
-void NotifyFltCtlr(void)
+void NotifyFltCtrl(void)
 {
   // Disable the pin change interrupt.
   VIC1->INTECR |= (0x01 << (WIU_ITLine - 16));
@@ -152,4 +152,34 @@ void ProcessIncomingFltCtrlByte(uint8_t byte)
 
   RESET:
   bytes_processed = 0;
+}
+
+// -----------------------------------------------------------------------------
+void SendDataToFltCtrl(void)
+{
+  struct ToFC {
+    float position[3];
+    float velocity[3];
+    float heading_correction;
+    uint16_t crc;
+  } __attribute__((packed));
+
+  // _Static_assert(sizeof(struct ToFC) < SPI_TX_BUFFER_LENGTH,
+  //   "ToFC is too large for the SPI TX buffer");
+
+  struct ToFC * to_fc_ptr = (struct ToFC *)RequestSPITxBuffer();
+  if (!to_fc_ptr) return;
+
+  to_fc_ptr->position[0] = 0.0;
+  to_fc_ptr->position[1] = 1.0;
+  to_fc_ptr->position[2] = 2.0;
+  to_fc_ptr->velocity[0] = 3.0;
+  to_fc_ptr->velocity[1] = 4.0;
+  to_fc_ptr->velocity[2] = 5.0;
+  to_fc_ptr->heading_correction = 6.0;
+
+  to_fc_ptr->crc = CRCCCITT((uint8_t *)to_fc_ptr, sizeof(struct ToFC) - 2);
+
+  SPITxBuffer(sizeof(struct ToFC));
+  NotifyFltCtrl();
 }

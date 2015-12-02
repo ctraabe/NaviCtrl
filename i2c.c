@@ -21,8 +21,8 @@ enum I2CMode {
 static volatile enum I2CMode i2c_mode_ = I2C_MODE_IDLE;
 static volatile enum I2CError i2c_error_ = I2C_ERROR_NONE;
 static volatile size_t rx_destination_len_ = 0, tx_source_len_ = 0;
-static volatile uint8_t * rx_destination_ptr_ = 0;
-static volatile const uint8_t * tx_source_ptr_ = 0;
+static volatile uint8_t * volatile rx_destination_ptr_ = 0;
+static const uint8_t * volatile tx_source_ptr_ = 0;
 static volatile uint32_t register_address_specified_ = 0;
 
 static uint8_t register_address_ = 0x00, slave_address_ = 0x00;

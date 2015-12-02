@@ -14,8 +14,9 @@
 
 #define UART_BAUD (57600)
 
-static volatile uint8_t rx_fifo_[UART_RX_FIFO_LENGTH], *tx_ptr_ = 0;
+static volatile uint8_t rx_fifo_[UART_RX_FIFO_LENGTH];
 static volatile size_t rx_fifo_head_ = 0, tx_bytes_remaining_ = 0;
+static const uint8_t * volatile tx_ptr_ = 0;
 static uint8_t data_buffer_[UART_DATA_BUFFER_LENGTH];
 static uint8_t tx_buffer_[UART_TX_BUFFER_LENGTH];
 static uint8_t tx_overflow_counter_ = 0;
@@ -103,7 +104,7 @@ void ProcessIncomingUART(void)
 // is available or zero (NULL) if not.
 uint8_t * RequestUARTTxBuffer(void)
 {
-  if (tx_bytes_remaining_)
+  if (tx_bytes_remaining_ != 0)
   {
     tx_overflow_counter_++;
     return 0;
@@ -123,7 +124,8 @@ void SendPendingUART(void)
 // This function initiates the transmission of the data in the Tx buffer.
 void UARTTxBuffer(size_t tx_length)
 {
-  if (tx_length == 0) return;
+  if (tx_bytes_remaining_ != 0 || tx_length == 0
+    || tx_length > UART_TX_BUFFER_LENGTH) return;
   tx_ptr_ = &tx_buffer_[0];
   tx_bytes_remaining_ = tx_length;
   // UCSR0B |= _BV(UDRIE0);  // Enable the USART0 data register empty interrupt.

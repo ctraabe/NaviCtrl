@@ -136,6 +136,7 @@ int main(void)
   SPISlaveInit();
 
   UARTPrintf("University of Tokyo NaviCtrl firmware V2");
+  WaitForUART();
 
   UBloxInit();
   LSM303DLInit();

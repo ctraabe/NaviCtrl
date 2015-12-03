@@ -8,7 +8,7 @@
 
 #define UART_RX_FIFO_LENGTH (1 << 7)  // 2^7 = 128
 #define UART_DATA_BUFFER_LENGTH (70)
-#define UART_TX_BUFFER_LENGTH (70)
+#define UART_TX_BUFFER_LENGTH (103)
 
 enum UARTRxMode {
   UART_RX_MODE_IDLE = 0,
@@ -53,7 +53,10 @@ void UARTTxByte(uint8_t byte);
 void UARTPrintf(const char *format, ...);
 
 // -----------------------------------------------------------------------------
-void UART1Handler(void);
+void WaitForUART(void);
+
+// -----------------------------------------------------------------------------
+void UARTHandler(void);
 
 
 #endif  // UART_H_

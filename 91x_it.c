@@ -75,7 +75,7 @@ void UART1_IRQHandler(void)
   DAISY_VIC();
   IENABLE;
 
-  UART1Handler();
+  UARTHandler();
 
   IDISABLE;
   VIC1->VAR = 0xFF;

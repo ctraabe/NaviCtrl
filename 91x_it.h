@@ -35,7 +35,7 @@
 #define DAISY_VIC() \
   asm("MOV R11, #0xFC000000\n\t");  /* VIC1 base address */\
   asm("LDR R11, [R11, #0x30]\n\t");  /* Read VIC1-VAR (updates priority mask) */\
-  asm("ADD R11 ,R11 , #0x14\n\t");  /* Skip the preamble (+0x14) */\
+  asm("ADD R11, R11, #0x14\n\t");  /* Skip the preamble (+0x14) */\
   asm("BX R11\n\t");  /* Branch to the highest priority interrupt from VIC1 */
 
 

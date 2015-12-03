@@ -85,14 +85,14 @@
 // Macros:
 
 // Save the workspace plus the current return address lr_ mode into the stack.
-.macro SAVE_CONTEXT $r0, $r4
-  stmfd sp!, {r0-r4,lr}
+.macro SAVE_CONTEXT r_first, r_last
+  stmfd sp!, {\r_first-\r_last,lr}
 .endm
 
 //------------------------------------------------------------------------------
 // Return to the instruction following the exception interrupt.
-.macro RESTORE_CONTEXT $r0, $r4
-  ldmfd sp!, {r0-r4,pc}^
+.macro RESTORE_CONTEXT r_first, r_last
+  ldmfd sp!, {\r_first-\r_last,pc}^
 .endm
 
 //------------------------------------------------------------------------------
@@ -134,24 +134,24 @@ _cllp_\sec_name:
 //------------------------------------------------------------------------------
 FIQHandler:
   sub lr, lr, #4  // Update the link register
-  SAVE_CONTEXT r0, r4
+  SAVE_CONTEXT r0, r7
   bl FIQ_Handler  // Branch to FIQ_Handler
-  RESTORE_CONTEXT r0, r4
+  RESTORE_CONTEXT r0, r7
 
 //------------------------------------------------------------------------------
 SWIHandler:
-  SAVE_CONTEXT r0, r4
+  SAVE_CONTEXT r0, r12
   bl SWI_Handler  // Branch to SWI_Handler
-  RESTORE_CONTEXT r0, r4
+  RESTORE_CONTEXT r0, r12
 
 //------------------------------------------------------------------------------
 IRQHandler:
   sub lr, lr ,#4
-  SAVE_CONTEXT r0, r4
+  SAVE_CONTEXT r0, r12
   LDR r0, =VIC0_VAR_ADDRESS
   LDR r0, [r0]  // Read the handler address from VIC0 Vector Address register
   BLX r0  // Branch with link to the handler
-  RESTORE_CONTEXT r0, r4
+  RESTORE_CONTEXT r0, r12
 
 
 //------------------------------------------------------------------------------

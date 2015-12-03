@@ -26,6 +26,7 @@ static uint8_t tx_overflow_counter_ = 0;
 // Private function declarations:
 
 static void ReceiveUARTData(void);
+static void SendUARTData(void);
 
 
 // =============================================================================
@@ -128,7 +129,10 @@ void UARTTxBuffer(size_t tx_length)
     || tx_length > UART_TX_BUFFER_LENGTH) return;
   tx_ptr_ = &tx_buffer_[0];
   tx_bytes_remaining_ = tx_length;
-  // UCSR0B |= _BV(UDRIE0);  // Enable the USART0 data register empty interrupt.
+  SendUARTData();
+
+  // Enable the transmit FIFO almost empty interrupt.
+  if (tx_bytes_remaining_) UART_ITConfig(UART1, UART_IT_Transmit, ENABLE);
 }
 
 // -----------------------------------------------------------------------------
@@ -146,7 +150,12 @@ void UARTTxByte(uint8_t byte)
 // exceeded. Note that this function is slow and blocking.
 void UARTPrintf(const char *format, ...)
 {
-  uint8_t ascii[103];  // 100 chars + 2 newline chars + null terminator
+  // _Static_assert(UART_TX_BUFFER_LENGTH >= 103,
+  //   "UART buffer not large enough for UARTPrintf");
+
+  uint8_t * ascii = RequestUARTTxBuffer();
+  if (!ascii) return;
+  // uint8_t ascii[103];  // 100 chars + 2 newline chars + null terminator
 
   va_list arglist;
   va_start(arglist, format);
@@ -154,19 +163,26 @@ void UARTPrintf(const char *format, ...)
   va_end(arglist);
 
   if (length < 101)
+  {
     sprintf((char *)&ascii[length], "\n\r");
+    length += 2;
+  }
   else
+  {
     sprintf((char *)&ascii[80], "... MESSAGE TOO LONG\n\r");
+    length = 103;
+  }
 
-  uint8_t *pointer = &ascii[0];
-  while (*pointer) UARTTxByte(*pointer++);
+  // uint8_t *pointer = &ascii[0];
+  // while (*pointer) UARTTxByte(*pointer++);
+  UARTTxBuffer(length);
 }
 
 
 // =============================================================================
 // Private functions:
 
-void ReceiveUARTData(void)
+static void ReceiveUARTData(void)
 {
   VIC_ITCmd(UART1_ITLine, DISABLE);
   while (!UART_GetFlagStatus(UART1, UART_FLAG_RxFIFOEmpty))
@@ -178,8 +194,23 @@ void ReceiveUARTData(void)
 }
 
 // -----------------------------------------------------------------------------
+static void SendUARTData(void)
+{
+  VIC_ITCmd(UART1_ITLine, DISABLE);
+  while (tx_bytes_remaining_ != 0
+    && !UART_GetFlagStatus(UART1, UART_FLAG_TxFIFOFull))
+  {
+    UART_SendData(UART1, *(tx_ptr_++));
+    --tx_bytes_remaining_;
+  }
+  if (tx_bytes_remaining_ == 0) UART_ITConfig(UART1, UART_IT_Transmit, DISABLE);
+  VIC_ITCmd(UART1_ITLine, ENABLE);
+}
+
+// -----------------------------------------------------------------------------
 void UART1Handler(void)
 {
   UART_ClearITPendingBit(UART1, UART_IT_Receive);
   ReceiveUARTData();
+  SendUARTData();
 }

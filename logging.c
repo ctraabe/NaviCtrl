@@ -85,7 +85,7 @@ void CloseLogFile(void)
 // -----------------------------------------------------------------------------
 void NewDataToLogInterruptHandler(void)
 {
-  VIC_SWITCmd(EXTIT1_ITLine, DISABLE);
+  // VIC_SWITCmd(EXTIT1_ITLine, DISABLE);
 
   if (!logging_active_) return;
 
@@ -110,7 +110,7 @@ void ProcessLogging(void)
   // Open the file if logging is supposed to be active but the file is closed.
   if (logging_active_ && !file_.fs)
   {
-    GreenLEDOn();
+    // GreenLEDOn();
 
     VIC_ITCmd(EXTIT3_ITLine, DISABLE);  // Disable 50Hz interrupts
     VIC_ITCmd(UART1_ITLine, DISABLE);  // Disable "Debug" UART interrupts
@@ -124,7 +124,7 @@ void ProcessLogging(void)
       do
       {
         snprintf(filename_, MAX_FILENAME_LENGTH, "LOG%04lu.CSV", ++i);
-        UARTPrintf("Trying %s", filename_);
+        // UARTPrintf("Trying %s", filename_);
         file_status_ = f_open(&file_, filename_, FA_WRITE | FA_CREATE_NEW);
       } while ((file_status_ == FR_EXIST) && (i < 1000));
     }
@@ -135,7 +135,7 @@ void ProcessLogging(void)
 
     if (file_status_ != FR_OK)
     {
-      UARTPrintf("logging: f_open returned error code: 0x%02X", file_status_);
+      // UARTPrintf("logging: f_open returned error code: 0x%02X", file_status_);
       file_status_ = f_close(&file_);
       logging_active_ = 0;
       return;
@@ -146,7 +146,7 @@ void ProcessLogging(void)
     VIC_ITCmd(UART1_ITLine, ENABLE);
     VIC_ITCmd(EXTIT3_ITLine, ENABLE);
 
-    GreenLEDOff();
+    // GreenLEDOff();
     // RedLEDOn();
   }
 
@@ -163,29 +163,29 @@ void ProcessLogging(void)
   // the end of the FIFO.
   if (log_fifo_head < log_fifo_tail)
   {
-    GreenLEDOn();
+    // GreenLEDOn();
     file_status_ = f_write(&file_, (char *)&log_fifo_[log_fifo_tail],
       LOG_FIFO_LENGTH - log_fifo_tail, &n_bytes_written);
     log_fifo_tail = 0;
-    GreenLEDOff();
+    // GreenLEDOff();
   }
 
   if (log_fifo_tail < log_fifo_head)
   {
-    GreenLEDOn();
+    // GreenLEDOn();
     file_status_ = f_write(&file_, (char *)&log_fifo_[log_fifo_tail],
       log_fifo_head - log_fifo_tail, &n_bytes_written);
     log_fifo_tail = log_fifo_head;
-    GreenLEDOff();
+    // GreenLEDOff();
   }
 
   // Close the file if logging is not supposed to be active anymore.
   if (!logging_active_)
   {
-    GreenLEDOn();
+    // GreenLEDOn();
     file_status_ = f_close(&file_);
-    UARTPrintf("logging: f_close returned error code: 0x%02X", file_status_);
-    GreenLEDOff();
+    // UARTPrintf("logging: f_close returned error code: 0x%02X", file_status_);
+    // GreenLEDOff();
     // RedLEDOff();
   }
 }

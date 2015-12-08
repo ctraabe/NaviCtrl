@@ -16,5 +16,8 @@ uint32_t SDCardNotPresent(void);
 // -----------------------------------------------------------------------------
 void SDSPIHandler(void);
 
+// -----------------------------------------------------------------------------
+void SDCardPresentHandler(void);
+
 
 #endif  // SD_CARD_H_

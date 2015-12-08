@@ -5,7 +5,9 @@
 #include "i2c.h"
 #include "irq_priority.h"
 #include "led.h"
+#include "logging.h"
 #include "lsm303dl.h"
+#include "sd_card.h"
 #include "spi_slave.h"
 #include "timing.h"
 #include "uart.h"
@@ -39,10 +41,23 @@ void FiftyHzInterruptHandler(void)
 
   uint16_t button = GPIO_ReadBit(GPIO3, GPIO_Pin_1);
   static uint16_t button_pv = 0;
-  if (button && (button_pv == 0x7FFF)) {}
+  if (button && (button_pv == 0x7FFF))
+  {
+    if (LoggingActive())
+    {
+      CloseLogFile();
+      RedLEDOff();
+    }
+    else
+    {
+      OpenLogFile(0);
+      RedLEDOn();
+    }
+  }
   button_pv = (button_pv << 1) | button;
 
   ProcessIncomingUART();
+  ProcessLogging();
 }
 
 //------------------------------------------------------------------------------
@@ -53,11 +68,11 @@ void FiftyHzInterruptHandler(void)
 void FltCtrlInterruptHandler(void)
 {
   WIU_ClearITPendingBit(WIU_Line16);
-  VIC_SWITCmd(WIU_ITLine, DISABLE);
+  VIC_SWITCmd(EXTIT2_ITLine, DISABLE);
 
   LSM303DLReadMag();
   ProcessIncomingUBlox();
-  RedLEDOn();
+  // RedLEDOn();
 }
 
 //------------------------------------------------------------------------------
@@ -107,6 +122,8 @@ static void VICConfig(void)
   VIC_DeInit();
   // Initialize VICs default vector registers.
   VIC_InitDefaultVectors();
+  // Reset the wakeup interrupt unit registers.
+  WIU_DeInit();
 }
 
 //------------------------------------------------------------------------------
@@ -141,6 +158,8 @@ int main(void)
   UBloxInit();
   LSM303DLInit();
   FltCtrlCommsInit();
+  SDCardInit();
+  LoggingInit();
 
   ExternalButtonInit();
 
@@ -170,7 +189,8 @@ int main(void)
     if (data_ready_ & DATA_READY_BIT_MAG)
     {
       data_ready_ &= ~DATA_READY_BIT_MAG;
-      RedLEDOff();
+      NewDataToLogInterruptHandler();
+      // RedLEDOff();
     }
 
     if (TimestampInPast(led_timer))

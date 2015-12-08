@@ -5,6 +5,8 @@
 #include "irq_priority.h"
 #include "timing.h"
 #include "uart.h"
+// TODO: remove
+#include "led.h"
 
 
 // =============================================================================
@@ -84,6 +86,7 @@ void SDCardInit(void)
   SCU_APBPeriphClockConfig(__GPIO3 ,ENABLE);
   SCU_APBPeriphClockConfig(__GPIO5, ENABLE);
   SCU_APBPeriphClockConfig(__SSP1 ,ENABLE);
+  SCU_APBPeriphClockConfig(__WIU, ENABLE);
 
   GPIO_InitTypeDef gpio_init;
 
@@ -95,7 +98,7 @@ void SDCardInit(void)
   gpio_init.GPIO_Alternate = GPIO_OutputAlt1;
   GPIO_Init (GPIO5, &gpio_init);
 
-  // Configure SD_SWITCH at pin GPIO5.3 as an external irq 11
+  // Configure SD_SWITCH at pin GPIO5.3 as an external interrupt (EXTIT11)
   gpio_init.GPIO_Direction = GPIO_PinInput;
   gpio_init.GPIO_Pin = GPIO_Pin_3;
   gpio_init.GPIO_Alternate = GPIO_InputAlt1;
@@ -112,6 +115,20 @@ void SDCardInit(void)
   gpio_init.GPIO_Alternate = GPIO_OutputAlt2;
   GPIO_Init (GPIO3, &gpio_init);
 
+  WIU_InitTypeDef wiu_init;
+
+  // Configure WIU to trigger an interrupt on the falling edge of pin P6.0.
+  wiu_init.WIU_Line = WIU_Line11;  // Pin P5.3
+  wiu_init.WIU_TriggerEdge = WIU_FallingEdge;
+  WIU_Init(&wiu_init);
+
+  WIU_ClearITPendingBit(WIU_Line11);
+  SCU_WakeUpLineConfig(11);
+  WIU_Cmd(ENABLE);
+
+  VIC_Config(EXTIT1_ITLine, VIC_IRQ, IRQ_PRIORITY_SD_PRESENT);
+  VIC_ITCmd(EXTIT1_ITLine, ENABLE);
+
   // Deselect the SD Card.
   CSPinHigh();
 }
@@ -119,7 +136,7 @@ void SDCardInit(void)
 // -----------------------------------------------------------------------------
 uint32_t SDCardNotPresent(void)
 {
-  return (GPIO_ReadBit(GPIO5, GPIO_Pin_3));
+  return GPIO_ReadBit(GPIO5, GPIO_Pin_3);
 }
 
 
@@ -614,4 +631,11 @@ void SDSPIHandler(void)
   }
 
   if (bytes_remaining_ == 0) SSP_ITConfig(SSP1, SSP_IT_TxFifo, DISABLE);
+}
+
+// -----------------------------------------------------------------------------
+// This interrupt occurs when an SD card is inserted.
+void SDCardPresentHandler(void)
+{
+  WIU_ClearITPendingBit(WIU_Line11);
 }

@@ -114,16 +114,7 @@ void SSP1_IRQHandler(void)
 }
 void LVD_IRQHandler(void) { VIC1->VAR = 0xFF; }
 void RTC_IRQHandler(void) { VIC1->VAR = 0xFF; }
-void WIU_IRQHandler(void)
-{
-  DAISY_VIC();
-  IENABLE;
-
-  FltCtrlInterruptHandler();
-
-  IDISABLE;
-  VIC1->VAR = 0xFF;
-}
+void WIU_IRQHandler(void) { VIC1->VAR = 0xFF; }
 void EXTIT0_IRQHandler(void)
 {
   DAISY_VIC();
@@ -134,8 +125,26 @@ void EXTIT0_IRQHandler(void)
   IDISABLE;
   VIC1->VAR = 0xFF;
 }
-void EXTIT1_IRQHandler(void) { VIC1->VAR = 0xFF; }
-void EXTIT2_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void EXTIT1_IRQHandler(void)
+{
+  DAISY_VIC();
+  IENABLE;
+
+  SDCardPresentHandler();
+
+  IDISABLE;
+  VIC1->VAR = 0xFF;
+}
+void EXTIT2_IRQHandler(void)
+{
+  DAISY_VIC();
+  IENABLE;
+
+  FltCtrlInterruptHandler();
+
+  IDISABLE;
+  VIC1->VAR = 0xFF;
+}
 void EXTIT3_IRQHandler(void)
 {
   DAISY_VIC();

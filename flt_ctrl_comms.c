@@ -65,16 +65,16 @@ void FltCtrlCommsInit(void)
   WIU_InitTypeDef wiu_init;
 
   // Configure WIU to trigger an interrupt on the falling edge of pin P6.0.
-  WIU_DeInit();
   wiu_init.WIU_Line = WIU_Line16;  // Pin P6.0
   wiu_init.WIU_TriggerEdge = WIU_FallingEdge;
   WIU_Init(&wiu_init);
 
   WIU_ClearITPendingBit(WIU_Line16);
+  SCU_WakeUpLineConfig(16);
   WIU_Cmd(ENABLE);
 
-  VIC_Config(WIU_ITLine, VIC_IRQ, IRQ_PRIORITY_FLT_CTRL);
-  VIC_ITCmd(WIU_ITLine, ENABLE);
+  VIC_Config(EXTIT2_ITLine, VIC_IRQ, IRQ_PRIORITY_FLT_CTRL);
+  VIC_ITCmd(EXTIT2_ITLine, ENABLE);
 }
 
 // -----------------------------------------------------------------------------
@@ -82,7 +82,7 @@ void FltCtrlCommsInit(void)
 void NotifyFltCtrl(void)
 {
   // Disable the pin change interrupt.
-  VIC1->INTECR |= (0x01 << (WIU_ITLine - 16));
+  VIC1->INTECR |= (0x01 << (EXTIT2_ITLine - 16));
 
   // Configure P6.0 -> FltCtrl interrupt as an output pin.
   GPIO6->DDR |= GPIO_Pin_0;  // Output
@@ -99,7 +99,7 @@ void NotifyFltCtrl(void)
 
   // Re-enable the pin change interrupt.
   WIU_ClearITPendingBit(WIU_Line16);
-  VIC1->INTER |= (0x01 << (WIU_ITLine - 16));
+  VIC1->INTER |= (0x01 << (EXTIT2_ITLine - 16));
 }
 
 // -----------------------------------------------------------------------------

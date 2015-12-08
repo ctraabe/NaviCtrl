@@ -19,10 +19,10 @@
 #define IRQ_PRIORITY_I2C1 2  // VIC1.4: I2C to magnetometer and EEPROM
 #define IRQ_PRIORITY_SSP0 0  // VIC1.5: SPI to SPI port
 #define IRQ_PRIORITY_SSP1 1  // VIC1.6: SPI to SD Card
-#define IRQ_PRIORITY_FLT_CTRL 6  // VIC1.9: Interrupt from FltCtrl
 #define IRQ_PRIORITY_NEW_DATA 5  // VIC1.10: New data
+#define IRQ_PRIORITY_SD_PRESENT 14  // VIC1.11: SD card inserted/ejected
+#define IRQ_PRIORITY_FLT_CTRL 6  // VIC1.12: Interrupt from FltCtrl
 #define IRQ_PRIORITY_50HZ 8  // VIC1.13: 50 Hz software interrupt
-#define IRQ_PRIORITY_SD_SWITCH 9  // VIC1.13: SD card inserted switch
 
 
 #endif // _IRQ_PRIORITY_H

@@ -108,11 +108,12 @@ static void DataReceivedCallback(void)
       | magnetometer_raw_[5]);
   }
 
-  magnetic_vector_[0] = (float)(magnetometer_[0] - MagnetometerBiasVector()[0])
-    / MagnetometerScaleVector()[0];
-  magnetic_vector_[1] = (float)(magnetometer_[1] - MagnetometerBiasVector()[1])
+  // The following arranges the data to correspond to the standard body axis.
+  magnetic_vector_[0] = (float)(magnetometer_[1] - MagnetometerBiasVector()[1])
     / MagnetometerScaleVector()[1];
-  magnetic_vector_[2] = (float)(magnetometer_[2] - MagnetometerBiasVector()[2])
+  magnetic_vector_[1] = (float)(magnetometer_[0] - MagnetometerBiasVector()[0])
+    / MagnetometerScaleVector()[0];
+  magnetic_vector_[2] = -(float)(magnetometer_[2] - MagnetometerBiasVector()[2])
     / MagnetometerScaleVector()[2];
 
   DataReady(DATA_READY_BIT_MAG);

@@ -1,6 +1,7 @@
 #include "lsm303dl.h"
 
 #include "91x_lib.h"
+#include "eeprom.h"
 #include "i2c.h"
 #include "main.h"
 
@@ -31,6 +32,7 @@ static enum LSM303DLModel {
   LSM303DL_MODEL_M,
 } lsm303dl_model_ = LSM303DL_NOT_PRESENT;
 
+static float magnetic_vector_[3] = { 0.0 };
 static int16_t magnetometer_[3] = { 0 };
 static volatile uint8_t magnetometer_raw_[6] = { 0 };
 
@@ -47,6 +49,12 @@ static void DataReceivedCallback(void);
 const int16_t * MagnetometerVector(void)
 {
   return magnetometer_;
+}
+
+// -----------------------------------------------------------------------------
+const float * MagneticVector(void)
+{
+  return magnetic_vector_;
 }
 
 
@@ -99,6 +107,13 @@ static void DataReceivedCallback(void)
     magnetometer_[1] = (int16_t)(((uint16_t)magnetometer_raw_[4] << 8)
       | magnetometer_raw_[5]);
   }
+
+  magnetic_vector_[0] = (float)(magnetometer_[0] - MagnetometerBiasVector()[0])
+    / MagnetometerScaleVector()[0];
+  magnetic_vector_[1] = (float)(magnetometer_[1] - MagnetometerBiasVector()[1])
+    / MagnetometerScaleVector()[1];
+  magnetic_vector_[2] = (float)(magnetometer_[2] - MagnetometerBiasVector()[2])
+    / MagnetometerScaleVector()[2];
 
   DataReady(DATA_READY_BIT_MAG);
 }

@@ -53,7 +53,7 @@ void UARTTxByte(uint8_t byte);
 void UARTPrintf(const char *format, ...);
 
 // -----------------------------------------------------------------------------
-void WaitForUART(void);
+uint32_t UARTWaitUntilCompletion(uint32_t time_limit_ms);
 
 // -----------------------------------------------------------------------------
 void UARTHandler(void);

@@ -240,9 +240,11 @@ void I2CHandler(void)
   uint16_t status = I2C_GetLastEvent(I2C1);
   if (status & (I2C_FLAG_AF | I2C_FLAG_BERR))
   {
-    i2c_error_ = I2C_ERROR_ACK;
+    if (status & I2C_FLAG_BERR)
+      i2c_error_ = I2C_ERROR_BUS;
+    else
+      i2c_error_ = I2C_ERROR_ACK;
     I2CStop();
-    if (callback_ptr_) (*callback_ptr_)();
     return;
   }
 

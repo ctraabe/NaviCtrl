@@ -7,6 +7,7 @@
 #include "irq_priority.h"
 #include "mk_serial_protocol.h"
 #include "mk_serial_tx.h"
+#include "timing.h"
 
 
 // =============================================================================
@@ -188,9 +189,11 @@ void UARTPrintf(const char *format, ...)
 }
 
 // -----------------------------------------------------------------------------
-void WaitForUART(void)
+uint32_t UARTWaitUntilCompletion(uint32_t time_limit_ms)
 {
-  while (tx_bytes_remaining_ != 0) continue;
+  uint32_t timeout = GetTimestampMillisFromNow(time_limit_ms);
+  while ((tx_bytes_remaining_ != 0) && !TimestampInPast(timeout)) continue;
+  return TimestampInPast(timeout);
 }
 
 // -----------------------------------------------------------------------------

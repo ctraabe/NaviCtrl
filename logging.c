@@ -51,6 +51,7 @@ void LoggingInit(void)
 
   file_status_ = f_mount(&fat_fs_, "", 0);
   if (SDCardNotPresent()) UARTPrintf("logging: SD card not present");
+  UARTWaitUntilCompletion(100);
 }
 
 // -----------------------------------------------------------------------------

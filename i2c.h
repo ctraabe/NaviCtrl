@@ -15,6 +15,7 @@ enum I2CError {
   I2C_ERROR_NO_REPLY,
   I2C_ERROR_OTHER,
   I2C_ERROR_BUSY,
+  I2C_ERROR_BUS,
 };
 
 

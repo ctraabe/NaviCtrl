@@ -1,6 +1,7 @@
 #include "main.h"
 
 #include "91x_lib.h"
+#include "eeprom.h"
 #include "flt_ctrl_comms.h"
 #include "i2c.h"
 #include "irq_priority.h"
@@ -153,8 +154,9 @@ int main(void)
   SPISlaveInit();
 
   UARTPrintf("University of Tokyo NaviCtrl firmware V2");
-  WaitForUART();
+  UARTWaitUntilCompletion(100);
 
+  ReadEEPROM();
   UBloxInit();
   LSM303DLInit();
   FltCtrlCommsInit();

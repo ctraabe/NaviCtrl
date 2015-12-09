@@ -14,7 +14,7 @@
 
 #define SPI_FC_START_BYTE (0xAA)
 
-static volatile struct FromFC {
+static struct FromFC {
   float acceleration[3];
   float angular_rate[3];
   float quaternion[4];
@@ -26,19 +26,19 @@ static size_t from_fc_head_ = 1, from_fc_tail_ = 0;
 // =============================================================================
 // Accessors:
 
-const volatile float * AccelerationVector(void)
+const float * AccelerationVector(void)
 {
   return from_fc_[from_fc_tail_].acceleration;
 }
 
 // -----------------------------------------------------------------------------
-const volatile float * AngularRateVector(void)
+const float * AngularRateVector(void)
 {
   return from_fc_[from_fc_tail_].angular_rate;
 }
 
 // -----------------------------------------------------------------------------
-const volatile float * Quat(void)
+const float * Quat(void)
 {
   return from_fc_[from_fc_tail_].quaternion;
 }

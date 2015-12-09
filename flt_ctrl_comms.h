@@ -9,13 +9,13 @@
 // =============================================================================
 // Accessors:
 
-const volatile float * AccelerationVector(void);
+const float * AccelerationVector(void);
 
 // -----------------------------------------------------------------------------
-const volatile float * AngularRateVector(void);
+const float * AngularRateVector(void);
 
 // -----------------------------------------------------------------------------
-const volatile float * Quat(void);
+const float * Quat(void);
 
 
 // =============================================================================

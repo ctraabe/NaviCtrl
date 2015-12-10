@@ -2,6 +2,7 @@
 
 #include "91x_lib.h"
 #include "crc16.h"
+#include "heading.h"
 #include "irq_priority.h"
 #include "main.h"
 #include "timing.h"
@@ -158,9 +159,12 @@ void ProcessIncomingFltCtrlByte(uint8_t byte)
 void SendDataToFltCtrl(void)
 {
   struct ToFC {
+    uint16_t version;
     float position[3];
     float velocity[3];
-    float heading_correction;
+    float heading_correction_quat_0;
+    float heading_correction_quat_z;
+    uint16_t status;
     uint16_t crc;
   } __attribute__((packed));
 
@@ -170,16 +174,19 @@ void SendDataToFltCtrl(void)
   struct ToFC * to_fc_ptr = (struct ToFC *)RequestSPITxBuffer();
   if (!to_fc_ptr) return;
 
+  to_fc_ptr->version = 1;
   to_fc_ptr->position[0] = 0.0;
   to_fc_ptr->position[1] = 1.0;
   to_fc_ptr->position[2] = 2.0;
   to_fc_ptr->velocity[0] = 3.0;
   to_fc_ptr->velocity[1] = 4.0;
   to_fc_ptr->velocity[2] = 5.0;
-  to_fc_ptr->heading_correction = 6.0;
+  to_fc_ptr->heading_correction_quat_0 = HeadingCorrectionQuat0();
+  to_fc_ptr->heading_correction_quat_z = HeadingCorrectionQuatZ();
+  to_fc_ptr->status = 0x00;
 
   to_fc_ptr->crc = CRCCCITT((uint8_t *)to_fc_ptr, sizeof(struct ToFC) - 2);
 
   SPITxBuffer(sizeof(struct ToFC));
-  NotifyFltCtrl();
+  NotifyFltCtrl();  // Request SPI communication.
 }

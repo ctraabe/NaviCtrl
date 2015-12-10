@@ -16,6 +16,27 @@ static float heading_correction_quat_0_ = 1.0, heading_correction_quat_z_ = 0.0;
 
 
 // =============================================================================
+// Accessors:
+
+float HeadingAngle(void)
+{
+  return heading_angle_;
+}
+
+// -----------------------------------------------------------------------------
+float HeadingCorrectionQuat0(void)
+{
+  return heading_correction_quat_0_;
+}
+
+// -----------------------------------------------------------------------------
+float HeadingCorrectionQuatZ(void)
+{
+  return heading_correction_quat_z_;
+}
+
+
+// =============================================================================
 // Public functions:
 
 void UpdateHeading(void)

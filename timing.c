@@ -99,7 +99,7 @@ void MicroWait(uint32_t t_microseconds)
 // =============================================================================
 // Private functions:
 
-// This interrupt should be triggered at 200 kHz
+// This interrupt should be triggered at 1 kHz.
 void TIM1_IRQHandler(void)
 {
   if(TIM_GetFlagStatus(TIM1, TIM_FLAG_OC1) == SET)

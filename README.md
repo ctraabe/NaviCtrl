@@ -41,3 +41,30 @@ Build and install
 This software was developed for use with the Sourcery CodeBench Lite toolchain
 
 Hex files can be uploaded using the Mikrokopter Tool or the firmware uploader (Linux) available at https://github.com/ctraabe/MKProgrammer
+
+Program flow
+--
+
+This program is based on a combination of interrupts and polling.
+
+Interrupt priority:
+
+1. Millisecond timer (1 kHz)
+2. Flight Ctrl SPI interrupt (<40 kHz)
+3. SD card SPI interrupt (<32 kHz)
+4. I2C to magnetometer and EEPROM (<40 kHz)
+5. UBlox UART interrupt (<1 kHz)
+6. "Debug" UART interrupt (<1 kHz)
+7. Low-priority data processing interrupt (< 300 times per second)
+8. Interrupt from FltCtrl (128 Hz)
+9. 50 Hz software interrupt (50 Hz)
+10. SD card inserted/ejected (rare)
+
+Main loop:
+
+1. Request the latest magnetometer reading from LSM303D
+2. Wait for attitude and status update from Flight Ctrl (SPI)
+4. Compute position delta, velocity, and heading correction
+5. Send data to Flight Ctrl
+6. Log data to SD card
+7. Wait for signal from Flight Ctrl and then go to 1.

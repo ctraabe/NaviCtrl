@@ -1,3 +1,8 @@
+// This file adapts the FatFS generic SD/MMC card access example to the STR91x.
+
+// This file implements disk I/O functions that are required for FatFs. These
+// functions are declared in diskio.h and ff.h, so the names cannot be changed.
+
 #include "sd_card.h"
 
 #include "91x_lib.h"
@@ -173,7 +178,7 @@ DSTATUS disk_initialize(BYTE drive_number)
   // Initiate at least 74 clock cycles at 100 - 400 kHz to initialize the card.
   SetBaud(400000L);
   SPIStart(10, 0, 0, 0, 0);
-  WaitForSPI(10);  // Should require <= 0.8 ms to complete
+  WaitForSPI(10);  // Should require 0.2 ms to complete
   while (SSP_GetFlagStatus(SSP1, SSP_FLAG_RxFifoNotEmpty))
     SSP_ReceiveData(SSP1);
 
@@ -271,8 +276,6 @@ DSTATUS disk_initialize(BYTE drive_number)
 // This function reads sector(s) from the SD card.
 DRESULT disk_read(BYTE drive_number, BYTE *buffer, DWORD sector, UINT count)
 {
-  // UARTPrintf("sd_card: disk_read(%u,x,%u,%u)", drive_number, sector, count);
-
   if ((status_ & STA_NOINIT) || (drive_number != 0)) return RES_NOTRDY;
 
   // Cards that are not high capacity should be byte addressed.
@@ -293,7 +296,6 @@ DRESULT disk_read(BYTE drive_number, BYTE *buffer, DWORD sector, UINT count)
   }
 
   Deselect();
-  // UARTPrintf("sd_card: disk_read(): 0x%02X", count ? RES_ERROR : RES_OK);
   return count ? RES_ERROR : RES_OK;
 }
 
@@ -302,8 +304,6 @@ DRESULT disk_read(BYTE drive_number, BYTE *buffer, DWORD sector, UINT count)
 DRESULT disk_write(BYTE drive_number, const BYTE *buffer, DWORD sector,
   UINT count)
 {
-  // UARTPrintf("sd_card: disk_write(%u,x,%u,%u)", drive_number, sector, count);
-
   if ((status_ & STA_NOINIT) || (drive_number != 0)) return RES_NOTRDY;
 
   // Cards that are not high capacity should be byte addressed.
@@ -330,7 +330,6 @@ DRESULT disk_write(BYTE drive_number, const BYTE *buffer, DWORD sector,
   }
 
   Deselect();
-  // UARTPrintf("sd_card: disk_write(): 0x%02X", count ? RES_ERROR : RES_OK);
   return count ? RES_ERROR : RES_OK;
 }
 
@@ -338,8 +337,6 @@ DRESULT disk_write(BYTE drive_number, const BYTE *buffer, DWORD sector,
 // This function controls miscellaneous functions other than generic read/write.
 DRESULT disk_ioctl(BYTE drive_number, BYTE ctrl, void *buffer)
 {
-  // UARTPrintf("sd_card: disk_io_ctrl(%u, %u, x)", drive_number, ctrl);
-
   if ((status_ & STA_NOINIT) || (drive_number != 0)) return RES_NOTRDY;
 
   DWORD cs;
@@ -381,7 +378,6 @@ DRESULT disk_ioctl(BYTE drive_number, BYTE ctrl, void *buffer)
   }
 
   Deselect();
-  // UARTPrintf("sd_card: disk_io_ctrl(): 0x%02X", response);
   return response;
 }
 
@@ -541,6 +537,11 @@ static BYTE TxCommand(BYTE command, DWORD argument)
 }
 
 // -----------------------------------------------------------------------------
+// Start an SPI exchange. The number of bytes to be exchanged is specified by
+// exchange_lenght. These bytes may or may not be dummy bytes. The number of
+// (non-dummy) bytes to be received is specified by rx_length. The number of
+// (non-dummy) bytes to be transmitted is specified by tx_length. Non-dummy
+// bytes are always received/transmitted first.
 static void SPIStart(size_t exchange_length, BYTE * rx_buffer, size_t rx_length,
   const BYTE * tx_buffer, size_t tx_length)
 {
@@ -592,6 +593,7 @@ static uint32_t WaitForSDCard(void)
 }
 
 // -----------------------------------------------------------------------------
+// Wait up to time_limit_ms for the SPI exchange to finish.
 static uint32_t WaitForSPI(uint32_t time_limit_ms)
 {
   uint32_t timeout = GetTimestampMillisFromNow(time_limit_ms);

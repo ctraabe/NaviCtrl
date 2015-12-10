@@ -1,5 +1,6 @@
 # Add library files as needed only:
 SOURCES   = libfatfs/src/ff.c
+SOURCES  += libfatfs/src/unicode.c
 SOURCES  += libstr91x/src/91x_gpio.c
 SOURCES  += libstr91x/src/91x_i2c.c
 SOURCES  += libstr91x/src/91x_scu.c

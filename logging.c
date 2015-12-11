@@ -1,3 +1,10 @@
+// This file employs the FatFS library to manage files and logging to an SD
+// card. Note that FatFS writes in 512-byte blocks, and program execution is
+// blocked until the write is completed. Therefore, it is important that FatFS
+// communication (e.g. f_open, f_read, f_write) be done at the lowest priority
+// possible so as not to block other important functions. Note that a 512-byte
+// exchange takes approximately 5 ms at SPI using 1 MHz clock.
+
 #include "logging.h"
 
 #include <stdio.h>
@@ -8,8 +15,6 @@
 #include "uart.h"
 #include "sd_card.h"
 #include "spi_slave.h"
-// TODO: Remove
-#include "led.h"
 
 
 // =============================================================================
@@ -112,12 +117,6 @@ void ProcessLogging(void)
   if (logging_active_ && !file_.fs)
   {
     // GreenLEDOn();
-
-    VIC_ITCmd(EXTIT3_ITLine, DISABLE);  // Disable 50Hz interrupts
-    VIC_ITCmd(UART1_ITLine, DISABLE);  // Disable "Debug" UART interrupts
-    VIC_ITCmd(UART0_ITLine, DISABLE);  // Disable UBlox interrupts
-    VIC_ITCmd(SSP0_ITLine, DISABLE);  // Disable SPI Slave interrupts
-
     if (filename_[0] == 0)
     {
       // Try to open a default filename.
@@ -141,12 +140,6 @@ void ProcessLogging(void)
       logging_active_ = 0;
       return;
     }
-
-    VIC_ITCmd(SSP0_ITLine, ENABLE);
-    VIC_ITCmd(UART0_ITLine, ENABLE);
-    VIC_ITCmd(UART1_ITLine, ENABLE);
-    VIC_ITCmd(EXTIT3_ITLine, ENABLE);
-
     // GreenLEDOff();
     // RedLEDOn();
   }

@@ -1,10 +1,20 @@
+// This file initializes a UBlox unit to send periodic updates over UART at
+// 57600 baud. The STR91x UART has an 8-byte input buffer. When the input buffer
+// becomes more than 3/4 full, an interrupt occurs. The interrupt handler (in
+// this file) moves the data from the UART buffer into RAM (rx_buffer_) for
+// later processing. 
+
+// The
+// received data is put into a receive buffer for later processing.
+
+// 
+
 #include "ublox.h"
 
 #include <string.h>
 
 #include "91x_lib.h"
 #include "irq_priority.h"
-#include "main.h"
 #include "timing.h"
 
 
@@ -14,72 +24,60 @@
 #define UBLOX_INITIAL_BAUD (9600)
 #define UBLOX_OPERATING_BAUD (57600)
 #define UBLOX_RX_BUFFER_LENGTH (1 << 8)  // 2^8 = 256
+#define DATA_BUFFER_LENGTH (sizeof(struct UBXSol))  // Largest expected payload
+
 #define UBX_SYNC_CHAR_1 (0xb5)
 #define UBX_SYNC_CHAR_2 (0x62)
 #define UBX_CLASS_NAV (0x01)
 #define UBX_ID_POS_LLH (0x02)
 #define UBX_ID_VEL_NED (0x12)
 #define UBX_ID_SOL (0x06)
-
-static struct UBXPosLLH
-{
-  uint32_t gps_ms_time_of_week;
-  int32_t longitutde;
-  int32_t latitude;
-  int32_t height_above_ellipsoid;
-  int32_t height_mean_sea_level;
-  uint32_t horizontal_accuracy;
-  uint32_t vertical_accuracy;
-} __attribute__((packed)) ubx_pos_llh_[2];
-
-static struct UBXVelNED
-{
-  uint32_t gps_ms_time_of_week;
-  int32_t velocity_north;
-  int32_t velocity_east;
-  int32_t velocity_down;
-  uint32_t total_speed;
-  uint32_t horizontal_speed;
-  int32_t course;
-  uint32_t speed_accuracy;
-  uint32_t course_accuracy;
-} __attribute__((packed)) ubx_vel_ned_[2];
-
-static struct UBXSol
-{
-  uint32_t gps_ms_time_of_week;
-  int32_t fractional_time_of_week;
-  int16_t gps_week;
-  uint8_t gps_fix_type;
-  uint8_t gps_fix_status_flags;
-  int32_t ecef_x_coordinate;
-  int32_t ecef_y_coordinate;
-  int32_t ecef_z_coordinate;
-  uint32_t coordinate_accuracy;
-  int32_t ecef_x_velocity;
-  int32_t ecef_y_velocity;
-  int32_t ecef_z_velocity;
-  uint32_t velocity_accuracy;
-  uint16_t position_dop;
-  uint8_t reserved1;
-  uint8_t number_of_satelites_used;
-  uint32_t reserved2;
-} __attribute__((packed)) ubx_sol_[2];
+#define UBX_ID_TIME_UTC (0x21)
 
 static volatile uint8_t rx_buffer_[UBLOX_RX_BUFFER_LENGTH];
 static volatile size_t rx_buffer_head_ = 0;
+static uint8_t data_buffer_[DATA_BUFFER_LENGTH];
 
-static size_t ubx_pos_llh_head_ = 1, ubx_pos_llh_tail_ = 0;
-static size_t ubx_vel_ned_head_ = 1, ubx_vel_ned_tail_ = 0;
-static size_t ubx_sol_head_ = 1, ubx_sol_tail_ = 0;
+static struct UBXPosLLH ubx_pos_llh_;
+static struct UBXVelNED ubx_vel_ned_;
+static struct UBXSol ubx_sol_;
+static struct UBXTimeUTC ubx_time_utc_;
+
 
 // =============================================================================
 // Private function declarations:
 
 static void ProcessIncomingUBloxByte(uint8_t byte);
 static void ReceiveUBloxData(void);
-static void UBloxTxBuffer(const uint8_t * buffer, size_t length);
 static void UART0Init(uint32_t baud_rate);
+static void UBloxTxBuffer(const uint8_t * buffer, size_t length);
+
+
+// =============================================================================
+// Accessors:
+
+const struct UBXPosLLH * UBXPosLLH(void)
+{
+  return &ubx_pos_llh_;
+}
+
+// -----------------------------------------------------------------------------
+const struct UBXVelNED * UBXVelNED(void)
+{
+  return &ubx_vel_ned_;
+}
+
+// -----------------------------------------------------------------------------
+const struct UBXSol * UBXSol(void)
+{
+  return &ubx_sol_;
+}
+
+// -----------------------------------------------------------------------------
+const struct UBXTimeUTC * UBXTimeUTC(void)
+{
+  return &ubx_time_utc_;
+}
 
 
 // =============================================================================
@@ -173,28 +171,36 @@ void UBloxInit(void)
       0x02, 0x01, 0x0e, 0x47 };
     UBloxTxBuffer(tx_buffer, 11);
   }
+  {  // Request NAV-VELNED message to be output every measurement cycle.
+    const uint8_t tx_buffer[11] = { 0xb5, 0x62, 0x06, 0x01, 0x03, 0x00, 0x01,
+      0x12, 0x01, 0x1e, 0x67 };
+    UBloxTxBuffer(tx_buffer, 11);
+  }
+/*
   {  // Request NAV-SOL message to be output every measurement cycle.
     const uint8_t tx_buffer[11] = { 0xb5, 0x62, 0x06, 0x01, 0x03, 0x00, 0x01,
       0x06, 0x01, 0x12, 0x4f };
     UBloxTxBuffer(tx_buffer, 11);
   }
-  {  // Request NAV-VELNED message to be output every measurement cycle.
+*/
+  {  // Request Time-UTC message to be output every 5 measurement cycles.
     const uint8_t tx_buffer[11] = { 0xb5, 0x62, 0x06, 0x01, 0x03, 0x00, 0x01,
-      0x12, 0x01, 0x1e, 0x67 };
+      0x21, 0x05, 0x31, 0x89 };
     UBloxTxBuffer(tx_buffer, 11);
   }
 }
 
 // -----------------------------------------------------------------------------
 // This function processes bytes that have been read into the Rx ring buffer
-// (rx_buffer_) by the Rx interrupt handler. Each byte is passed to the
-// appropriate Rx handler, which may place it into the temporary data buffer
-// (data_buffer_).
+// (rx_buffer_) by the Rx interrupt handler.
 void ProcessIncomingUBlox(void)
 {
   static size_t rx_buffer_tail = 0;
 
+  // Disable the UART interrupt, empty the UART Rx buffer, then re-enable.
+  VIC_ITCmd(UART0_ITLine, DISABLE);
   ReceiveUBloxData();
+  VIC_ITCmd(UART0_ITLine, ENABLE);
 
   while (rx_buffer_tail != rx_buffer_head_)
   {
@@ -208,7 +214,7 @@ void ProcessIncomingUBlox(void)
 // =============================================================================
 // Private functions:
 
-static void UpdateChecksum(uint8_t byte, uint8_t * checksum_a,
+static inline void UpdateChecksum(uint8_t byte, uint8_t * checksum_a,
   uint8_t * checksum_b)
 {
   *checksum_a += byte;
@@ -216,46 +222,21 @@ static void UpdateChecksum(uint8_t byte, uint8_t * checksum_a,
 }
 
 // -----------------------------------------------------------------------------
-static uint8_t * DataBufferAddress(uint8_t id, uint8_t payload_length)
+static void CopyUBloxMessage(uint8_t id)
 {
   switch (id)
   {
     case UBX_ID_POS_LLH:
-      if (payload_length != sizeof(struct UBXPosLLH)) return 0;
-      return (uint8_t *)&ubx_pos_llh_[ubx_pos_llh_head_];
+      memcpy(&ubx_pos_llh_, &data_buffer_[0], sizeof(struct UBXPosLLH));
       break;
     case UBX_ID_VEL_NED:
-      if (payload_length != sizeof(struct UBXVelNED)) return 0;
-      return (uint8_t *)&ubx_vel_ned_[ubx_vel_ned_head_];
+      memcpy(&ubx_vel_ned_, &data_buffer_[0], sizeof(struct UBXVelNED));
       break;
     case UBX_ID_SOL:
-      if (payload_length != sizeof(struct UBXSol)) return 0;
-      return (uint8_t *)&ubx_sol_[ubx_sol_head_];
+      memcpy(&ubx_sol_, &data_buffer_[0], sizeof(struct UBXSol));
       break;
-    default:
-      return 0;
-      break;
-  }
-}
-
-// -----------------------------------------------------------------------------
-static void SwapDataBuffers(uint8_t id)
-{
-  switch (id)
-  {
-    case UBX_ID_POS_LLH:
-      ubx_pos_llh_tail_ = ubx_pos_llh_head_;
-      ubx_pos_llh_head_ = !ubx_pos_llh_tail_;
-      break;
-    case UBX_ID_VEL_NED:
-      ubx_vel_ned_tail_ = ubx_vel_ned_head_;
-      ubx_vel_ned_head_ = !ubx_vel_ned_tail_;
-      break;
-    case UBX_ID_SOL:
-      ubx_sol_tail_ = ubx_sol_head_;
-      ubx_sol_head_ = !ubx_sol_tail_;
-      break;
-    default:
+    case UBX_ID_TIME_UTC:
+      memcpy(&ubx_time_utc_, &data_buffer_[0], sizeof(struct UBXTimeUTC));
       break;
   }
 }
@@ -285,9 +266,10 @@ static void ProcessIncomingUBloxByte(uint8_t byte)
       UpdateChecksum(byte, &checksum_a, &checksum_b);
       break;
     case 4:  // Payload length (lower byte)
-      data_buffer_ptr = DataBufferAddress(id, payload_length);
-      if (!data_buffer_ptr) goto RESET;
+      if (byte > DATA_BUFFER_LENGTH) goto RESET;
+      data_buffer_ptr = &data_buffer_[0];
     case 5:  // Payload length (upper byte should always be zero)
+      if (byte != 0) goto RESET;
       UpdateChecksum(byte, &checksum_a, &checksum_b);
       break;
     default:  // Payload or checksum
@@ -302,11 +284,7 @@ static void ProcessIncomingUBloxByte(uint8_t byte)
       }
       else  // Checksum B
       {
-        if (byte == checksum_b)
-        {
-          SwapDataBuffers(id);
-          DataReady(DATA_READY_BIT_GPS);
-        }
+        if (byte == checksum_b) CopyUBloxMessage(id);
         goto RESET;
       }
       break;
@@ -321,13 +299,11 @@ static void ProcessIncomingUBloxByte(uint8_t byte)
 // -----------------------------------------------------------------------------
 static void ReceiveUBloxData(void)
 {
-  VIC_ITCmd(UART0_ITLine, DISABLE);
   while (!UART_GetFlagStatus(UART0, UART_FLAG_RxFIFOEmpty))
   {
     rx_buffer_head_ = (rx_buffer_head_ + 1) % UBLOX_RX_BUFFER_LENGTH;
     rx_buffer_[rx_buffer_head_] = UART_ReceiveData(UART0);
   }
-  VIC_ITCmd(UART0_ITLine, ENABLE);
 }
 
 // -----------------------------------------------------------------------------
@@ -354,8 +330,8 @@ static void UART0Init(uint32_t baud_rate)
   uart_init.UART_HardwareFlowControl = UART_HardwareFlowControl_None;
   uart_init.UART_Mode = UART_Mode_Tx_Rx;
   uart_init.UART_FIFO = UART_FIFO_Enable;
-  uart_init.UART_TxFIFOLevel = UART_FIFOLevel_1_2;
-  uart_init.UART_RxFIFOLevel = UART_FIFOLevel_1_2;
+  uart_init.UART_TxFIFOLevel = UART_FIFOLevel_1_4;
+  uart_init.UART_RxFIFOLevel = UART_FIFOLevel_3_4;
   UART_DeInit(UART0);
   UART_Init(UART0, &uart_init);
   UART_Cmd(UART0, ENABLE);

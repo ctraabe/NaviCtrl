@@ -15,7 +15,7 @@
 /  and optional writing functions as well. */
 
 
-#define _FS_MINIMIZE	0
+#define _FS_MINIMIZE	3
 /* This option defines minimization level to remove some basic API functions.
 /
 /   0: All basic functions are enabled.
@@ -90,7 +90,7 @@
 */
 
 
-#define	_USE_LFN	2
+#define	_USE_LFN	0
 #define	_MAX_LFN	255
 /* The _USE_LFN option switches the LFN feature.
 /

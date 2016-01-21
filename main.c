@@ -21,11 +21,9 @@
 #define MAX_CALLBACKS_POW_OF_2 (2)  // 2^2 = 4
 #define MAX_CALLBACKS (1 << MAX_CALLBACKS_POW_OF_2)
 
-static volatile enum DataReadyBits data_ready_;
 static volatile Callback callback_buffer_[4] = { 0 };
 static volatile size_t callback_buffer_head_ = 0;
 static size_t callback_buffer_tail_ = 0;
-
 
 // =============================================================================
 // Private function declarations:
@@ -47,18 +45,15 @@ void FiftyHzInterruptHandler(void)
     if (LoggingActive())
     {
       CloseLogFile();
-      RedLEDOff();
     }
     else
     {
       OpenLogFile(0);
-      RedLEDOn();
     }
   }
   button_pv = (button_pv << 1) | button;
 
   ProcessIncomingUART();
-  ProcessLogging();
 }
 
 //------------------------------------------------------------------------------
@@ -68,12 +63,15 @@ void FiftyHzInterruptHandler(void)
 // is a low-priority interrupt, so some computation can be safely added here.
 void FltCtrlInterruptHandler(void)
 {
+  // RedLEDOn();
   WIU_ClearITPendingBit(WIU_Line16);
   VIC_SWITCmd(EXTIT2_ITLine, DISABLE);
 
   LSM303DLReadMag();
   ProcessIncomingUBlox();
-  // RedLEDOn();
+  // TODO: compute nav solution
+  PrepareFltCtrlDataExchange();
+  // RedLEDOff();
 }
 
 //------------------------------------------------------------------------------
@@ -100,13 +98,6 @@ void SetNewDataCallback(Callback callback)
   callback_buffer_head_ = (callback_buffer_head_ + 1) % MAX_CALLBACKS;
   callback_buffer_[callback_buffer_head_] = callback;
   VIC_SWITCmd(EXTIT0_ITLine, ENABLE);
-}
-
-// -----------------------------------------------------------------------------
-// Indicates that data has been processed and is ready to be consumed.
-void DataReady(enum DataReadyBits data_ready)
-{
-  data_ready_ |= data_ready;
 }
 
 
@@ -154,7 +145,6 @@ int main(void)
   SPISlaveInit();
 
   UARTPrintf("University of Tokyo NaviCtrl firmware V2");
-  UARTWaitUntilCompletion(100);
 
   ReadEEPROM();
   UBloxInit();
@@ -177,23 +167,20 @@ int main(void)
   uint32_t led_timer = GetTimestamp();
   for (;;)
   {
-    if (data_ready_ & DATA_READY_BIT_FC)
+    // TODO: add magnetometer timer for operation independent from FC
+/*
+    uint32_t counter = (1 << 16), timer = GetTimestamp();
+    char test_msg[16] = "0123456789abcdef";
+    for ( ; sd_write_test && counter != 0; --counter) LogWrite(test_msg, 16);
+    if (counter == 0)
     {
-      data_ready_ &= ~DATA_READY_BIT_FC;
-      SendDataToFltCtrl();
+      CloseLogFile();
+      RedLEDOff();
+      sd_write_test = 0;
+      UARTPrintf("SD write test finished in %i ms", MillisSinceTimestamp(timer));
     }
-
-    if (data_ready_ & DATA_READY_BIT_GPS)
-    {
-      data_ready_ &= ~DATA_READY_BIT_GPS;
-    }
-
-    if (data_ready_ & DATA_READY_BIT_MAG)
-    {
-      data_ready_ &= ~DATA_READY_BIT_MAG;
-      NewDataToLogInterruptHandler();
-      // RedLEDOff();
-    }
+*/
+    ProcessLogging();
 
     if (TimestampInPast(led_timer))
     {

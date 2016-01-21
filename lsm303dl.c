@@ -3,6 +3,7 @@
 #include "91x_lib.h"
 #include "eeprom.h"
 #include "i2c.h"
+#include "logging.h"
 #include "main.h"
 
 
@@ -86,6 +87,7 @@ void LSM303DLReadMag(void)
     DataReceivedCallback);
 }
 
+
 // =============================================================================
 // Private functions:
 
@@ -116,5 +118,5 @@ static void DataReceivedCallback(void)
   magnetic_vector_[2] = -(float)(magnetometer_[2] - MagnetometerBiasVector()[2])
     / MagnetometerScaleVector()[2];
 
-  DataReady(DATA_READY_BIT_MAG);
+  // LogMagnetometerData();
 }

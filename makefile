@@ -26,7 +26,8 @@ CPPFLAGS  = -std=c++11 -fno-exceptions
 LSTFLAGS  = -Wa,-adhlns=$(addprefix $(BUILD_PATH)/,$(addsuffix .lst, $<))
 LDFLAGS   = -Ofast -pedantic -Wall -Wextra -Werror -Wundef -ffreestanding \
             -Wl,--relax -Tstr911fam.ld
-ALLFLAGS  = -mcpu=$(MCU) -I. $(addprefix -I, $(LIBRARY_INC))
+ALLFLAGS  = -mcpu=$(MCU) -I. $(addprefix -I, $(LIBRARY_INC)) \
+            -DLOG_FLT_CTRL_DEBUG_TO_SD
 
 CC   := arm-none-eabi-gcc
 CCP  := arm-none-eabi-g++

@@ -163,9 +163,9 @@ void UARTPrintf(const char *format, ...)
   // _Static_assert(UART_TX_BUFFER_LENGTH >= 103,
   //   "UART buffer not large enough for UARTPrintf");
 
-  uint8_t * ascii = RequestUARTTxBuffer();
-  if (!ascii) return;
-  // uint8_t ascii[103];  // 100 chars + 2 newline chars + null terminator
+  // uint8_t * ascii = RequestUARTTxBuffer();
+  // if (!ascii) return;
+  uint8_t ascii[103];  // 100 chars + 2 newline chars + null terminator
 
   va_list arglist;
   va_start(arglist, format);
@@ -183,9 +183,9 @@ void UARTPrintf(const char *format, ...)
     length = 103;
   }
 
-  // uint8_t *pointer = &ascii[0];
-  // while (*pointer) UARTTxByte(*pointer++);
-  UARTTxBuffer(length);
+  uint8_t *pointer = &ascii[0];
+  while (*pointer) UARTTxByte(*pointer++);
+  // UARTTxBuffer(length);
 }
 
 // -----------------------------------------------------------------------------

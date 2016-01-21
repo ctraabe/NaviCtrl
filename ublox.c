@@ -4,10 +4,7 @@
 // this file) moves the data from the UART buffer into RAM (rx_buffer_) for
 // later processing. 
 
-// The
-// received data is put into a receive buffer for later processing.
-
-// 
+// The received data is put into a receive buffer for later processing.
 
 #include "ublox.h"
 

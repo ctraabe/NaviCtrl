@@ -8,6 +8,7 @@
 #include "91x_lib.h"
 #include "diskio.h"  // from libfatfs
 #include "irq_priority.h"
+#include "logging.h"
 #include "timing.h"
 #include "uart.h"
 // TODO: remove
@@ -120,11 +121,13 @@ void SDCardInit(void)
   gpio_init.GPIO_Alternate = GPIO_OutputAlt2;
   GPIO_Init (GPIO3, &gpio_init);
 
+  // Configure WIU to trigger an interrupt on a change in pin P6.0.
   WIU_InitTypeDef wiu_init;
-
-  // Configure WIU to trigger an interrupt on the falling edge of pin P6.0.
   wiu_init.WIU_Line = WIU_Line11;  // Pin P5.3
-  wiu_init.WIU_TriggerEdge = WIU_FallingEdge;
+  if (SDCardNotPresent())
+    wiu_init.WIU_TriggerEdge = WIU_FallingEdge;
+  else
+    wiu_init.WIU_TriggerEdge = WIU_RisingEdge;
   WIU_Init(&wiu_init);
 
   WIU_ClearITPendingBit(WIU_Line11);
@@ -640,4 +643,21 @@ void SDSPIHandler(void)
 void SDCardPresentHandler(void)
 {
   WIU_ClearITPendingBit(WIU_Line11);
+
+  // Configure WIU to trigger an interrupt on a change in pin P6.0.
+  WIU_InitTypeDef wiu_init;
+  wiu_init.WIU_Line = WIU_Line11;  // Pin P5.3
+  if (SDCardNotPresent())
+  {
+    UARTTxByte('o');
+    wiu_init.WIU_TriggerEdge = WIU_FallingEdge;
+    UnmountLoggingFS();
+  }
+  else
+  {
+    UARTTxByte('i');
+    wiu_init.WIU_TriggerEdge = WIU_RisingEdge;
+    MountLoggingFS();
+  }
+  WIU_Init(&wiu_init);
 }

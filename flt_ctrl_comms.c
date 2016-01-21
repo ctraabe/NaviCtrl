@@ -5,9 +5,11 @@
 #include "heading.h"
 #include "irq_priority.h"
 #include "main.h"
-#include "timing.h"
 #include "spi_slave.h"
+#include "timing.h"
 #include "union_types.h"
+// TODO: remove
+#include "logging.h"
 
 
 // =============================================================================
@@ -15,33 +17,41 @@
 
 #define SPI_FC_START_BYTE (0xAA)
 
-static struct FromFC {
-  float acceleration[3];
-  float angular_rate[3];
-  float quaternion[4];
-} __attribute__((packed)) from_fc_[2];
-
+static struct FromFltCtrl from_fc_[2];
+static union U16Bytes crc_[2];
 static size_t from_fc_head_ = 1, from_fc_tail_ = 0;
 
 
 // =============================================================================
 // Accessors:
 
-const float * AccelerationVector(void)
+const int16_t * AccelerometerVector(void)
 {
-  return from_fc_[from_fc_tail_].acceleration;
+  return from_fc_[from_fc_tail_].accelerometer;
 }
 
 // -----------------------------------------------------------------------------
-const float * AngularRateVector(void)
+const int16_t * GyroVector(void)
 {
-  return from_fc_[from_fc_tail_].angular_rate;
+  return from_fc_[from_fc_tail_].gyro;
 }
 
 // -----------------------------------------------------------------------------
 const float * Quat(void)
 {
   return from_fc_[from_fc_tail_].quaternion;
+}
+
+// -----------------------------------------------------------------------------
+const struct FromFltCtrl * FromFltCtrl(void)
+{
+  return &from_fc_[from_fc_tail_];
+}
+
+// -----------------------------------------------------------------------------
+uint16_t FromFltCtrlCRC(void)
+{
+  return crc_[from_fc_tail_].u16;
 }
 
 
@@ -110,38 +120,37 @@ void ProcessIncomingFltCtrlByte(uint8_t byte)
 {
   static size_t bytes_processed = 0;
   static uint8_t * from_fc_ptr = (uint8_t *)&from_fc_[0];
-  static union U16Bytes crc;
-  const size_t payload_length = sizeof(struct FromFC);
+  const size_t payload_length = sizeof(struct FromFltCtrl);
 
   switch (bytes_processed)
   {
     case 0:  // Check for start character
       if (byte != SPI_FC_START_BYTE) goto RESET;
       from_fc_ptr = (uint8_t *)&from_fc_[from_fc_head_];
-      crc.u16 = 0xFFFF;
+      crc_[from_fc_head_].u16 = 0xFFFF;
       break;
     case 1:  // Payload length
-      if (byte != sizeof(struct FromFC)) goto RESET;
-      crc.u16 = CRCUpdateCCITT(crc.u16, byte);
+      if (byte != sizeof(struct FromFltCtrl)) goto RESET;
+      crc_[from_fc_head_].u16 = CRCUpdateCCITT(crc_[from_fc_head_].u16, byte);
       break;
     default:  // Payload or checksum
+      *from_fc_ptr++ = byte;
       if (bytes_processed < (2 + payload_length))  // Payload
       {
-        *from_fc_ptr++ = byte;
-        crc.u16 = CRCUpdateCCITT(crc.u16, byte);
+        crc_[from_fc_head_].u16 = CRCUpdateCCITT(crc_[from_fc_head_].u16, byte);
       }
       else if (bytes_processed == (2 + payload_length))  // CRC lower byte
       {
-        if (byte != crc.bytes[0]) goto RESET;
+        if (byte != crc_[from_fc_head_].bytes[0]) goto RESET;
       }
       else  // CRC upper byte
       {
-        if (byte == crc.bytes[1])
+        if (byte == crc_[from_fc_head_].bytes[1])
         {
           // Swap data buffers.
           from_fc_tail_ = from_fc_head_;
           from_fc_head_ = !from_fc_tail_;
-          DataReady(DATA_READY_BIT_FC);
+          LogFlightControlData();
         }
         goto RESET;
       }
@@ -156,7 +165,7 @@ void ProcessIncomingFltCtrlByte(uint8_t byte)
 }
 
 // -----------------------------------------------------------------------------
-void SendDataToFltCtrl(void)
+void PrepareFltCtrlDataExchange(void)
 {
   struct ToFC {
     uint16_t version;

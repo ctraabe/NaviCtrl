@@ -11,10 +11,14 @@
 
 #include "91x_lib.h"
 #include "ff.h"  // FatFs
+#include "flt_ctrl_comms.h"
 #include "lsm303dl.h"
-#include "uart.h"
 #include "sd_card.h"
 #include "spi_slave.h"
+#include "uart.h"
+#include "union_types.h"
+// TODO: remove
+#include "led.h"
 
 
 // =============================================================================
@@ -43,7 +47,7 @@ static void WriteToFIFO(const char * ascii, size_t length);
 
 uint32_t LoggingActive(void)
 {
-  return logging_active_;
+  return logging_active_ && file_.fs;
 }
 
 
@@ -53,10 +57,22 @@ uint32_t LoggingActive(void)
 void LoggingInit(void)
 {
   SDCardInit();
+  if (SDCardNotPresent())
+    UARTPrintf("logging: SD card not present");
+  else
+    MountLoggingFS();
+}
 
-  file_status_ = f_mount(&fat_fs_, "", 0);
-  if (SDCardNotPresent()) UARTPrintf("logging: SD card not present");
-  UARTWaitUntilCompletion(100);
+// -----------------------------------------------------------------------------
+void MountLoggingFS(void)
+{
+  file_status_ = f_mount(&fat_fs_, "", 1);
+}
+
+// -----------------------------------------------------------------------------
+void UnmountLoggingFS(void)
+{
+  file_status_ = f_mount(NULL, "", 0);
 }
 
 // -----------------------------------------------------------------------------
@@ -89,29 +105,41 @@ void CloseLogFile(void)
 }
 
 // -----------------------------------------------------------------------------
-void NewDataToLogInterruptHandler(void)
+void LogFlightControlData(void)
 {
-  // VIC_SWITCmd(EXTIT1_ITLine, DISABLE);
+  if (SDCardNotPresent() || !file_.fs) return;
 
+  union U16Bytes temp;
+  temp.bytes[0] = 0xB5;
+  temp.bytes[1] = 0x52;
+  WriteToFIFO((char *)temp.bytes, 2);
+  WriteToFIFO((char *)FromFltCtrl(), sizeof(struct FromFltCtrl));
+  temp.u16 = FromFltCtrlCRC();
+  WriteToFIFO((char *)temp.bytes, 2);
+}
+
+// -----------------------------------------------------------------------------
+void LogMagnetometerData(void)
+{
   if (!logging_active_) return;
 
-  char ascii[80];
+  const int kMaxChars = 4 + 3 * 6 + 2 * 1 + 2;
+  char ascii[kMaxChars];
 
-  // if (data_ready_ & DATA_READY_BIT_MAG)
-  // {
-  //   data_ready_ &= ~DATA_READY_BIT_MAG;
-
-    size_t length = snprintf(ascii, 80, "mag,%i,%i,%i\r\n",
-      MagnetometerVector()[0], MagnetometerVector()[1],
-      MagnetometerVector()[2]);
-    WriteToFIFO(ascii, length);
-  // }
+  size_t length = snprintf(ascii, kMaxChars, "mag,%i,%i,%i\r\n",
+    MagnetometerVector()[0], MagnetometerVector()[1],
+    MagnetometerVector()[2]);
+  WriteToFIFO(ascii, length);
 }
 
 // -----------------------------------------------------------------------------
 void ProcessLogging(void)
 {
-  if (SDCardNotPresent()) return;
+  if (SDCardNotPresent())
+  {
+    logging_active_ = 0;
+    return;
+  }
 
   // Open the file if logging is supposed to be active but the file is closed.
   if (logging_active_ && !file_.fs)
@@ -123,7 +151,7 @@ void ProcessLogging(void)
       uint32_t i = 0;
       do
       {
-        snprintf(filename_, MAX_FILENAME_LENGTH, "LOG%04lu.CSV", ++i);
+        snprintf(filename_, MAX_FILENAME_LENGTH, "LOG%04lu.BIN", ++i);
         // UARTPrintf("Trying %s", filename_);
         file_status_ = f_open(&file_, filename_, FA_WRITE | FA_CREATE_NEW);
       } while ((file_status_ == FR_EXIST) && (i < 1000));
@@ -135,17 +163,21 @@ void ProcessLogging(void)
 
     if (file_status_ != FR_OK)
     {
-      // UARTPrintf("logging: f_open returned error code: 0x%02X", file_status_);
+      UARTPrintf("logging: f_open returned error code: 0x%02X", file_status_);
       file_status_ = f_close(&file_);
       logging_active_ = 0;
       return;
     }
     // GreenLEDOff();
-    // RedLEDOn();
+    RedLEDOn();
   }
 
   // Make sure that the file is open.
-  if (!file_.fs) return;
+  if (!file_.fs)
+  {
+    logging_active_ = 0;
+    return;
+  }
 
   // Make a copy of the volatile head index.
   size_t log_fifo_head = log_fifo_head_;
@@ -178,10 +210,18 @@ void ProcessLogging(void)
   {
     // GreenLEDOn();
     file_status_ = f_close(&file_);
-    // UARTPrintf("logging: f_close returned error code: 0x%02X", file_status_);
+    UARTPrintf("logging: f_close returned error code: 0x%02X", file_status_);
     // GreenLEDOff();
-    // RedLEDOff();
+    RedLEDOff();
   }
+}
+
+// -----------------------------------------------------------------------------
+void LogWrite(char * buffer, uint32_t length)
+{
+  if (SDCardNotPresent() || !file_.fs) return;
+  UINT n_bytes_written;
+  file_status_ = f_write(&file_, buffer, length, &n_bytes_written);
 }
 
 

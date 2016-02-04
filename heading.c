@@ -2,7 +2,7 @@
 
 #include <math.h>
 
-#include "flt_ctrl_comms.h"
+#include "flight_ctrl_comms.h"
 #include "lsm303dl.h"
 #include "quaternion.h"
 #include "vector.h"

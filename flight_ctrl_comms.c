@@ -1,4 +1,4 @@
-#include "flt_ctrl_comms.h"
+#include "flight_ctrl_comms.h"
 
 #include "91x_lib.h"
 #include "crc16.h"
@@ -17,7 +17,7 @@
 
 #define SPI_FC_START_BYTE (0xAA)
 
-static struct FromFltCtrl from_fc_[2];
+static struct FromFlightCtrl from_fc_[2];
 static union U16Bytes crc_[2];
 static size_t from_fc_head_ = 1, from_fc_tail_ = 0;
 
@@ -28,6 +28,18 @@ static size_t from_fc_head_ = 1, from_fc_tail_ = 0;
 const int16_t * AccelerometerVector(void)
 {
   return from_fc_[from_fc_tail_].accelerometer;
+}
+
+// -----------------------------------------------------------------------------
+enum FlightCtrlStateBits FlightCtrlState(void)
+{
+  return (enum FlightCtrlStateBits)from_fc_[from_fc_tail_].state;
+}
+
+// -----------------------------------------------------------------------------
+uint16_t FlightCtrlTimestamp(void)
+{
+  return from_fc_[from_fc_tail_].timestamp;
 }
 
 // -----------------------------------------------------------------------------
@@ -43,13 +55,13 @@ const float * Quat(void)
 }
 
 // -----------------------------------------------------------------------------
-const struct FromFltCtrl * FromFltCtrl(void)
+const struct FromFlightCtrl * FromFlightCtrl(void)
 {
   return &from_fc_[from_fc_tail_];
 }
 
 // -----------------------------------------------------------------------------
-uint16_t FromFltCtrlCRC(void)
+uint16_t FromFlightCtrlCRC(void)
 {
   return crc_[from_fc_tail_].u16;
 }
@@ -58,14 +70,14 @@ uint16_t FromFltCtrlCRC(void)
 // =============================================================================
 // Public functions:
 
-void FltCtrlCommsInit(void)
+void FlightCtrlCommsInit(void)
 {
   SCU_APBPeriphClockConfig(__GPIO6 ,ENABLE);
   SCU_APBPeriphClockConfig(__WIU, ENABLE);
 
   GPIO_InitTypeDef gpio_init;
 
-  // Configure P6.0 -> FltCtrl interrupt as an input pin.
+  // Configure P6.0 -> FlightCtrl interrupt as an input pin.
   gpio_init.GPIO_Direction = GPIO_PinInput;
   gpio_init.GPIO_Pin = GPIO_Pin_0;
   gpio_init.GPIO_Type = GPIO_Type_PushPull;
@@ -90,12 +102,12 @@ void FltCtrlCommsInit(void)
 
 // -----------------------------------------------------------------------------
 // This function pulls the interrupt line down for about 1 microsecond.
-void NotifyFltCtrl(void)
+void NotifyFlightCtrl(void)
 {
   // Disable the pin change interrupt.
   VIC1->INTECR |= (0x01 << (EXTIT2_ITLine - 16));
 
-  // Configure P6.0 -> FltCtrl interrupt as an output pin.
+  // Configure P6.0 -> FlightCtrl interrupt as an output pin.
   GPIO6->DDR |= GPIO_Pin_0;  // Output
   SCU->GPIOOUT[6] |= 0x01;  // Alternate output 1
   SCU->GPIOTYPE[6] |= 0x1;  // Open drain
@@ -103,7 +115,7 @@ void NotifyFltCtrl(void)
 
   MicroWait(1);  // Wait 1 microsecond
 
-  // Configure P6.0 -> FltCtrl interrupt as an input pin.
+  // Configure P6.0 -> FlightCtrl interrupt as an input pin.
   GPIO6->DDR &= ~GPIO_Pin_0;  // Input
   SCU->GPIOOUT[6] &= ~(0x03);  // Alternate input 1
   SCU->GPIOTYPE[6] &= ~(0x1);  // Push-pull
@@ -116,11 +128,11 @@ void NotifyFltCtrl(void)
 // -----------------------------------------------------------------------------
 // This function processes bytes that have been read into the Rx ring buffer
 // (rx_buffer_) by the Rx interrupt handler.
-void ProcessIncomingFltCtrlByte(uint8_t byte)
+void ProcessIncomingFlightCtrlByte(uint8_t byte)
 {
   static size_t bytes_processed = 0;
   static uint8_t * from_fc_ptr = (uint8_t *)&from_fc_[0];
-  const size_t payload_length = sizeof(struct FromFltCtrl);
+  const size_t payload_length = sizeof(struct FromFlightCtrl);
 
   switch (bytes_processed)
   {
@@ -130,7 +142,7 @@ void ProcessIncomingFltCtrlByte(uint8_t byte)
       crc_[from_fc_head_].u16 = 0xFFFF;
       break;
     case 1:  // Payload length
-      if (byte != sizeof(struct FromFltCtrl)) goto RESET;
+      if (byte != sizeof(struct FromFlightCtrl)) goto RESET;
       crc_[from_fc_head_].u16 = CRCUpdateCCITT(crc_[from_fc_head_].u16, byte);
       break;
     default:  // Payload or checksum
@@ -165,7 +177,7 @@ void ProcessIncomingFltCtrlByte(uint8_t byte)
 }
 
 // -----------------------------------------------------------------------------
-void PrepareFltCtrlDataExchange(void)
+void PrepareFlightCtrlDataExchange(void)
 {
   struct ToFC {
     uint16_t version;
@@ -197,5 +209,5 @@ void PrepareFltCtrlDataExchange(void)
   to_fc_ptr->crc = CRCCCITT((uint8_t *)to_fc_ptr, sizeof(struct ToFC) - 2);
 
   SPITxBuffer(sizeof(struct ToFC));
-  NotifyFltCtrl();  // Request SPI communication.
+  NotifyFlightCtrl();  // Request SPI communication.
 }

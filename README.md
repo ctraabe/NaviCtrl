@@ -56,7 +56,7 @@ Interrupt priority:
 5. UBlox UART interrupt (<1 kHz)
 6. "Debug" UART interrupt (<1 kHz)
 7. Low-priority data processing interrupt (< 300 times per second)
-8. Interrupt from FltCtrl (128 Hz)
+8. Interrupt from FlightCtrl (128 Hz)
 9. 50 Hz software interrupt (50 Hz)
 10. SD card inserted/ejected (rare)
 

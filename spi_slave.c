@@ -1,7 +1,7 @@
 #include "spi_slave.h"
 
 #include "91x_lib.h"
-#include "flt_ctrl_comms.h"
+#include "flight_ctrl_comms.h"
 #include "irq_priority.h"
 #include "main.h"
 
@@ -67,7 +67,7 @@ void ProcessIncomingSPISlave(void)
   {
     // Move the ring buffer tail forward.
     rx_buffer_tail = (rx_buffer_tail + 1) % SPI_RX_BUFFER_LENGTH;
-    ProcessIncomingFltCtrlByte(rx_buffer_[rx_buffer_tail]);
+    ProcessIncomingFlightCtrlByte(rx_buffer_[rx_buffer_tail]);
   }
 }
 

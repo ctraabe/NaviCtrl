@@ -11,7 +11,7 @@ typedef void (*Callback)(void);
 void FiftyHzInterruptHandler(void);
 
 //------------------------------------------------------------------------------
-void FltCtrlInterruptHandler(void);
+void FlightCtrlInterruptHandler(void);
 
 //------------------------------------------------------------------------------
 void NewDataInterruptHandler(void);

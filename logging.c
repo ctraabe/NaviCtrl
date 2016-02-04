@@ -11,7 +11,7 @@
 
 #include "91x_lib.h"
 #include "ff.h"  // FatFs
-#include "flt_ctrl_comms.h"
+#include "flight_ctrl_comms.h"
 #include "lsm303dl.h"
 #include "sd_card.h"
 #include "spi_slave.h"
@@ -113,8 +113,8 @@ void LogFlightControlData(void)
   temp.bytes[0] = 0xB5;
   temp.bytes[1] = 0x52;
   WriteToFIFO((char *)temp.bytes, 2);
-  WriteToFIFO((char *)FromFltCtrl(), sizeof(struct FromFltCtrl));
-  temp.u16 = FromFltCtrlCRC();
+  WriteToFIFO((char *)FromFlightCtrl(), sizeof(struct FromFlightCtrl));
+  temp.u16 = FromFlightCtrlCRC();
   WriteToFIFO((char *)temp.bytes, 2);
 }
 
@@ -142,7 +142,8 @@ void ProcessLogging(void)
   }
 
   // Open the file if logging is supposed to be active but the file is closed.
-  if (logging_active_ && !file_.fs)
+  if ((logging_active_ || ((int)FlightCtrlState
+    & (int)FC_STATE_BIT_MOTORS_RUNNING)) && !file_.fs)
   {
     // GreenLEDOn();
     if (filename_[0] == 0)
@@ -206,7 +207,7 @@ void ProcessLogging(void)
   }
 
   // Close the file if logging is not supposed to be active anymore.
-  if (!logging_active_)
+  if (!logging_active_ || !((int)FlightCtrlState & (int)FC_STATE_BIT_MOTORS_RUNNING))
   {
     // GreenLEDOn();
     file_status_ = f_close(&file_);

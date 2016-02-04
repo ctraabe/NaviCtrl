@@ -21,7 +21,7 @@
 
 #include "91x_it.h"
 
-#include "flt_ctrl_comms.h"
+#include "flight_ctrl_comms.h"
 #include "i2c.h"
 #include "led.h"
 #include "logging.h"
@@ -140,7 +140,7 @@ void EXTIT2_IRQHandler(void)
   DAISY_VIC();
   IENABLE;
 
-  FltCtrlInterruptHandler();
+  FlightCtrlInterruptHandler();
 
   IDISABLE;
   VIC1->VAR = 0xFF;

@@ -2,7 +2,7 @@
 
 #include "91x_lib.h"
 #include "eeprom.h"
-#include "flt_ctrl_comms.h"
+#include "flight_ctrl_comms.h"
 #include "i2c.h"
 #include "irq_priority.h"
 #include "led.h"
@@ -61,7 +61,7 @@ void FiftyHzInterruptHandler(void)
 // down the interrupt line. It signals that new IMU data will be coming soon, so
 // the NaviCtrl should prepare by updating the GPS and magnetometer data. This
 // is a low-priority interrupt, so some computation can be safely added here.
-void FltCtrlInterruptHandler(void)
+void FlightCtrlInterruptHandler(void)
 {
   // RedLEDOn();
   WIU_ClearITPendingBit(WIU_Line16);
@@ -70,7 +70,7 @@ void FltCtrlInterruptHandler(void)
   LSM303DLReadMag();
   ProcessIncomingUBlox();
   // TODO: compute nav solution
-  PrepareFltCtrlDataExchange();
+  PrepareFlightCtrlDataExchange();
   // RedLEDOff();
 }
 
@@ -149,7 +149,7 @@ int main(void)
   ReadEEPROM();
   UBloxInit();
   LSM303DLInit();
-  FltCtrlCommsInit();
+  FlightCtrlCommsInit();
   SDCardInit();
   LoggingInit();
 

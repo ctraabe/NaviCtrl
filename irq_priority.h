@@ -21,7 +21,7 @@
 #define IRQ_PRIORITY_SSP1 1  // VIC1.6: SPI to SD Card
 #define IRQ_PRIORITY_NEW_DATA 5  // VIC1.10: New data
 #define IRQ_PRIORITY_SD_PRESENT 14  // VIC1.11: SD card inserted/ejected
-#define IRQ_PRIORITY_FLT_CTRL 6  // VIC1.12: Interrupt from FltCtrl
+#define IRQ_PRIORITY_FLT_CTRL 6  // VIC1.12: Interrupt from FlightCtrl
 #define IRQ_PRIORITY_50HZ 8  // VIC1.13: 50 Hz software interrupt
 
 

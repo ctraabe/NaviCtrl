@@ -141,9 +141,14 @@ void ProcessLogging(void)
     return;
   }
 
+  if (((int)FlightCtrlState & (int)FC_STATE_BIT_MOTORS_RUNNING)
+    && !logging_active_) OpenLogFile(0);
+
+  if (!((int)FlightCtrlState & (int)FC_STATE_BIT_MOTORS_RUNNING)
+    && logging_active_) CloseLogFile();
+
   // Open the file if logging is supposed to be active but the file is closed.
-  if ((logging_active_ || ((int)FlightCtrlState
-    & (int)FC_STATE_BIT_MOTORS_RUNNING)) && !file_.fs)
+  if (logging_active_ && !file_.fs)
   {
     // GreenLEDOn();
     if (filename_[0] == 0)
@@ -207,7 +212,7 @@ void ProcessLogging(void)
   }
 
   // Close the file if logging is not supposed to be active anymore.
-  if (!logging_active_ || !((int)FlightCtrlState & (int)FC_STATE_BIT_MOTORS_RUNNING))
+  if (!logging_active_)
   {
     // GreenLEDOn();
     file_status_ = f_close(&file_);

@@ -51,7 +51,10 @@ void UpdateHeading(void)
 
   // Transform magnetometer reading back to earth axis.
   float magnetic_vector_earth[3];
-  QuaternionRotateVector(Quat(), MagneticVector(), magnetic_vector_earth);
+
+  // Copy volatile quaternion to temporary storage.
+  float temp[4] = {Quat()[0], Quat()[1], Quat()[2], Quat()[3]};
+  QuaternionRotateVector(temp, MagneticVector(), magnetic_vector_earth);
 
   // TODO: Use measured inclination as a verification metric.
 

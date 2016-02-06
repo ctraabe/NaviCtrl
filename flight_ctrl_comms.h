@@ -43,7 +43,7 @@ enum FlightCtrlStateBits {
 // =============================================================================
 // Accessors:
 
-const int16_t * AccelerometerVector(void);
+const volatile int16_t * AccelerometerVector(void);
 
 // -----------------------------------------------------------------------------
 enum FlightCtrlStateBits FlightCtrlState(void);
@@ -52,13 +52,13 @@ enum FlightCtrlStateBits FlightCtrlState(void);
 uint16_t FlightCtrlTimestamp(void);
 
 // -----------------------------------------------------------------------------
-const int16_t * GyroVector(void);
+const volatile int16_t * GyroVector(void);
 
 // -----------------------------------------------------------------------------
-const float * Quat(void);
+const volatile float * Quat(void);
 
 // -----------------------------------------------------------------------------
-const struct FromFlightCtrl * FromFlightCtrl(void);
+const volatile struct FromFlightCtrl * FromFlightCtrl(void);
 
 // -----------------------------------------------------------------------------
 uint16_t FromFlightCtrlCRC(void);

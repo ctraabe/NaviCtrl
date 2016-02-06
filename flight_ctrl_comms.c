@@ -17,15 +17,15 @@
 
 #define SPI_FC_START_BYTE (0xAA)
 
-static struct FromFlightCtrl from_fc_[2];
-static union U16Bytes crc_[2];
-static size_t from_fc_head_ = 1, from_fc_tail_ = 0;
+static volatile struct FromFlightCtrl from_fc_[2];
+static volatile union U16Bytes crc_[2];
+static volatile size_t from_fc_head_ = 1, from_fc_tail_ = 0;
 
 
 // =============================================================================
 // Accessors:
 
-const int16_t * AccelerometerVector(void)
+const volatile int16_t * AccelerometerVector(void)
 {
   return from_fc_[from_fc_tail_].accelerometer;
 }
@@ -43,19 +43,19 @@ uint16_t FlightCtrlTimestamp(void)
 }
 
 // -----------------------------------------------------------------------------
-const int16_t * GyroVector(void)
+const volatile int16_t * GyroVector(void)
 {
   return from_fc_[from_fc_tail_].gyro;
 }
 
 // -----------------------------------------------------------------------------
-const float * Quat(void)
+const volatile float * Quat(void)
 {
   return from_fc_[from_fc_tail_].quaternion;
 }
 
 // -----------------------------------------------------------------------------
-const struct FromFlightCtrl * FromFlightCtrl(void)
+const volatile struct FromFlightCtrl * FromFlightCtrl(void)
 {
   return &from_fc_[from_fc_tail_];
 }

@@ -62,9 +62,10 @@ Interrupt priority:
 
 Main loop:
 
-1. Request the latest magnetometer reading from LSM303D
-2. Wait for attitude and status update from Flight Ctrl (SPI)
-4. Compute position delta, velocity, and heading correction
-5. Send data to Flight Ctrl
-6. Log data to SD card
-7. Wait for signal from Flight Ctrl and then go to 1.
+1. Receive interrupt from FlightCtrl indicating a new 128Hz frame
+2. Request the latest magnetometer reading from LSM303D
+3. Process any data received from UBlox GPS
+4. Compute position delta, velocity, and heading correction (Kalman filter)
+5. Notify FlightCtrl of update via the interrupt line
+6. Exchange data with FlightCtrl (SPI)
+7. Log data to SD card

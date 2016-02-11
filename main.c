@@ -5,6 +5,7 @@
 #include "flight_ctrl_comms.h"
 #include "i2c.h"
 #include "irq_priority.h"
+#include "kalman_filter.h"
 #include "led.h"
 #include "logging.h"
 #include "lsm303dl.h"
@@ -24,6 +25,7 @@
 static volatile Callback callback_buffer_[4] = { 0 };
 static volatile size_t callback_buffer_head_ = 0;
 static size_t callback_buffer_tail_ = 0;
+
 
 // =============================================================================
 // Private function declarations:
@@ -63,22 +65,29 @@ void FiftyHzInterruptHandler(void)
 // is a low-priority interrupt, so some computation can be safely added here.
 void FlightCtrlInterruptHandler(void)
 {
-  // RedLEDOn();
   WIU_ClearITPendingBit(WIU_Line16);
   VIC_SWITCmd(EXTIT2_ITLine, DISABLE);
 
   LSM303DLReadMag();
   ProcessIncomingUBlox();
-  // TODO: compute nav solution
+
+  // Prepare volatile IMU data for the Kalman filter.
+  float accelerometer[3] = { Accelerometer(X_BODY_AXIS) * GRAVITY_ACCELERATION,
+    Accelerometer(Y_BODY_AXIS) * GRAVITY_ACCELERATION,
+    Accelerometer(Z_BODY_AXIS) * GRAVITY_ACCELERATION };
+  float gyro[3] = { Gyro(X_BODY_AXIS), Gyro(Y_BODY_AXIS), Gyro(Z_BODY_AXIS) };
+
+  KalmanTimeUpdate(gyro, accelerometer);
+  KalmanAccelerometerUpdate(accelerometer);
+
   PrepareFlightCtrlDataExchange();
-  // RedLEDOff();
 }
 
 //------------------------------------------------------------------------------
-// This is a low-priority interrupt that is called triggered by high-frequency
-// data collecting interrupts such as SPI and I2C. It enables the data
-// processing to be performed at a lower priority than the data collection, but
-// at a higher priority that slower computations.
+// This is a low-priority interrupt that is triggered by high-frequency data
+// collecting interrupts such as SPI and I2C. It enables the data processing to
+// be performed at a lower priority than the data collection, but at a higher
+// priority that slower computations.
 void NewDataInterruptHandler(void)
 {
   VIC_SWITCmd(EXTIT0_ITLine, DISABLE);

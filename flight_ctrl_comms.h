@@ -5,27 +5,27 @@
 #include <inttypes.h>
 #include <stddef.h>
 
+#include "constants.h"
 
-struct FromFlightCtrl {
-  uint16_t timestamp;
-  uint16_t state;
-  int16_t accelerometer[3];
-  int16_t gyro[3];
-  float quaternion[4];
+
+  struct FromFlightCtrl {
+    uint16_t timestamp;
+    uint16_t state;
+    float accelerometer[3];
+    float gyro[3];
+    float quaternion[4];
 #ifdef LOG_FLT_CTRL_DEBUG_TO_SD
-  int16_t sbus_pitch;
-  int16_t sbus_roll;
-  int16_t sbus_yaw;
-  int16_t sbus_thrust;
-  int16_t sbus_on_off;
-  uint16_t battery_voltage;
-  float heading;
-  float quaternion_command[4];
-  float heading_command;
-  float angular_command[3];
-  float attitude_integral[3];
-  float quaternion_model[4];
-  uint16_t motor_setpoints[8];
+    int16_t sbus_pitch;
+    int16_t sbus_roll;
+    int16_t sbus_yaw;
+    int16_t sbus_thrust;
+    uint16_t biased_pressure;
+    uint16_t battery_voltage;
+    float heading_command;
+    float attitude_integral[3];
+    float quaternion_model[4];
+    float angular_command[3];
+    uint16_t motor_setpoints[8];
 #endif
 } __attribute__((packed));
 
@@ -43,7 +43,10 @@ enum FlightCtrlStateBits {
 // =============================================================================
 // Accessors:
 
-const volatile int16_t * AccelerometerVector(void);
+float Accelerometer(enum BodyAxes axis);
+
+// -----------------------------------------------------------------------------
+const volatile float * AccelerometerVector(void);
 
 // -----------------------------------------------------------------------------
 enum FlightCtrlStateBits FlightCtrlState(void);
@@ -52,7 +55,10 @@ enum FlightCtrlStateBits FlightCtrlState(void);
 uint16_t FlightCtrlTimestamp(void);
 
 // -----------------------------------------------------------------------------
-const volatile int16_t * GyroVector(void);
+float Gyro(enum BodyAxes axis);
+
+// -----------------------------------------------------------------------------
+const volatile float * GyroVector(void);
 
 // -----------------------------------------------------------------------------
 const volatile float * Quat(void);

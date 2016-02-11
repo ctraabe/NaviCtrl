@@ -17,7 +17,7 @@
 
 #define SPI_FC_START_BYTE (0xAA)
 
-static volatile struct FromFlightCtrl from_fc_[2];
+static volatile struct FromFlightCtrl from_fc_[2] = { { 0 } };
 static volatile union U16Bytes crc_[2];
 static volatile size_t from_fc_head_ = 1, from_fc_tail_ = 0;
 
@@ -25,7 +25,13 @@ static volatile size_t from_fc_head_ = 1, from_fc_tail_ = 0;
 // =============================================================================
 // Accessors:
 
-const volatile int16_t * AccelerometerVector(void)
+float Accelerometer(enum BodyAxes axis)
+{
+  return from_fc_[from_fc_tail_].accelerometer[axis];
+}
+
+// -----------------------------------------------------------------------------
+const volatile float * AccelerometerVector(void)
 {
   return from_fc_[from_fc_tail_].accelerometer;
 }
@@ -43,7 +49,13 @@ uint16_t FlightCtrlTimestamp(void)
 }
 
 // -----------------------------------------------------------------------------
-const volatile int16_t * GyroVector(void)
+float Gyro(enum BodyAxes axis)
+{
+  return from_fc_[from_fc_tail_].gyro[axis];
+}
+
+// -----------------------------------------------------------------------------
+const volatile float * GyroVector(void)
 {
   return from_fc_[from_fc_tail_].gyro;
 }
@@ -98,6 +110,9 @@ void FlightCtrlCommsInit(void)
 
   VIC_Config(EXTIT2_ITLine, VIC_IRQ, IRQ_PRIORITY_FLT_CTRL);
   VIC_ITCmd(EXTIT2_ITLine, ENABLE);
+
+  from_fc_[0].accelerometer[2] = -1.0;
+  from_fc_[0].quaternion[0] = 1.0;
 }
 
 // -----------------------------------------------------------------------------

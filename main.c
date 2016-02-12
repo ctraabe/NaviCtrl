@@ -13,7 +13,11 @@
 #include "spi_slave.h"
 #include "timing.h"
 #include "uart.h"
-#include "ublox.h"
+#ifndef VISION
+  #include "ublox.h"
+#else
+  #include "vision.h"
+#endif
 
 
 // =============================================================================
@@ -69,7 +73,6 @@ void FlightCtrlInterruptHandler(void)
   VIC_SWITCmd(EXTIT2_ITLine, DISABLE);
 
   LSM303DLReadMag();
-  ProcessIncomingUBlox();
 
   // Prepare volatile IMU data for the Kalman filter.
   float accelerometer[3] = { Accelerometer(X_BODY_AXIS) * GRAVITY_ACCELERATION,
@@ -79,6 +82,11 @@ void FlightCtrlInterruptHandler(void)
 
   KalmanTimeUpdate(gyro, accelerometer);
   KalmanAccelerometerUpdate(accelerometer);
+#ifndef VISION
+  ProcessIncomingUBlox();
+#else
+  if (ProcessIncomingVision()) KalmanVisionUpdate(VisionVelocityVector());
+#endif
 
   PrepareFlightCtrlDataExchange();
 }
@@ -156,7 +164,11 @@ int main(void)
   UARTPrintf("University of Tokyo NaviCtrl firmware V2");
 
   ReadEEPROM();
+#ifndef VISION
   UBloxInit();
+#else
+  VisionInit();
+#endif
   LSM303DLInit();
   FlightCtrlCommsInit();
   SDCardInit();

@@ -21,7 +21,7 @@
 #define UBLOX_INITIAL_BAUD (9600)
 #define UBLOX_OPERATING_BAUD (57600)
 #define UBLOX_RX_BUFFER_LENGTH (1 << 8)  // 2^8 = 256
-#define DATA_BUFFER_LENGTH (sizeof(struct UBXSol))  // Largest expected payload
+#define UBLOX_DATA_BUFFER_LENGTH (sizeof(struct UBXSol))  // Largest payload
 
 #define UBX_SYNC_CHAR_1 (0xb5)
 #define UBX_SYNC_CHAR_2 (0x62)
@@ -33,7 +33,7 @@
 
 static volatile uint8_t rx_buffer_[UBLOX_RX_BUFFER_LENGTH];
 static volatile size_t rx_buffer_head_ = 0;
-static uint8_t data_buffer_[DATA_BUFFER_LENGTH];
+static uint8_t data_buffer_[UBLOX_DATA_BUFFER_LENGTH];
 
 static struct UBXPosLLH ubx_pos_llh_;
 static struct UBXVelNED ubx_vel_ned_;
@@ -263,7 +263,7 @@ static void ProcessIncomingUBloxByte(uint8_t byte)
       UpdateChecksum(byte, &checksum_a, &checksum_b);
       break;
     case 4:  // Payload length (lower byte)
-      if (byte > DATA_BUFFER_LENGTH) goto RESET;
+      if (byte > UBLOX_DATA_BUFFER_LENGTH) goto RESET;
       data_buffer_ptr = &data_buffer_[0];
     case 5:  // Payload length (upper byte should always be zero)
       if (byte != 0) goto RESET;

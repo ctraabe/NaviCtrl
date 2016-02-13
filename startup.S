@@ -199,7 +199,7 @@ DebugStartupLoop:
   mrc p15, 0, r0, c1, c0, 0  // Read CP15 register 1 into r0
   orr r0, r0, #0x8  // Enable write buffer on AHB
   mcr p15, 0, r0, c1, c0, 0  // Write CP15 register 1
-  // Write Buffer in ITCM may cause the Flash “write then read” command order to
+  // Write Buffer in ITCM may cause the Flash "write then read" command order to
   // reverse, causing a flash error. To maintain the correct order, bit 18
   // (instruction TCM order bit) in the Configuration Registers of the ARM966E-S
   // core must be set.

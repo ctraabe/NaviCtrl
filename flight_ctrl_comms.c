@@ -177,7 +177,7 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
           // Swap data buffers.
           from_fc_tail_ = from_fc_head_;
           from_fc_head_ = !from_fc_tail_;
-          LogFlightControlData();
+          // LogFlightControlData();
         }
         goto RESET;
       }

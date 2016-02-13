@@ -29,6 +29,7 @@
 static volatile Callback callback_buffer_[4] = { 0 };
 static volatile size_t callback_buffer_head_ = 0;
 static size_t callback_buffer_tail_ = 0;
+static uint32_t flight_ctrl_interrupt_received = 0;
 
 
 // =============================================================================
@@ -46,20 +47,8 @@ void FiftyHzInterruptHandler(void)
 
   uint16_t button = GPIO_ReadBit(GPIO3, GPIO_Pin_1);
   static uint16_t button_pv = 0;
-  if (button && (button_pv == 0x7FFF))
-  {
-    if (LoggingActive())
-    {
-      CloseLogFile();
-    }
-    else
-    {
-      OpenLogFile(0);
-    }
-  }
+  if (button && (button_pv == 0x7FFF)) {};
   button_pv = (button_pv << 1) | button;
-
-  ProcessIncomingUART();
 }
 
 //------------------------------------------------------------------------------
@@ -72,23 +61,7 @@ void FlightCtrlInterruptHandler(void)
   WIU_ClearITPendingBit(WIU_Line16);
   VIC_SWITCmd(EXTIT2_ITLine, DISABLE);
 
-  LSM303DLReadMag();
-
-  // Prepare volatile IMU data for the Kalman filter.
-  float accelerometer[3] = { Accelerometer(X_BODY_AXIS) * GRAVITY_ACCELERATION,
-    Accelerometer(Y_BODY_AXIS) * GRAVITY_ACCELERATION,
-    Accelerometer(Z_BODY_AXIS) * GRAVITY_ACCELERATION };
-  float gyro[3] = { Gyro(X_BODY_AXIS), Gyro(Y_BODY_AXIS), Gyro(Z_BODY_AXIS) };
-
-  KalmanTimeUpdate(gyro, accelerometer);
-  KalmanAccelerometerUpdate(accelerometer);
-#ifndef VISION
-  ProcessIncomingUBlox();
-#else
-  if (ProcessIncomingVision()) KalmanVisionUpdate(VisionVelocityVector());
-#endif
-
-  PrepareFlightCtrlDataExchange();
+  flight_ctrl_interrupt_received = 1;
 }
 
 //------------------------------------------------------------------------------
@@ -188,20 +161,28 @@ int main(void)
   uint32_t led_timer = GetTimestamp();
   for (;;)
   {
-    // TODO: add magnetometer timer for operation independent from FC
-/*
-    uint32_t counter = (1 << 16), timer = GetTimestamp();
-    char test_msg[16] = "0123456789abcdef";
-    for ( ; sd_write_test && counter != 0; --counter) LogWrite(test_msg, 16);
-    if (counter == 0)
+
+    if (flight_ctrl_interrupt_received)
     {
-      CloseLogFile();
-      RedLEDOff();
-      sd_write_test = 0;
-      UARTPrintf("SD write test finished in %i ms", MillisSinceTimestamp(timer));
+      LSM303DLReadMag();
+#ifndef VISION
+      ProcessIncomingUBlox();
+#else
+      ProcessIncomingVision();
+      // if (ProcessIncomingVision()) KalmanVisionUpdate(VisionVelocityVector());
+#endif
+
+      // Prepare volatile IMU data for the Kalman filter.
+      float accelerometer[3] = {
+        Accelerometer(X_BODY_AXIS) * GRAVITY_ACCELERATION,
+        Accelerometer(Y_BODY_AXIS) * GRAVITY_ACCELERATION,
+        Accelerometer(Z_BODY_AXIS) * GRAVITY_ACCELERATION };
+
+      // KalmanTimeUpdate(gyro, accelerometer);
+      KalmanAccelerometerUpdate(accelerometer);
+
+      PrepareFlightCtrlDataExchange();
     }
-*/
-    ProcessLogging();
 
     if (TimestampInPast(led_timer))
     {

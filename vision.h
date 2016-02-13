@@ -4,11 +4,13 @@
 
 #include <inttypes.h>
 
+#include "constants.h"
+
 
 // =============================================================================
 // Accessors:
 
-const float * VisionVelocityVector(void);
+float VisionVelocity(enum BodyAxes axis);
 
 
 // =============================================================================

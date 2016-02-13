@@ -45,9 +45,9 @@ static void ReceiveVisionData(void);
 // =============================================================================
 // Accessors:
 
-const float * VisionVelocityVector(void)
+float VisionVelocity(enum BodyAxes axis)
 {
-  return from_vision_[from_vision_tail_].velocity;
+  return from_vision_[from_vision_tail_].velocity[axis];
 }
 
 
@@ -145,9 +145,9 @@ static uint32_t ProcessIncomingVisionByte(uint8_t byte)
       crc.u16 = CRCUpdateCCITT(crc.u16, byte);
       break;
     default:  // Payload or checksum
-      *from_vision_ptr++ = byte;
       if (bytes_processed < (3 + payload_length))  // Payload
       {
+        *from_vision_ptr++ = byte;
         crc.u16 = CRCUpdateCCITT(crc.u16, byte);
       }
       else if (bytes_processed == (3 + payload_length))  // CRC lower byte

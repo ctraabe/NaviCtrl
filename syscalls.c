@@ -23,3 +23,8 @@ caddr_t _sbrk (int incr)
 
   return (caddr_t)heap_end_pv;
 }
+
+void _exit(void)
+{
+  for (;;) continue;  // Loop until reset
+}

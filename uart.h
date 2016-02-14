@@ -49,8 +49,17 @@ void UARTTxByte(uint8_t byte);
 // -----------------------------------------------------------------------------
 // This function mimics printf, but puts the result on the UART stream. It also
 // adds the end-of-line characters and checks that the character buffer is not
-// exceeded. Note that this function is slow and blocking.
+// exceeded. This version blocks program execution until UART is available and
+// then further blocks execution until the transmission has competed.
 void UARTPrintf(const char *format, ...);
+
+// -----------------------------------------------------------------------------
+// This function mimics printf, but puts the result on the UART stream. It also
+// adds the end-of-line characters and checks that the character buffer is not
+// exceeded. This version attempts to get the UART Tx buffer and then initiates
+// an interrupt-bases transmission. This function is non-blocking, but may fail
+// to get access to the UART Tx buffer.
+void UARTPrintfSafe(const char *format, ...);
 
 // -----------------------------------------------------------------------------
 uint32_t UARTWaitUntilCompletion(uint32_t time_limit_ms);

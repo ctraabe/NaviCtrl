@@ -25,7 +25,7 @@ LIBRARY_SRC := $(addsuffix /src, $(LIBRARY))
 
 DEPFLAGS  = -MM -MT '$(addprefix $(BUILD_PATH)/, $(<:.c=.o)) $@' $< -MF $@
 CFLAGS    = -c -g $(LDFLAGS)
-CCFLAGS   = -std=gnu99 -Wstrict-prototypes
+CCFLAGS   = -std=gnu11 -Wstrict-prototypes
 CPPFLAGS  = -std=c++11 -fno-exceptions
 LSTFLAGS  = -Wa,-adhlns=$(addprefix $(BUILD_PATH)/,$(addsuffix .lst, $<))
 LDFLAGS   = -Ofast -pedantic -Wall -Wextra -Werror -Wundef -ffreestanding \

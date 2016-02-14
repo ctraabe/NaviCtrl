@@ -26,6 +26,7 @@ static uint8_t tx_overflow_counter_ = 0;
 // =============================================================================
 // Private function declarations:
 
+static void Printf(const char *format, va_list arglist);
 static inline void ReceiveUARTData(void);
 static inline void SendUARTData(void);
 
@@ -157,35 +158,30 @@ void UARTTxByte(uint8_t byte)
 // -----------------------------------------------------------------------------
 // This function mimics printf, but puts the result on the UART stream. It also
 // adds the end-of-line characters and checks that the character buffer is not
-// exceeded. Note that this function is slow and blocking.
+// exceeded. This version blocks program execution until UART is available and
+// then further blocks execution until the transmission has competed.
 void UARTPrintf(const char *format, ...)
 {
-  // _Static_assert(UART_TX_BUFFER_LENGTH >= 103,
-  //   "UART buffer not large enough for UARTPrintf");
-
-  // uint8_t * ascii = RequestUARTTxBuffer();
-  // if (!ascii) return;
-  uint8_t ascii[103];  // 100 chars + 2 newline chars + null terminator
-
+  UARTWaitUntilCompletion(500);
   va_list arglist;
   va_start(arglist, format);
-  int length = vsnprintf((char *)ascii, 101, (char *)format, arglist);
+  Printf(format, arglist);
   va_end(arglist);
+  UARTWaitUntilCompletion(500);
+}
 
-  if (length < 101)
-  {
-    sprintf((char *)&ascii[length], "\n\r");
-    length += 2;
-  }
-  else
-  {
-    sprintf((char *)&ascii[80], "... MESSAGE TOO LONG\n\r");
-    length = 103;
-  }
-
-  uint8_t *pointer = &ascii[0];
-  while (*pointer) UARTTxByte(*pointer++);
-  // UARTTxBuffer(length);
+// -----------------------------------------------------------------------------
+// This function mimics printf, but puts the result on the UART stream. It also
+// adds the end-of-line characters and checks that the character buffer is not
+// exceeded. This version attempts to get the UART Tx buffer and then initiates
+// an interrupt-bases transmission. This function is non-blocking, but may fail
+// to get access to the UART Tx buffer.
+void UARTPrintfSafe(const char *format, ...)
+{
+  va_list arglist;
+  va_start(arglist, format);
+  Printf(format, arglist);
+  va_end(arglist);
 }
 
 // -----------------------------------------------------------------------------
@@ -208,6 +204,35 @@ void UARTHandler(void)
 // =============================================================================
 // Private functions:
 
+// This function mimics printf, but puts the result on the UART stream. It also
+// adds the end-of-line characters and checks that the character buffer is not
+// exceeded.
+static void Printf(const char *format, va_list arglist)
+{
+  // Buffer requirement: 100 chars + 2 newline chars + 1 null terminator
+  _Static_assert(UART_TX_BUFFER_LENGTH >= 103,
+    "UART buffer not large enough for UARTPrintf");
+
+  uint8_t * ascii = RequestUARTTxBuffer();
+  if (!ascii) return;
+
+  int length = vsnprintf((char *)ascii, 101, (char *)format, arglist);
+
+  if (length < 101)
+  {
+    sprintf((char *)&ascii[length], "\n\r");
+    length += 2;
+  }
+  else
+  {
+    sprintf((char *)&ascii[80], "... MESSAGE TOO LONG\n\r");
+    length = 103;
+  }
+
+  UARTTxBuffer(length);
+}
+
+// -----------------------------------------------------------------------------
 static inline void ReceiveUARTData(void)
 {
   while (!UART_GetFlagStatus(UART1, UART_FLAG_RxFIFOEmpty))

@@ -140,6 +140,7 @@ int main(void)
   I2CInit();
   SPISlaveInit();
 
+  Wait(100);
   UARTPrintf("University of Tokyo NaviCtrl firmware V2");
 
   ReadEEPROM();
@@ -204,10 +205,8 @@ int main(void)
     {
       GreenLEDToggle();
       led_timer += 250;
-      // UARTPrintf("%3.2f", KalmanX()[6]);
-      // UARTPrintf("%3.2f, %3.2f, %3.2f", Accelerometer(0), Accelerometer(1),
-      //   Accelerometer(2));
-      // UARTPrintf("%3.2f, %3.2f, %3.2f", Gyro(0), Gyro(1), Gyro(2));
+      // UARTPrintfSafe("%3.2f, %3.2f, %3.2f", KalmanX()[4], KalmanX()[5],
+      //   KalmanX()[6]);
     }
   }
 }

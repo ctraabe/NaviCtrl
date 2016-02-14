@@ -1,11 +1,14 @@
 #include "vision.h"
 
 #include <stddef.h>
+#include <string.h>
 
 #include "91x_lib.h"
 #include "crc16.h"
 #include "irq_priority.h"
 #include "union_types.h"
+// TODO: remove
+#include "uart.h"
 
 
 // =============================================================================
@@ -30,8 +33,7 @@ static struct FromVision {
   uint16_t latency_ranging;  // (ms)
   float nearest_point_parameters[3];  // Distance and two angles, TBD
   float marking_point_parameters[3];  // Distance and two angles, TBD
-} __attribute__((packed)) from_vision_[2];
-static uint8_t from_vision_head_ = 1, from_vision_tail_ = 0;
+} __attribute__((packed)) from_vision_;
 
 
 // =============================================================================
@@ -45,9 +47,9 @@ static void ReceiveVisionData(void);
 // =============================================================================
 // Accessors:
 
-float VisionVelocity(enum BodyAxes axis)
+const float * VisionVelocityVector(void)
 {
-  return from_vision_[from_vision_tail_].velocity[axis];
+  return &from_vision_.velocity[0];
 }
 
 
@@ -126,9 +128,10 @@ uint32_t ProcessIncomingVision(void)
 
 static uint32_t ProcessIncomingVisionByte(uint8_t byte)
 {
+#define PAYLOAD_LENGTH (sizeof(struct FromVision))
   static size_t bytes_processed = 0;
-  static uint8_t * from_vision_ptr = (uint8_t *)&from_vision_[0];
-  const uint8_t payload_length = sizeof(struct FromVision);
+  static uint8_t payload_buffer[PAYLOAD_LENGTH];
+  static uint8_t * payload_ptr = payload_buffer;
   static union U16Bytes crc;
   uint32_t new_data = 0;
 
@@ -136,21 +139,21 @@ static uint32_t ProcessIncomingVisionByte(uint8_t byte)
   {
     case 0:  // Start byte
       if (byte != VISION_START_BYTE) goto RESET;
-      from_vision_ptr = (uint8_t *)&from_vision_[from_vision_head_];
+      payload_ptr = payload_buffer;
       crc.u16 = 0xFFFF;
       break;
     case 1:  // Payload length
-      if (byte != payload_length) goto RESET;
+      if (byte != PAYLOAD_LENGTH) goto RESET;
     case 2:  // Message ID
       crc.u16 = CRCUpdateCCITT(crc.u16, byte);
       break;
     default:  // Payload or checksum
-      if (bytes_processed < (3 + payload_length))  // Payload
+      if (bytes_processed < (3 + PAYLOAD_LENGTH))  // Payload
       {
-        *from_vision_ptr++ = byte;
+        *payload_ptr++ = byte;
         crc.u16 = CRCUpdateCCITT(crc.u16, byte);
       }
-      else if (bytes_processed == (3 + payload_length))  // CRC lower byte
+      else if (bytes_processed == (3 + PAYLOAD_LENGTH))  // CRC lower byte
       {
         if(byte != crc.bytes[0]) goto RESET;
       }
@@ -158,10 +161,8 @@ static uint32_t ProcessIncomingVisionByte(uint8_t byte)
       {
         if(byte == crc.bytes[1])
         {
+          memcpy(&from_vision_, payload_buffer, PAYLOAD_LENGTH);
           ProcessVisionData();
-          // Swap data buffers.
-          from_vision_tail_ = from_vision_head_;
-          from_vision_head_ = !from_vision_tail_;
           new_data = 1;
         }
         goto RESET;
@@ -182,19 +183,19 @@ static uint32_t ProcessIncomingVisionByte(uint8_t byte)
 static void ProcessVisionData(void)
 {
   // Convert velocity from mm/frame (at 30 fps) to m/s.
-  from_vision_[from_vision_head_].velocity[0] *= 30.0 / 1000.0;
-  from_vision_[from_vision_head_].velocity[1] *= 30.0 / 1000.0;
-  from_vision_[from_vision_head_].velocity[2] *= 30.0 / 1000.0;
+  from_vision_.velocity[0] *= 30.0 / 1000.0;
+  from_vision_.velocity[1] *= 30.0 / 1000.0;
+  from_vision_.velocity[2] *= 30.0 / 1000.0;
 
   // Convert angular rate from rad/frame (at 30 fps) to rad/s.
-  from_vision_[from_vision_head_].angular_velocity[0] *= 30.0;
-  from_vision_[from_vision_head_].angular_velocity[1] *= 30.0;
-  from_vision_[from_vision_head_].angular_velocity[2] *= 30.0;
+  from_vision_.angular_velocity[0] *= 30.0;
+  from_vision_.angular_velocity[1] *= 30.0;
+  from_vision_.angular_velocity[2] *= 30.0;
 
   // Convert position from mm to m.
-  from_vision_[from_vision_head_].position[0] /= 1000.0;
-  from_vision_[from_vision_head_].position[1] /= 1000.0;
-  from_vision_[from_vision_head_].position[2] /= 1000.0;
+  from_vision_.position[0] /= 1000.0;
+  from_vision_.position[1] /= 1000.0;
+  from_vision_.position[2] /= 1000.0;
 }
 
 // -----------------------------------------------------------------------------

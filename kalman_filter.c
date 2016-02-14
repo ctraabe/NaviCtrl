@@ -40,32 +40,41 @@ static float P_[P_DIM*P_DIM] = {
 
 
 // =============================================================================
+// Accessors:
+
+const float * KalmanPosition(void)
+{
+  return &x_[7];
+}
+
+// -----------------------------------------------------------------------------
+const float * KalmanX(void)
+{
+  return x_;
+}
+
+// -----------------------------------------------------------------------------
+const float * KalmanVelocity(void)
+{
+  return &x_[4];
+}
+
+
+// =============================================================================
 // Private function declarations:
 
 static void TimeUpdate(const float * x_est_prev, const float * P_est_prev,
   const float * gyro, const float * accelerometer, float * x_pred,
   float * P_pred);
-
-// -----------------------------------------------------------------------------
 static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
   const float * accelerometer, float * x_est, float * P_est);
-
-// -----------------------------------------------------------------------------
 static void VisionUpdate(float * x_pred, float * P_pred, const float * vision,
   float * x_est, float * P_est);
-
-// -----------------------------------------------------------------------------
 static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
   const float * z, float * x_est, float * P_est, int z_dim,
   const float * R_diag, const float * H, const float * predicted_measurement);
-
-// -----------------------------------------------------------------------------
 static float * QuaternionToDCM(const float *quat, float *result);
-
-// -----------------------------------------------------------------------------
 static float * SkewSymmetricFromVector3(const float vec[3], float *result);
-
-// -----------------------------------------------------------------------------
 static float * UpdateQuaternion(const float quat[4],
   const float angular_rate[3], float result[4]);
 
@@ -77,7 +86,7 @@ void KalmanTimeUpdate(const float gyro[3], const float accelerometer[3])
 {
   float x_pred[X_DIM];
   TimeUpdate(x_, P_, gyro, accelerometer, x_pred, P_);
-  VectorCopy(x_pred, P_DIM, x_);
+  VectorCopy(x_pred, X_DIM, x_);
 }
 
 // -----------------------------------------------------------------------------
@@ -86,7 +95,7 @@ void KalmanAccelerometerUpdate(const float accelerometer[3])
   float x_est[X_DIM];
   float P_est[P_DIM*P_DIM];
   AccelerometerUpdate(x_, P_, accelerometer, x_est, P_est);
-  VectorCopy(x_est, P_DIM, x_);
+  VectorCopy(x_est, X_DIM, x_);
   MatrixCopy(P_est, P_DIM, P_DIM, P_);
 }
 
@@ -96,7 +105,7 @@ void KalmanVisionUpdate(const float vision[3])
   float x_est[X_DIM];
   float P_est[P_DIM*P_DIM];
   VisionUpdate(x_, P_, vision, x_est, P_est);
-  VectorCopy(x_est, P_DIM, x_);
+  VectorCopy(x_est, X_DIM, x_);
   MatrixCopy(P_est, P_DIM, P_DIM, P_);
 }
 

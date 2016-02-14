@@ -19,5 +19,8 @@ void NewDataInterruptHandler(void);
 // -----------------------------------------------------------------------------
 void SetNewDataCallback(Callback callback);
 
+// -----------------------------------------------------------------------------
+void SetFlightCtrlInterrupt(void);
+
 
 #endif  // MAIN_H_

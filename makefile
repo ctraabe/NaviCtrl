@@ -1,3 +1,7 @@
+# Compile option defines:
+# VISION : substitutes GPS for visual odometry
+# LOG_FLT_CTRL_DEBUG_TO_SD : only perform SD card logging
+
 # Add library files as needed only:
 SOURCES   = libfatfs/src/ff.c
 SOURCES  += libfatfs/src/unicode.c

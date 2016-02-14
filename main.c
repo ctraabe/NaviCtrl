@@ -29,7 +29,8 @@
 static volatile Callback callback_buffer_[4] = { 0 };
 static volatile size_t callback_buffer_head_ = 0;
 static size_t callback_buffer_tail_ = 0;
-static uint32_t flight_ctrl_interrupt_received = 0;
+static volatile uint32_t flight_ctrl_interrupt_ = 0;
+static uint32_t overrun_counter_ = 0;
 
 
 // =============================================================================
@@ -60,8 +61,6 @@ void FlightCtrlInterruptHandler(void)
 {
   WIU_ClearITPendingBit(WIU_Line16);
   VIC_SWITCmd(EXTIT2_ITLine, DISABLE);
-
-  flight_ctrl_interrupt_received = 1;
 }
 
 //------------------------------------------------------------------------------
@@ -88,6 +87,13 @@ void SetNewDataCallback(Callback callback)
   callback_buffer_head_ = (callback_buffer_head_ + 1) % MAX_CALLBACKS;
   callback_buffer_[callback_buffer_head_] = callback;
   VIC_SWITCmd(EXTIT0_ITLine, ENABLE);
+}
+
+// -----------------------------------------------------------------------------
+// This puts a callback into the callback ring buffer.
+void SetFlightCtrlInterrupt(void)
+{
+  flight_ctrl_interrupt_ = 1;
 }
 
 
@@ -161,33 +167,47 @@ int main(void)
   uint32_t led_timer = GetTimestamp();
   for (;;)
   {
-
-    if (flight_ctrl_interrupt_received)
+    if (flight_ctrl_interrupt_)
     {
+      flight_ctrl_interrupt_ = 0;
+
       LSM303DLReadMag();
-#ifndef VISION
-      ProcessIncomingUBlox();
-#else
-      ProcessIncomingVision();
-      // if (ProcessIncomingVision()) KalmanVisionUpdate(VisionVelocityVector());
-#endif
 
       // Prepare volatile IMU data for the Kalman filter.
+      float gyro[3] = { Gyro(X_BODY_AXIS), Gyro(Y_BODY_AXIS), Gyro(Z_BODY_AXIS)
+        };
       float accelerometer[3] = {
         Accelerometer(X_BODY_AXIS) * GRAVITY_ACCELERATION,
         Accelerometer(Y_BODY_AXIS) * GRAVITY_ACCELERATION,
         Accelerometer(Z_BODY_AXIS) * GRAVITY_ACCELERATION };
-
-      // KalmanTimeUpdate(gyro, accelerometer);
+      KalmanTimeUpdate(gyro, accelerometer);
       KalmanAccelerometerUpdate(accelerometer);
+#ifndef VISION
+      ProcessIncomingUBlox();
+#else
+      if (ProcessIncomingVision()) KalmanVisionUpdate(VisionVelocityVector());
+#endif
 
       PrepareFlightCtrlDataExchange();
+
+      RedLEDToggle();
+      if (flight_ctrl_interrupt_) overrun_counter_++;
     }
+
+    ProcessIncomingUART();
+
+#ifdef LOG_FLT_CTRL_DEBUG_TO_SD
+    ProcessLogging();
+#endif
 
     if (TimestampInPast(led_timer))
     {
       GreenLEDToggle();
       led_timer += 250;
+      // UARTPrintf("%3.2f", KalmanX()[6]);
+      // UARTPrintf("%3.2f, %3.2f, %3.2f", Accelerometer(0), Accelerometer(1),
+      //   Accelerometer(2));
+      // UARTPrintf("%3.2f, %3.2f, %3.2f", Gyro(0), Gyro(1), Gyro(2));
     }
   }
 }

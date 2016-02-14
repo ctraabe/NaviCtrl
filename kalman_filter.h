@@ -3,7 +3,19 @@
 
 
 // =============================================================================
-// Private functions:
+// Accessors:
+
+const float * KalmanPosition(void);
+
+// -----------------------------------------------------------------------------
+const float * KalmanX(void);
+
+// -----------------------------------------------------------------------------
+const float * KalmanVelocity(void);
+
+
+// =============================================================================
+// Public functions:
 
 void KalmanTimeUpdate(const float gyro[3], const float accelerometer[3]);
 

@@ -4,6 +4,7 @@
 #include "crc16.h"
 #include "heading.h"
 #include "irq_priority.h"
+#include "kalman_filter.h"
 #include "main.h"
 #include "spi_slave.h"
 #include "timing.h"
@@ -177,7 +178,11 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
           // Swap data buffers.
           from_fc_tail_ = from_fc_head_;
           from_fc_head_ = !from_fc_tail_;
-          // LogFlightControlData();
+#ifndef LOG_FLT_CTRL_DEBUG_TO_SD
+          SetFlightCtrlInterrupt();
+#else
+          LogFlightControlData();
+#endif
         }
         goto RESET;
       }
@@ -211,12 +216,12 @@ void PrepareFlightCtrlDataExchange(void)
   if (!to_fc_ptr) return;
 
   to_fc_ptr->version = 1;
-  to_fc_ptr->position[0] = 0.0;
-  to_fc_ptr->position[1] = 1.0;
-  to_fc_ptr->position[2] = 2.0;
-  to_fc_ptr->velocity[0] = 3.0;
-  to_fc_ptr->velocity[1] = 4.0;
-  to_fc_ptr->velocity[2] = 5.0;
+  to_fc_ptr->position[0] = KalmanPosition()[0];
+  to_fc_ptr->position[1] = KalmanPosition()[1];
+  to_fc_ptr->position[2] = KalmanPosition()[2];
+  to_fc_ptr->velocity[0] = KalmanVelocity()[0];
+  to_fc_ptr->velocity[1] = KalmanVelocity()[1];
+  to_fc_ptr->velocity[2] = KalmanVelocity()[2];
   to_fc_ptr->heading_correction_quat_0 = HeadingCorrectionQuat0();
   to_fc_ptr->heading_correction_quat_z = HeadingCorrectionQuatZ();
   to_fc_ptr->status = 0x00;
@@ -224,5 +229,5 @@ void PrepareFlightCtrlDataExchange(void)
   to_fc_ptr->crc = CRCCCITT((uint8_t *)to_fc_ptr, sizeof(struct ToFC) - 2);
 
   SPITxBuffer(sizeof(struct ToFC));
-  NotifyFlightCtrl();  // Request SPI communication.
+  // NotifyFlightCtrl();  // Request SPI communication.
 }

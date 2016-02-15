@@ -52,6 +52,18 @@ const float * VisionVelocityVector(void)
   return &from_vision_.velocity[0];
 }
 
+// -----------------------------------------------------------------------------
+uint16_t VisionCaptureTime(void)
+{
+  return from_vision_.capture_time;
+}
+
+// -----------------------------------------------------------------------------
+uint16_t VisionReliability(void)
+{
+  return from_vision_.reliability;
+}
+
 
 // =============================================================================
 // Public functions:

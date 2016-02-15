@@ -25,5 +25,8 @@ void KalmanAccelerometerUpdate(const float accelerometer[3]);
 // -----------------------------------------------------------------------------
 void KalmanVisionUpdate(const float vision[3]);
 
+// -----------------------------------------------------------------------------
+void ResetKalman(void);
+
 
 #endif // KALMAN_FILTER_H_

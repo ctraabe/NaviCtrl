@@ -48,7 +48,7 @@ void FiftyHzInterruptHandler(void)
 
   uint16_t button = GPIO_ReadBit(GPIO3, GPIO_Pin_1);
   static uint16_t button_pv = 0;
-  if (button && (button_pv == 0x7FFF)) {};
+  if (button && (button_pv == 0x7FFF)) ResetKalman();
   button_pv = (button_pv << 1) | button;
 }
 
@@ -181,12 +181,22 @@ int main(void)
         Accelerometer(X_BODY_AXIS) * GRAVITY_ACCELERATION,
         Accelerometer(Y_BODY_AXIS) * GRAVITY_ACCELERATION,
         Accelerometer(Z_BODY_AXIS) * GRAVITY_ACCELERATION };
+      UARTPrintfSafe("%i, %e, %e, %e, %e, %e, %e", GetTimestamp(),
+        accelerometer[0], accelerometer[1], accelerometer[2],
+        gyro[0], gyro[1], gyro[2]);
       KalmanTimeUpdate(gyro, accelerometer);
       KalmanAccelerometerUpdate(accelerometer);
 #ifndef VISION
       ProcessIncomingUBlox();
 #else
-      if (ProcessIncomingVision()) KalmanVisionUpdate(VisionVelocityVector());
+      if (ProcessIncomingVision() && VisionReliability())
+      {
+        KalmanVisionUpdate(VisionVelocityVector());
+        UARTWaitUntilCompletion(20);
+        UARTPrintfSafe("v, %e, %e, %e, %i",
+          VisionVelocityVector()[0], VisionVelocityVector()[1],
+          VisionVelocityVector()[2], VisionReliability());
+      }
 #endif
 
       PrepareFlightCtrlDataExchange();
@@ -205,8 +215,17 @@ int main(void)
     {
       GreenLEDToggle();
       led_timer += 250;
+      // UARTPrintfSafe("%3.2f, %3.2f, %3.2f, %3.2f, %3.2f, %3.2f, %3.2f",
+      //   VisionVelocityVector()[0], VisionVelocityVector()[1], VisionVelocityVector()[2],
+      //   KalmanX()[4], KalmanX()[5], KalmanX()[6],
+      //   KalmanX()[3]);
+      // UARTPrintfSafe("%3.2f, %3.2f, %3.2f, %i, %i", VisionVelocityVector()[0],
+      //   VisionVelocityVector()[1], VisionVelocityVector()[2],
+      //   VisionReliability(), VisionCaptureTime());
       // UARTPrintfSafe("%3.2f, %3.2f, %3.2f", KalmanX()[4], KalmanX()[5],
       //   KalmanX()[6]);
+      // UARTPrintfSafe("%3.2f, %3.2f, %3.2f", Accelerometer(X_BODY_AXIS),
+      //   Accelerometer(Y_BODY_AXIS), Accelerometer(Z_BODY_AXIS));
     }
   }
 }

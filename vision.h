@@ -22,7 +22,7 @@ uint16_t VisionCaptureTime(void);
 const float * VisionInertialVelocityVector(void);
 
 // -----------------------------------------------------------------------------
-const float * VisionPosition(void);
+const float * VisionPositionVector(void);
 
 // -----------------------------------------------------------------------------
 const float * VisionQuaternionVector(void);

@@ -19,13 +19,15 @@
     int16_t sbus_roll;
     int16_t sbus_yaw;
     int16_t sbus_thrust;
-    uint16_t biased_pressure;
     uint16_t battery_voltage;
+    float pressure_altitude;
+    float thrust_command;
     float heading_command;
-    float attitude_integral[3];
-    float quaternion_model[4];
     float angular_command[3];
-    uint16_t motor_setpoints[8];
+    float kalman_p_dot;
+    float kalman_q_dot;
+    float vertical_speed;
+    float vertical_acceleration;
 #endif
 } __attribute__((packed));
 

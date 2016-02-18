@@ -76,7 +76,7 @@ const float * VisionInertialVelocityVector(void)
 }
 
 // -----------------------------------------------------------------------------
-const float * VisionPosition(void)
+const float * VisionPositionVector(void)
 {
   return &from_vision_.position[0];
 }

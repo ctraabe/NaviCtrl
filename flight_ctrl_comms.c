@@ -9,6 +9,7 @@
 #include "spi_slave.h"
 #include "timing.h"
 #include "union_types.h"
+#include "vision.h"
 // TODO: remove
 #include "logging.h"
 
@@ -216,12 +217,12 @@ void PrepareFlightCtrlDataExchange(void)
   if (!to_fc_ptr) return;
 
   to_fc_ptr->version = 1;
-  to_fc_ptr->position[0] = KalmanPosition()[0];
-  to_fc_ptr->position[1] = KalmanPosition()[1];
-  to_fc_ptr->position[2] = KalmanPosition()[2];
-  to_fc_ptr->velocity[0] = KalmanVelocity()[0];
-  to_fc_ptr->velocity[1] = KalmanVelocity()[1];
-  to_fc_ptr->velocity[2] = KalmanVelocity()[2];
+  to_fc_ptr->position[0] = VisionPositionVector()[0];
+  to_fc_ptr->position[1] = VisionPositionVector()[1];
+  to_fc_ptr->position[2] = VisionPositionVector()[2];
+  to_fc_ptr->velocity[0] = VisionInertialVelocityVector()[0];
+  to_fc_ptr->velocity[1] = VisionInertialVelocityVector()[1];
+  to_fc_ptr->velocity[2] = VisionInertialVelocityVector()[2];
   to_fc_ptr->heading_correction_quat_0 = HeadingCorrectionQuat0();
   to_fc_ptr->heading_correction_quat_z = HeadingCorrectionQuatZ();
   to_fc_ptr->status = 0x00;

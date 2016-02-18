@@ -5,12 +5,11 @@
 #include <string.h>
 
 #include "91x_lib.h"
+#include "attitude.h"
 #include "crc16.h"
 #include "irq_priority.h"
 #include "quaternion.h"
 #include "union_types.h"
-// TODO: remove
-#include "uart.h"
 
 
 // =============================================================================
@@ -39,6 +38,7 @@ static struct FromVision {
 
 static float inertial_velocity_[3];
 static float quaternion_[4];
+static float heading_;
 
 
 // =============================================================================
@@ -67,6 +67,12 @@ const float * VisionBodyVelocityVector(void)
 uint16_t VisionCaptureTime(void)
 {
   return from_vision_.capture_time;
+}
+
+// -----------------------------------------------------------------------------
+float VisionHeading(void)
+{
+  return heading_;
 }
 
 // -----------------------------------------------------------------------------
@@ -245,9 +251,12 @@ static void ProcessVisionData(void)
   quaternion_[0] = sqrt(1.0 - quaternion_[1] * quaternion_[1] - quaternion_[2]
     * quaternion_[2] - quaternion_[3] * quaternion_[3]);
 
-  // Compute inertial velocity
+  // Compute inertial velocity.
   QuaternionRotateVector(quaternion_, from_vision_.velocity,
     inertial_velocity_);
+
+  // Compute heading angle.
+  heading_ = HeadingFromQuaternion(quaternion_);
 }
 
 // -----------------------------------------------------------------------------

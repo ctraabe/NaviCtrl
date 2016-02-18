@@ -4,8 +4,6 @@
 #include "matrix.h"
 #include "quaternion.h"
 #include "vector.h"
-// TODO: remove
-#include "uart.h"
 
 
 // =============================================================================
@@ -89,7 +87,6 @@ void KalmanTimeUpdate(const float gyro[3], const float accelerometer[3])
   float x_pred[X_DIM];
   TimeUpdate(x_, P_, gyro, accelerometer, x_pred, P_);
   VectorCopy(x_pred, X_DIM, x_);
-  // UARTPrintfSafe("%3.2f, %3.2f, %3.2f", accelerometer[0], x_[4], x_[2]);
 }
 
 // -----------------------------------------------------------------------------

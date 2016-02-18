@@ -1,11 +1,13 @@
 #include "vision.h"
 
+#include <math.h>
 #include <stddef.h>
 #include <string.h>
 
 #include "91x_lib.h"
 #include "crc16.h"
 #include "irq_priority.h"
+#include "quaternion.h"
 #include "union_types.h"
 // TODO: remove
 #include "uart.h"
@@ -25,7 +27,7 @@ static volatile size_t rx_buffer_head_ = 0;
 static struct FromVision {
   uint16_t latency;  // Latency (ms)
   uint32_t capture_time;
-  uint16_t reliability;  // TBD
+  uint16_t reliability;
   float velocity[3];  // (mm/frame)
   float quaternion[3];  // [q_x, q_y, q_z]
   float angular_velocity[3];  // (rad/frame)
@@ -34,6 +36,9 @@ static struct FromVision {
   float nearest_point_parameters[3];  // Distance and two angles, TBD
   float marking_point_parameters[3];  // Distance and two angles, TBD
 } __attribute__((packed)) from_vision_;
+
+static float inertial_velocity_[3];
+static float quaternion_[4];
 
 
 // =============================================================================
@@ -47,7 +52,13 @@ static void ReceiveVisionData(void);
 // =============================================================================
 // Accessors:
 
-const float * VisionVelocityVector(void)
+const float * VisionAngularVelocityVector(void)
+{
+  return &from_vision_.angular_velocity[0];
+}
+
+// -----------------------------------------------------------------------------
+const float * VisionBodyVelocityVector(void)
 {
   return &from_vision_.velocity[0];
 }
@@ -56,6 +67,24 @@ const float * VisionVelocityVector(void)
 uint16_t VisionCaptureTime(void)
 {
   return from_vision_.capture_time;
+}
+
+// -----------------------------------------------------------------------------
+const float * VisionInertialVelocityVector(void)
+{
+  return &inertial_velocity_[0];
+}
+
+// -----------------------------------------------------------------------------
+const float * VisionPosition(void)
+{
+  return &from_vision_.position[0];
+}
+
+// -----------------------------------------------------------------------------
+const float * VisionQuaternionVector(void)
+{
+  return &quaternion_[0];
 }
 
 // -----------------------------------------------------------------------------
@@ -208,6 +237,17 @@ static void ProcessVisionData(void)
   from_vision_.position[0] /= 1000.0;
   from_vision_.position[1] /= 1000.0;
   from_vision_.position[2] /= 1000.0;
+
+  // Compute full quaternion.
+  quaternion_[1] = from_vision_.quaternion[0];
+  quaternion_[2] = from_vision_.quaternion[1];
+  quaternion_[3] = from_vision_.quaternion[2];
+  quaternion_[0] = sqrt(1.0 - quaternion_[1] * quaternion_[1] - quaternion_[2]
+    * quaternion_[2] - quaternion_[3] * quaternion_[3]);
+
+  // Compute inertial velocity
+  QuaternionRotateVector(quaternion_, from_vision_.velocity,
+    inertial_velocity_);
 }
 
 // -----------------------------------------------------------------------------

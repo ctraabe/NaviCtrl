@@ -10,10 +10,22 @@
 // =============================================================================
 // Accessors:
 
-const float * VisionVelocityVector(void);
+const float * VisionAngularVelocityVector(void);
+
+// -----------------------------------------------------------------------------
+const float * VisionBodyVelocityVector(void);
 
 // -----------------------------------------------------------------------------
 uint16_t VisionCaptureTime(void);
+
+// -----------------------------------------------------------------------------
+const float * VisionInertialVelocityVector(void);
+
+// -----------------------------------------------------------------------------
+const float * VisionPosition(void);
+
+// -----------------------------------------------------------------------------
+const float * VisionQuaternionVector(void);
 
 // -----------------------------------------------------------------------------
 uint16_t VisionReliability(void);

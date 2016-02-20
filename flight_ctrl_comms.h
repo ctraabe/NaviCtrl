@@ -14,6 +14,7 @@
     float accelerometer[3];
     float gyro[3];
     float quaternion[4];
+    float nav_g_b_cmd[2];
 #ifdef LOG_FLT_CTRL_DEBUG_TO_SD
     int16_t sbus_pitch;
     int16_t sbus_roll;
@@ -51,7 +52,7 @@ float Accelerometer(enum BodyAxes axis);
 const volatile float * AccelerometerVector(void);
 
 // -----------------------------------------------------------------------------
-enum FlightCtrlStateBits FlightCtrlState(void);
+uint16_t FlightCtrlState(void);
 
 // -----------------------------------------------------------------------------
 uint16_t FlightCtrlTimestamp(void);

@@ -42,9 +42,9 @@ const volatile float * AccelerometerVector(void)
 }
 
 // -----------------------------------------------------------------------------
-enum FlightCtrlStateBits FlightCtrlState(void)
+uint16_t FlightCtrlState(void)
 {
-  return (enum FlightCtrlStateBits)from_fc_[from_fc_tail_].state;
+  return from_fc_[from_fc_tail_].state;
 }
 
 // -----------------------------------------------------------------------------

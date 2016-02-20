@@ -194,7 +194,6 @@ int main(void)
 
       PrepareFlightCtrlDataExchange();
 
-      RedLEDToggle();
       if (flight_ctrl_interrupt_) overrun_counter_++;
     }
 

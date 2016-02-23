@@ -22,6 +22,17 @@
 
 #define SPI_FC_START_BYTE (0xAA)
 
+enum NavModeBits {
+  NAV_BIT_MODE_0     = 1<<0,
+  NAV_BIT_MODE_1     = 1<<1,
+  NAV_BIT_HOLD_RESET = 1<<2,
+  NAV_BIT_RESERVED_0 = 1<<3,
+  NAV_BIT_ROUTE_0    = 1<<4,
+  NAV_BIT_ROUTE_1    = 1<<5,
+  NAV_BIT_RESERVED_1 = 1<<6,
+  NAV_BIT_RESERVED_2 = 1<<7,
+};
+
 static volatile struct FromFlightCtrl from_fc_[2] = { { 0 } };
 static volatile union U16Bytes crc_[2];
 static volatile size_t from_fc_head_ = 1, from_fc_tail_ = 0;
@@ -42,9 +53,9 @@ const volatile float * AccelerometerVector(void)
 }
 
 // -----------------------------------------------------------------------------
-uint16_t FlightCtrlState(void)
+enum FlightCtrlStateBits FlightCtrlState(void)
 {
-  return from_fc_[from_fc_tail_].state;
+  return (enum FlightCtrlStateBits)from_fc_[from_fc_tail_].state;
 }
 
 // -----------------------------------------------------------------------------
@@ -69,6 +80,18 @@ const volatile float * GyroVector(void)
 const volatile float * Quat(void)
 {
   return from_fc_[from_fc_tail_].quaternion;
+}
+
+// -----------------------------------------------------------------------------
+enum NavMode RequestedNavMode(void)
+{
+  return (enum NavMode)(from_fc_[from_fc_tail_].nav_mode_request & 0x03);
+}
+
+// -----------------------------------------------------------------------------
+uint32_t RequestedNavRoute(void)
+{
+  return (uint32_t)(from_fc_[from_fc_tail_].nav_mode_request >> 4) & 0x03;
 }
 
 // -----------------------------------------------------------------------------
@@ -209,7 +232,8 @@ void PrepareFlightCtrlDataExchange(void)
     float velocity[3];
     float heading_correction_quat_0;
     float heading_correction_quat_z;
-    uint16_t status;
+    uint8_t nav_mode;
+    uint8_t status;
     uint16_t crc;
   } __attribute__((packed));
 
@@ -227,15 +251,16 @@ void PrepareFlightCtrlDataExchange(void)
   float quat_c_z = 0.5 * 0.025 * heading_error;
 
   to_fc_ptr->version = 1;
-  to_fc_ptr->position[0] = VisionPositionVector()[0];
-  to_fc_ptr->position[1] = VisionPositionVector()[1];
-  to_fc_ptr->position[2] = VisionPositionVector()[2];
+  to_fc_ptr->position[0] = NavDeltaPosition()[0];
+  to_fc_ptr->position[1] = NavDeltaPosition()[1];
+  to_fc_ptr->position[2] = NavDeltaPosition()[2];
   to_fc_ptr->velocity[0] = VisionInertialVelocityVector()[0];
   to_fc_ptr->velocity[1] = VisionInertialVelocityVector()[1];
   to_fc_ptr->velocity[2] = VisionInertialVelocityVector()[2];
   to_fc_ptr->heading_correction_quat_0 = sqrt(1.0 - quat_c_z * quat_c_z);
   to_fc_ptr->heading_correction_quat_z = quat_c_z;
-  to_fc_ptr->status = VisionReliability();
+  to_fc_ptr->nav_mode = (uint8_t)NavMode();
+  to_fc_ptr->status = (uint8_t)VisionReliability();
 
   to_fc_ptr->crc = CRCCCITT((uint8_t *)to_fc_ptr, sizeof(struct ToFC) - 2);
 

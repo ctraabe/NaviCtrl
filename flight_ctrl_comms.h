@@ -6,15 +6,16 @@
 #include <stddef.h>
 
 #include "constants.h"
+#include "navigation.h"
 
 
   struct FromFlightCtrl {
     uint16_t timestamp;
-    uint16_t state;
+    uint8_t nav_mode_request;
+    uint8_t state;
     float accelerometer[3];
     float gyro[3];
     float quaternion[4];
-    float nav_g_b_cmd[2];
 #ifdef LOG_FLT_CTRL_DEBUG_TO_SD
     int16_t sbus_pitch;
     int16_t sbus_roll;
@@ -33,13 +34,10 @@
 } __attribute__((packed));
 
 enum FlightCtrlStateBits {
-  FC_STATE_BIT_MOTORS_INHIBITED   = 1<<0,
-  FC_STATE_BIT_INITIALIZED        = 1<<1,
-  FC_STATE_BIT_STARTING           = 1<<2,
-  FC_STATE_BIT_MOTORS_RUNNING     = 1<<3,
-  FC_STATE_BIT_IN_AIR             = 1<<4,
-  FC_STATE_BIT_LOW_BATTERY        = 1<<5,
-  FC_STATE_BIT_EMERGENCY_LANDING  = 1<<6,
+  FC_STATE_BIT_MOTORS_INHIBITED      = 1<<0,
+  FC_STATE_BIT_INITIALIZED           = 1<<1,
+  FC_STATE_BIT_STARTING              = 1<<2,
+  FC_STATE_BIT_MOTORS_RUNNING        = 1<<3,
 };
 
 
@@ -52,7 +50,7 @@ float Accelerometer(enum BodyAxes axis);
 const volatile float * AccelerometerVector(void);
 
 // -----------------------------------------------------------------------------
-uint16_t FlightCtrlState(void);
+enum FlightCtrlStateBits FlightCtrlState(void);
 
 // -----------------------------------------------------------------------------
 uint16_t FlightCtrlTimestamp(void);
@@ -65,6 +63,12 @@ const volatile float * GyroVector(void);
 
 // -----------------------------------------------------------------------------
 const volatile float * Quat(void);
+
+// -----------------------------------------------------------------------------
+enum NavMode RequestedNavMode(void);
+
+// -----------------------------------------------------------------------------
+uint32_t RequestedNavRoute(void);
 
 // -----------------------------------------------------------------------------
 const volatile struct FromFlightCtrl * FromFlightCtrl(void);

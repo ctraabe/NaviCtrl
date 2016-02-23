@@ -1,5 +1,6 @@
 #include "navigation.h"
 
+#include "flight_ctrl_comms.h"
 #include "vector.h"
 #include "vision.h"
 
@@ -11,16 +12,31 @@
 #define WAYPOINT_RADIUS_SQUARED (WAYPOINT_RADIUS * WAYPOINT_RADIUS)
 #define MAX_N_WAYPOINTS (16)
 
-enum NavigationMode mode_ = NAVIGATION_MODE_OFF;
-
-static float target_position_[3] = { 0.0 }, vector_to_target_[3] = { 0.0 };
-static float waypoints[MAX_N_WAYPOINTS][3] = {
-  { 0.0, 0.0, 1.0 },
-  { 1.0, 0.0, 1.0 },
-  { 0.0, 1.0, 1.0 },
+#define ROUTE_0_N_WAYPOINTS (3)
+static const float route0[ROUTE_0_N_WAYPOINTS][4] = {
+  { 0.0, 0.0, -1.0, 0.0 },
+  { 1.0, 0.0, -1.0, 0.0 },
+  { 0.0, 1.0, -1.0, 0.0 },
 };
-static float * final_waypoint_ = waypoints[2];
-static float * current_waypoint_ = waypoints[0];
+
+#define ROUTE_1_N_WAYPOINTS (3)
+static const float route1[ROUTE_1_N_WAYPOINTS][4] = {
+  { 0.0, 0.0, -1.0, 0.0 },
+  { 1.0, 0.0, -1.0, 0.0 },
+  { 0.0, 1.0, -1.0, 0.0 },
+};
+
+#define ROUTE_2_N_WAYPOINTS (3)
+static const float route2[ROUTE_2_N_WAYPOINTS][4] = {
+  { 0.0, 0.0, -1.0, 0.0 },
+  { 1.0, 0.0, -1.0, 0.0 },
+  { 0.0, 1.0, -1.0, 0.0 },
+};
+
+static enum NavMode mode_ = NAV_MODE_OFF;
+static float target_position_[3] = { 0.0 }, delta_postion_[3] = { 0.0 };
+static const float * final_waypoint_ = route1[0];
+static const float * current_waypoint_ = route1[0];
 
 
 // =============================================================================
@@ -30,38 +46,69 @@ static void GetNexWaypoint(void);
 
 
 // =============================================================================
+// Accessors:
+
+const float * NavDeltaPosition(void)
+{
+  return delta_postion_;
+}
+
+// -----------------------------------------------------------------------------
+enum NavMode NavMode(void)
+{
+  return mode_;
+}
+
+
+// =============================================================================
 // Public functions:
 
 void UpdateNavigation(void)
 {
-  static enum NavigationMode mode_pv = NAVIGATION_MODE_OFF;
   const float * current_position = VisionPositionVector();
 
-  if (mode_ != mode_pv)
+  if (RequestedNavMode() != mode_)
   {
-    if (mode_ == NAVIGATION_MODE_WAYPOINT)
+    if (RequestedNavMode() == NAV_MODE_AUTO)
     {
+      // Select the route.
+      switch (RequestedNavRoute())
+      {
+        case 0:
+          current_waypoint_ = route0[0];
+          final_waypoint_ = route0[ROUTE_0_N_WAYPOINTS-1];
+          break;
+        case 1:
+          current_waypoint_ = route1[0];
+          final_waypoint_ = route1[ROUTE_1_N_WAYPOINTS-1];
+          break;
+        case 2:
+          current_waypoint_ = route2[0];
+          final_waypoint_ = route2[ROUTE_2_N_WAYPOINTS-1];
+          break;
+      }
+
       Vector3Copy(current_waypoint_, target_position_);
     }
-    else if (mode_ == NAVIGATION_MODE_HOLD)
+    else if (RequestedNavMode() == NAV_MODE_HOLD)
     {
       Vector3Copy(current_position, target_position_);
     }
   }
 
-  Vector3Subtract(target_position_, current_position, vector_to_target_);
+  Vector3Subtract(current_position, target_position_, delta_postion_);
 
-  if ((mode_ == NAVIGATION_MODE_WAYPOINT)
-    && (Vector3NormSquared(vector_to_target_) < WAYPOINT_RADIUS_SQUARED))
+  if ((RequestedNavMode() == NAV_MODE_AUTO)
+    && (Vector3NormSquared(delta_postion_) < WAYPOINT_RADIUS_SQUARED))
   {
     GetNexWaypoint();
   }
 
-  mode_pv = mode_;
+  mode_ = RequestedNavMode();
 }
 
 // -----------------------------------------------------------------------------
 static void GetNexWaypoint(void)
 {
-  if (current_waypoint_ < final_waypoint_) current_waypoint_ += 3;
+  if (current_waypoint_ < final_waypoint_) current_waypoint_ += 4;
 }

@@ -2,19 +2,27 @@
 #define NAVIGATION_H_
 
 
-enum NavigationMode {
-  NAVIGATION_MODE_OFF = 0,
-  NAVIGATION_MODE_HOLD,
-  NAVIGATION_MODE_WAYPOINT,
+enum NavMode {
+  NAV_MODE_OFF = 0,
+  NAV_MODE_HOLD = 0x01,
+  NAV_MODE_AUTO = 0x02,
+  NAV_MODE_HOME = 0x03,
 };
 
 
 // =============================================================================
 // Accessors:
 
+const float * NavDeltaPosition(void);
+
+// -----------------------------------------------------------------------------
+enum NavMode NavMode(void);
+
 
 // =============================================================================
 // Public functions:
+
+void UpdateNavigation(void);
 
 
 #endif  // NAVIGATION_H_

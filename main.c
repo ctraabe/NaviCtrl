@@ -9,6 +9,7 @@
 #include "led.h"
 #include "logging.h"
 #include "lsm303dl.h"
+#include "navigation.h"
 #include "sd_card.h"
 #include "spi_slave.h"
 #include "timing.h"
@@ -175,22 +176,25 @@ int main(void)
       LSM303DLReadMag();
 
       // Prepare volatile IMU data for the Kalman filter.
-      float gyro[3] = { Gyro(X_BODY_AXIS), Gyro(Y_BODY_AXIS), Gyro(Z_BODY_AXIS)
-        };
-      float accelerometer[3] = {
-        Accelerometer(X_BODY_AXIS) * GRAVITY_ACCELERATION,
-        Accelerometer(Y_BODY_AXIS) * GRAVITY_ACCELERATION,
-        Accelerometer(Z_BODY_AXIS) * GRAVITY_ACCELERATION };
-      KalmanTimeUpdate(gyro, accelerometer);
-      KalmanAccelerometerUpdate(accelerometer);
+      // float gyro[3] = { Gyro(X_BODY_AXIS), Gyro(Y_BODY_AXIS), Gyro(Z_BODY_AXIS)
+      //   };
+      // float accelerometer[3] = {
+      //   Accelerometer(X_BODY_AXIS) * GRAVITY_ACCELERATION,
+      //   Accelerometer(Y_BODY_AXIS) * GRAVITY_ACCELERATION,
+      //   Accelerometer(Z_BODY_AXIS) * GRAVITY_ACCELERATION };
+      // KalmanTimeUpdate(gyro, accelerometer);
+      // KalmanAccelerometerUpdate(accelerometer);
 #ifndef VISION
       ProcessIncomingUBlox();
 #else
-      if (ProcessIncomingVision() && VisionReliability())
-      {
-        KalmanVisionUpdate(VisionBodyVelocityVector());
-      }
+      // if (ProcessIncomingVision() && VisionReliability())
+      // {
+      //   KalmanVisionUpdate(VisionBodyVelocityVector());
+      // }
+      ProcessIncomingVision();
 #endif
+
+      UpdateNavigation();
 
       PrepareFlightCtrlDataExchange();
 

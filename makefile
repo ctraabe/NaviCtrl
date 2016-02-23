@@ -60,15 +60,15 @@ ELF    := $(BUILD_PATH)/$(TARGET).elf
 HEX    := $(BUILD_PATH)/$(TARGET).hex
 
 # Rules to make dependency "makefiles"
-$(BUILD_PATH)/%.c.d: %.c
+$(BUILD_PATH)/%.c.d: %.c makefile
 	mkdir -p $(dir $@)
 	$(CC) $(DEPFLAGS) $(ALLFLAGS)
 
-$(BUILD_PATH)/%.S.d: %.S
+$(BUILD_PATH)/%.S.d: %.S makefile
 	mkdir -p $(dir $@)
 	$(CC) $(DEPFLAGS) $(ALLFLAGS)
 
-$(BUILD_PATH)/%.cpp.d: %.cpp
+$(BUILD_PATH)/%.cpp.d: %.cpp makefile
 	mkdir -p $(dir $@)
 	$(CPP) $(DEPFLAGS) $(ALLFLAGS)
 

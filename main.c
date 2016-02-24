@@ -210,7 +210,16 @@ int main(void)
     if (TimestampInPast(led_timer))
     {
       GreenLEDToggle();
-      led_timer += 250;
+      led_timer += 100;
+      UARTPrintfSafe("%X,%02X | %+.2f,%+.2f,%+.2f | %+.2f,%+.2f,%+.2f",
+        VisionReliability(),
+        NavMode() | (RequestedNavRoute() << 4),
+        VisionInertialVelocityVector()[0],
+        VisionInertialVelocityVector()[1],
+        VisionInertialVelocityVector()[2],
+        FromFlightCtrl()->position_cmd[0],
+        FromFlightCtrl()->position_cmd[1],
+        FromFlightCtrl()->position_cmd[2]);
     }
   }
 }

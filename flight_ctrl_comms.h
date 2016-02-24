@@ -16,6 +16,7 @@
     float accelerometer[3];
     float gyro[3];
     float quaternion[4];
+    float position_cmd[3];
 #ifdef LOG_FLT_CTRL_DEBUG_TO_SD
     int16_t sbus_pitch;
     int16_t sbus_roll;

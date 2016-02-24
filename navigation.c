@@ -8,29 +8,26 @@
 // =============================================================================
 // Private data:
 
-#define WAYPOINT_RADIUS (0.25)  // Inside radius indicates waypoint reached
+#define WAYPOINT_RADIUS (0.50)  // Inside radius indicates waypoint reached
 #define WAYPOINT_RADIUS_SQUARED (WAYPOINT_RADIUS * WAYPOINT_RADIUS)
 #define MAX_N_WAYPOINTS (16)
 
-#define ROUTE_0_N_WAYPOINTS (3)
+#define ROUTE_0_N_WAYPOINTS (1)
 static const float route0[ROUTE_0_N_WAYPOINTS][4] = {
   { 0.0, 0.0, -1.0, 0.0 },
-  { 1.0, 0.0, -1.0, 0.0 },
-  { 0.0, 1.0, -1.0, 0.0 },
 };
 
-#define ROUTE_1_N_WAYPOINTS (3)
+#define ROUTE_1_N_WAYPOINTS (2)
 static const float route1[ROUTE_1_N_WAYPOINTS][4] = {
   { 0.0, 0.0, -1.0, 0.0 },
-  { 1.0, 0.0, -1.0, 0.0 },
-  { 0.0, 1.0, -1.0, 0.0 },
+  { 2.0, 0.0, -1.0, 0.0 },
 };
 
 #define ROUTE_2_N_WAYPOINTS (3)
 static const float route2[ROUTE_2_N_WAYPOINTS][4] = {
   { 0.0, 0.0, -1.0, 0.0 },
-  { 1.0, 0.0, -1.0, 0.0 },
-  { 0.0, 1.0, -1.0, 0.0 },
+  { 2.0, 0.0, -1.5, 0.0 },
+  { 2.0, 2.0, -1.0, 0.0 },
 };
 
 static enum NavMode mode_ = NAV_MODE_OFF;
@@ -110,5 +107,9 @@ void UpdateNavigation(void)
 // -----------------------------------------------------------------------------
 static void GetNexWaypoint(void)
 {
-  if (current_waypoint_ < final_waypoint_) current_waypoint_ += 4;
+  if (current_waypoint_ < final_waypoint_)
+  {
+    current_waypoint_ += 4;
+    Vector3Copy(current_waypoint_, target_position_);
+  }
 }

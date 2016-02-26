@@ -1,5 +1,7 @@
 #include "kalman_filter.h"
 
+#include <stdio.h>
+
 #include "constants.h"
 #include "matrix.h"
 #include "quaternion.h"
@@ -18,25 +20,16 @@
 // Measurement noise covariance
 #define KALMAN_Q_PRIME_ALPHA (0)
 #define KALMAN_Q_PRIME_VELOCITY (0.001)
-#define KALMAN_Q_PRIME_POSITION (0.1)
+#define KALMAN_Q_PRIME_POSITION (0.0)
 #define KALMAN_SIGMA_ACCELEROMETER_X (0.005)
 #define KALMAN_SIGMA_ACCELEROMETER_Y (0.005)
 #define KALMAN_SIGMA_ACCELEROMETER_Z (0.042)
+#define KALMAN_SIGMA_ACCELEROMETER_G (0.25)
 #define KALMAN_SIGMA_GYRO (0.007)
 #define KALMAN_SIGMA_VISION (0.02)
 
 static float x_[X_DIM] = { 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-static float P_[P_DIM*P_DIM] = {
-  1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-  0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-  0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-  0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-  0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
-  0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
-  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
-  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
-  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-};
+static float P_[P_DIM*P_DIM] = { 0.0 };
 
 
 // =============================================================================
@@ -272,30 +265,32 @@ static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
 
   // 2. Assign diagonal elements of R
   float R_diag[3];
-  R_diag[0] = KALMAN_SIGMA_ACCELEROMETER_X * KALMAN_SIGMA_ACCELEROMETER_X;
-  R_diag[1] = KALMAN_SIGMA_ACCELEROMETER_Y * KALMAN_SIGMA_ACCELEROMETER_Y;
-  R_diag[2] = KALMAN_SIGMA_ACCELEROMETER_Z * KALMAN_SIGMA_ACCELEROMETER_Z;
+  R_diag[0] = KALMAN_SIGMA_ACCELEROMETER_G * KALMAN_SIGMA_ACCELEROMETER_G;
+  R_diag[1] = KALMAN_SIGMA_ACCELEROMETER_G * KALMAN_SIGMA_ACCELEROMETER_G;
+  R_diag[2] = KALMAN_SIGMA_ACCELEROMETER_G * KALMAN_SIGMA_ACCELEROMETER_G;
 
   // 3. Assign elements of H
   float C[3*3];
   float Ca0[3*1];
-  float ssCa0[3*3];
+  float ssa0C[3*3];
+  float ssa0[3*3];
   float H[3*P_DIM] = { 0 };  // error state observation matrix
 
   // TODO: The following is very sparse and can be optimized.
   QuaternionToDCM(quat_pred, C);  // C = DCM of current attitude
   MatrixMultiply(C, a0, 3, 3, 1, Ca0);  // Ca0 = C*a0
-  SkewSymmetricFromVector3(Ca0, ssCa0);  // ssCa0 = [(C*a0) x]
+  SkewSymmetricFromVector3(a0, ssa0);  // ssa0 = [(C*a0) x]
+  MatrixMultiply(ssa0, C, 3, 3, 3, ssa0C);  // Ca0 = ssa0*C
 
-  H[0*P_DIM+0] = ssCa0[0*3+0];
-  H[0*P_DIM+1] = ssCa0[0*3+1];
-  H[0*P_DIM+2] = ssCa0[0*3+2];
-  H[1*P_DIM+0] = ssCa0[1*3+0];
-  H[1*P_DIM+1] = ssCa0[1*3+1];
-  H[1*P_DIM+2] = ssCa0[1*3+2];
-  H[2*P_DIM+0] = ssCa0[2*3+0];
-  H[2*P_DIM+1] = ssCa0[2*3+1];
-  H[2*P_DIM+2] = ssCa0[2*3+2];
+  H[0*P_DIM+0] = ssa0C[0*3+0];
+  H[0*P_DIM+1] = ssa0C[0*3+1];
+  H[0*P_DIM+2] = ssa0C[0*3+2];
+  H[1*P_DIM+0] = ssa0C[1*3+0];
+  H[1*P_DIM+1] = ssa0C[1*3+1];
+  H[1*P_DIM+2] = ssa0C[1*3+2];
+  H[2*P_DIM+0] = ssa0C[2*3+0];
+  H[2*P_DIM+1] = ssa0C[2*3+1];
+  H[2*P_DIM+2] = ssa0C[2*3+2];
 
   // 4. Calculate predicted measurement
   // predicted measurement = DCM * a0

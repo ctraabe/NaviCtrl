@@ -8,7 +8,7 @@
 const float * KalmanPosition(void);
 
 // -----------------------------------------------------------------------------
-const float * KalmanX(void);
+const float * KalmanQuat(void);
 
 // -----------------------------------------------------------------------------
 const float * KalmanVelocity(void);

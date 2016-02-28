@@ -51,7 +51,7 @@ float Accelerometer(enum BodyAxes axis);
 const volatile float * AccelerometerVector(void);
 
 // -----------------------------------------------------------------------------
-enum FlightCtrlStateBits FlightCtrlState(void);
+uint8_t FlightCtrlState(void);
 
 // -----------------------------------------------------------------------------
 uint16_t FlightCtrlTimestamp(void);

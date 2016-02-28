@@ -19,6 +19,8 @@
 #else
   #include "vision.h"
 #endif
+// TODO: remove
+#include "attitude.h"
 
 
 // =============================================================================
@@ -171,34 +173,42 @@ int main(void)
   {
     if (flight_ctrl_interrupt_)
     {
+      static uint8_t flight_ctrl_state_pv = 0x00;
       flight_ctrl_interrupt_ = 0;
+      if ((FlightCtrlState() ^ flight_ctrl_state_pv)
+        & FC_STATE_BIT_MOTORS_RUNNING) ResetKalman();
 
       LSM303DLReadMag();
 
       // Prepare volatile IMU data for the Kalman filter.
-      // float gyro[3] = { Gyro(X_BODY_AXIS), Gyro(Y_BODY_AXIS), Gyro(Z_BODY_AXIS)
-      //   };
-      // float accelerometer[3] = {
-      //   Accelerometer(X_BODY_AXIS) * GRAVITY_ACCELERATION,
-      //   Accelerometer(Y_BODY_AXIS) * GRAVITY_ACCELERATION,
-      //   Accelerometer(Z_BODY_AXIS) * GRAVITY_ACCELERATION };
-      // KalmanTimeUpdate(gyro, accelerometer);
-      // KalmanAccelerometerUpdate(accelerometer);
+      float gyro[3] = { Gyro(X_BODY_AXIS), Gyro(Y_BODY_AXIS), Gyro(Z_BODY_AXIS)
+        };
+      float accelerometer[3] = {
+        Accelerometer(X_BODY_AXIS) * GRAVITY_ACCELERATION,
+        Accelerometer(Y_BODY_AXIS) * GRAVITY_ACCELERATION,
+        Accelerometer(Z_BODY_AXIS) * GRAVITY_ACCELERATION };
+      KalmanTimeUpdate(gyro, accelerometer);
+      KalmanAccelerometerUpdate(accelerometer);
 #ifndef VISION
       ProcessIncomingUBlox();
 #else
-      // if (ProcessIncomingVision() && VisionReliability())
-      // {
-      //   KalmanVisionUpdate(VisionBodyVelocityVector());
-      // }
-      ProcessIncomingVision();
+      if (ProcessIncomingVision() && VisionReliability())
+      {
+        KalmanVisionUpdate(VisionBodyVelocityVector());
+      }
 #endif
 
       UpdateNavigation();
 
       PrepareFlightCtrlDataExchange();
 
-      if (flight_ctrl_interrupt_) overrun_counter_++;
+      if (flight_ctrl_interrupt_)
+      {
+        overrun_counter_++;
+        RedLEDOn();
+      }
+
+      flight_ctrl_state_pv = FlightCtrlState();
     }
 
     ProcessIncomingUART();
@@ -210,16 +220,14 @@ int main(void)
     if (TimestampInPast(led_timer))
     {
       GreenLEDToggle();
+      RedLEDOff();
       led_timer += 100;
-      UARTPrintfSafe("%X,%02X | %+.2f,%+.2f,%+.2f | %+.2f,%+.2f,%+.2f",
+      UARTPrintfSafe("%X,%03X,%+.2f,%+.2f,%+.2f",
         VisionReliability(),
-        NavMode() | (RequestedNavRoute() << 4),
-        VisionInertialVelocityVector()[0],
-        VisionInertialVelocityVector()[1],
-        VisionInertialVelocityVector()[2],
-        FromFlightCtrl()->position_cmd[0],
-        FromFlightCtrl()->position_cmd[1],
-        FromFlightCtrl()->position_cmd[2]);
+        NavMode() | (FlightCtrlState() << 4),
+        KalmanPosition()[0],
+        KalmanPosition()[1],
+        KalmanPosition()[2]);
     }
   }
 }

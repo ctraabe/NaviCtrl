@@ -41,9 +41,9 @@ const float * KalmanPosition(void)
 }
 
 // -----------------------------------------------------------------------------
-const float * KalmanX(void)
+const float * KalmanQuat(void)
 {
-  return x_;
+  return &x_[0];
 }
 
 // -----------------------------------------------------------------------------

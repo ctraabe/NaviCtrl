@@ -1,8 +1,8 @@
 #include "navigation.h"
 
 #include "flight_ctrl_comms.h"
+#include "kalman_filter.h"
 #include "vector.h"
-#include "vision.h"
 
 
 // =============================================================================
@@ -10,24 +10,62 @@
 
 #define WAYPOINT_RADIUS (0.50)  // Inside radius indicates waypoint reached
 #define WAYPOINT_RADIUS_SQUARED (WAYPOINT_RADIUS * WAYPOINT_RADIUS)
-#define MAX_N_WAYPOINTS (16)
-
-#define ROUTE_0_N_WAYPOINTS (1)
+/*
+#define ROUTE_0_N_WAYPOINTS (3)
 static const float route0[ROUTE_0_N_WAYPOINTS][4] = {
-  { 0.0, 0.0, -1.0, 0.0 },
+  { +0.0, +0.0, -1.0, 0.0 },
+  { +2.0, +0.0, -1.0, 0.0 },
+  { +0.0, +0.0, -1.0, 0.0 },
 };
 
-#define ROUTE_1_N_WAYPOINTS (2)
+#define ROUTE_1_N_WAYPOINTS (5)
 static const float route1[ROUTE_1_N_WAYPOINTS][4] = {
-  { 0.0, 0.0, -1.0, 0.0 },
-  { 2.0, 0.0, -1.0, 0.0 },
+  { +0.0, +0.0, -1.0, 0.0 },
+  { +2.0, +0.0, -1.0, 0.0 },
+  { +2.0, +3.0, -1.0, 0.0 },
+  { +2.0, +0.0, -1.0, 0.0 },
+  { +0.0, +0.0, -1.0, 0.0 },
 };
 
-#define ROUTE_2_N_WAYPOINTS (3)
+#define ROUTE_2_N_WAYPOINTS (7)
 static const float route2[ROUTE_2_N_WAYPOINTS][4] = {
-  { 0.0, 0.0, -1.0, 0.0 },
-  { 2.0, 0.0, -1.5, 0.0 },
-  { 2.0, 2.0, -1.0, 0.0 },
+  { +0.0, +0.0, -1.0, 0.0 },
+  { +2.0, +0.0, -1.0, 0.0 },
+  { +2.0, +3.0, -1.0, 0.0 },
+  { +6.7, +3.0, -1.0, 0.0 },
+  { +2.0, +3.0, -1.0, 0.0 },
+  { +2.0, +0.0, -1.0, 0.0 },
+  { +0.0, +0.0, -1.0, 0.0 },
+};
+*/
+#define ROUTE_0_N_WAYPOINTS (9)
+static const float route0[ROUTE_0_N_WAYPOINTS][4] = {
+  { +0.0, +0.0, -1.0, 0.0 },
+  { +2.0, +0.0, -1.0, 0.0 },
+  { +2.0, +3.0, -1.0, 0.0 },
+  { +6.7, +3.0, -1.0, 0.0 },
+  { +6.7, -1.0, -1.0, 0.0 },
+  { +6.7, +3.0, -1.0, 0.0 },
+  { +2.0, +3.0, -1.0, 0.0 },
+  { +2.0, +0.0, -1.0, 0.0 },
+  { +0.0, +0.0, -1.0, 0.0 },
+};
+
+#define ROUTE_1_N_WAYPOINTS (3)
+static const float route1[ROUTE_1_N_WAYPOINTS][4] = {
+  { +0.0, +0.0, -1.0, 0.0 },
+  { +2.0, +0.0, -2.0, 0.0 },
+  { +0.0, +0.0, -1.0, 0.0 },
+};
+
+#define ROUTE_2_N_WAYPOINTS (6)
+static const float route2[ROUTE_2_N_WAYPOINTS][4] = {
+  { +0.0, +0.0, -1.0, 0.0 },
+  { +2.0, +0.0, -2.0, 0.0 },
+  { +6.7, +0.0, -2.0, 0.0 },
+  { +6.7, +0.0, -1.0, 0.0 },
+  { +6.7, +0.0, +0.0, 0.0 },
+  { +6.7, +0.0, -1.0, 0.0 },
 };
 
 static enum NavMode mode_ = NAV_MODE_OFF;
@@ -62,7 +100,7 @@ enum NavMode NavMode(void)
 
 void UpdateNavigation(void)
 {
-  const float * current_position = VisionPositionVector();
+  const float * current_position = KalmanPosition();
 
   if (RequestedNavMode() != mode_)
   {

@@ -36,9 +36,8 @@ static struct FromVision {
   float marking_point_parameters[3];  // Distance and two angles, TBD
 } __attribute__((packed)) from_vision_;
 
-static float inertial_velocity_[3];
+// static float inertial_velocity_[3];
 static float quaternion_[4];
-static float heading_;
 
 
 // =============================================================================
@@ -67,18 +66,6 @@ const float * VisionBodyVelocityVector(void)
 uint16_t VisionCaptureTime(void)
 {
   return from_vision_.capture_time;
-}
-
-// -----------------------------------------------------------------------------
-float VisionHeading(void)
-{
-  return heading_;
-}
-
-// -----------------------------------------------------------------------------
-const float * VisionInertialVelocityVector(void)
-{
-  return &inertial_velocity_[0];
 }
 
 // -----------------------------------------------------------------------------
@@ -252,11 +239,11 @@ static void ProcessVisionData(void)
     * quaternion_[2] - quaternion_[3] * quaternion_[3]);
 
   // Compute inertial velocity.
-  QuaternionRotateVector(quaternion_, from_vision_.velocity,
-    inertial_velocity_);
+  // QuaternionRotateVector(quaternion_, from_vision_.velocity,
+  //   inertial_velocity_);
 
   // Compute heading angle.
-  heading_ = HeadingFromQuaternion(quaternion_);
+  // heading_ = HeadingFromQuaternion(quaternion_);
 }
 
 // -----------------------------------------------------------------------------

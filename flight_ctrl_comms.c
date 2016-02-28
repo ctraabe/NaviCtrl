@@ -53,9 +53,9 @@ const volatile float * AccelerometerVector(void)
 }
 
 // -----------------------------------------------------------------------------
-enum FlightCtrlStateBits FlightCtrlState(void)
+uint8_t FlightCtrlState(void)
 {
-  return (enum FlightCtrlStateBits)from_fc_[from_fc_tail_].state;
+  return from_fc_[from_fc_tail_].state;
 }
 
 // -----------------------------------------------------------------------------
@@ -246,7 +246,8 @@ void PrepareFlightCtrlDataExchange(void)
   // Copy volatile data
   volatile float * quat_v = from_fc_[from_fc_tail_].quaternion;
   float quat[4] = { quat_v[0], quat_v[1], quat_v[2], quat_v[3] };
-  float heading_error = VisionHeading() - HeadingFromQuaternion(quat);
+  float heading_error = HeadingFromQuaternion(KalmanQuat())
+    - HeadingFromQuaternion(quat);
   WrapToPlusMinusPi(heading_error);
   float quat_c_z = 0.5 * 0.025 * heading_error;
 
@@ -254,9 +255,9 @@ void PrepareFlightCtrlDataExchange(void)
   to_fc_ptr->position[0] = NavDeltaPosition()[0];
   to_fc_ptr->position[1] = NavDeltaPosition()[1];
   to_fc_ptr->position[2] = NavDeltaPosition()[2];
-  to_fc_ptr->velocity[0] = VisionInertialVelocityVector()[0];
-  to_fc_ptr->velocity[1] = VisionInertialVelocityVector()[1];
-  to_fc_ptr->velocity[2] = VisionInertialVelocityVector()[2];
+  to_fc_ptr->velocity[0] = KalmanVelocity()[0];
+  to_fc_ptr->velocity[1] = KalmanVelocity()[1];
+  to_fc_ptr->velocity[2] = KalmanVelocity()[2];
   to_fc_ptr->heading_correction_quat_0 = sqrt(1.0 - quat_c_z * quat_c_z);
   to_fc_ptr->heading_correction_quat_z = quat_c_z;
   to_fc_ptr->nav_mode = (uint8_t)NavMode();

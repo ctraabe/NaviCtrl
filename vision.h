@@ -19,12 +19,6 @@ const float * VisionBodyVelocityVector(void);
 uint16_t VisionCaptureTime(void);
 
 // -----------------------------------------------------------------------------
-float VisionHeading(void);
-
-// -----------------------------------------------------------------------------
-const float * VisionInertialVelocityVector(void);
-
-// -----------------------------------------------------------------------------
 const float * VisionPositionVector(void);
 
 // -----------------------------------------------------------------------------

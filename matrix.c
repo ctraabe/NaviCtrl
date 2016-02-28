@@ -1,5 +1,7 @@
 #include "matrix.h"
 
+#include <math.h>
+
 
 // =============================================================================
 // Private data:
@@ -64,21 +66,22 @@ float * MatrixInverse(const float * A, size_t size, float * result)
   // result starts as an identity matrix.
   SetMatrixToIdentity(result, size);
 
-  // Gauss-Jordan.
+  // Gauss-Jordan elimination.
   for (size_t k = 0; k < size; k++)
   {
-    // Pivoting.
-    float max = 0;
-    size_t i_pivot = 0;
-    for (size_t i = k; i < size; i++)
+    // Find the pivot row for column k.
+    float max = A_copy[k * size + k];
+    size_t i_pivot = k;
+    for (size_t i = k + 1; i < size; i++)
     {
-      if (A_copy[i * size + k] * A_copy[i * size + k] > max * max)
+      if (fabs(A_copy[i * size + k]) > max)
       {
-        max = A_copy[i * size + k];
-        if (A_copy[i * size + k] < 0) max *= -1;
+        max = fabs(A_copy[i * size + k]);
         i_pivot = i;
       }
     }
+
+    // Swap the rows.
     if (i_pivot != k)
     {
       for (size_t j = 0; j < size; j++)
@@ -86,23 +89,26 @@ float * MatrixInverse(const float * A, size_t size, float * result)
         float temp = A_copy[k * size + j];
         A_copy[k * size + j] = A_copy[i_pivot * size + j];
         A_copy[i_pivot * size + j] = temp;
-
-        temp = result[k * size + j];
-        result[k * size + j] = result[i_pivot * size + j];
-        result[i_pivot * size + j] = temp;
       }
     }
+
     // Make diagonal 1.
-    float a = A_copy[k*size + k];
-    for (size_t j = 0; j < size; j++){
-      A_copy[k * size + j] /= a;
-      result[k * size + j] /= a;
+    float a = 1.0 / A_copy[k * size + k];
+    for (size_t j = 0; j < size; j++)
+    {
+      if (j != k) A_copy[k * size + j] *= a;
+      result[k * size + j] *= a;
     }
+    A_copy[k * size + k] = 1.0;
+
     // Row subtraction.
-    for (size_t i = 0; i < size; i++){
-      if (i != k){
-        float w = A_copy[i * size + k] / A_copy[k * size + k];
-        for (size_t j = 0; j < size; j++){
+    for (size_t i = 0; i < size; i++)
+    {
+      if (i != k)
+      {
+        float w = A_copy[i * size + k];
+        for (size_t j = 0; j < size; j++)
+        {
           A_copy[i * size + j] -= w * A_copy[k * size + j];
           result[i * size + j] -= w * result[k * size + j];
         }

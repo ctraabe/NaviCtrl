@@ -67,9 +67,10 @@ static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
   const float * z, float * x_est, float * P_est, int z_dim,
   const float * R_diag, const float * H, const float * predicted_measurement);
 static float * QuaternionToDCM(const float *quat, float *result);
-static float * SkewSymmetricFromVector3(const float vec[3], float *result);
+static float * SkewSymmetric3Transpose(const float A[3*3] , float result[3*3]);
 static float * UpdateQuaternion(const float quat[4],
   const float angular_rate[3], float result[4]);
+static float * Vector3ToSkewSymmetric3(const float vec[3], float *result);
 
 
 // =============================================================================
@@ -130,7 +131,7 @@ static void TimeUpdate(const float * x_est_prev, const float * P_est_prev,
 
   // Form body to inertial direction-cosine matrix.
   float Cbi[3 * 3], temp[3*3];
-  MatrixTranspose(QuaternionToDCM(quat_prev, temp), 3, 3, Cbi);
+  QuaternionToDCM(QuaternionInverse(quat_prev, temp), Cbi);
 
   // Transform acceleration measured in the body frame to the inertial frame.
   float acceleration[3];  // Specific force measured in the inertial frame
@@ -166,41 +167,59 @@ static void TimeUpdate(const float * x_est_prev, const float * P_est_prev,
   float ssw[3*3];  // skew-symmetric form of angular rate vector w in b-frame
   float ssa[3*3];  // skew-symmetric form of specific force vector a in b-frame
   float Cbissa[3*3];  // matrix product of Cbi and ssa
-  SkewSymmetricFromVector3(gyro, ssw);
-  SkewSymmetricFromVector3(accelerometer, ssa);
+  Vector3ToSkewSymmetric3(gyro, ssw);
+  Vector3ToSkewSymmetric3(accelerometer, ssa);
+//////////////////////////////////////////////////////////////////////////////// 27 (9 unnecessary)
   MatrixMultiply(Cbi, ssa, 3, 3, 3, Cbissa);  // Cbissa = Cbi * ssa
 
-  float A[P_DIM*P_DIM] = {
-       -ssw[0],    -ssw[1],    -ssw[2], 0, 0, 0, 0, 0, 0,
-       -ssw[3],    -ssw[4],    -ssw[5], 0, 0, 0, 0, 0, 0,
-       -ssw[6],    -ssw[7],    -ssw[8], 0, 0, 0, 0, 0, 0,
-    -Cbissa[0], -Cbissa[1], -Cbissa[2], 0, 0, 0, 0, 0, 0,
-    -Cbissa[3], -Cbissa[4], -Cbissa[5], 0, 0, 0, 0, 0, 0,
-    -Cbissa[6], -Cbissa[7], -Cbissa[8], 0, 0, 0, 0, 0, 0,
-             0,          0,          0, 1, 0, 0, 0, 0, 0,
-             0,          0,          0, 0, 1, 0, 0, 0, 0,
-             0,          0,          0, 0, 0, 1, 0, 0, 0,
-  };
-  float B[P_DIM * U_DIM] = {
-    -1,  0,  0,       0,       0,       0,
-     0, -1,  0,       0,       0,       0,
-     0,  0, -1,       0,       0,       0,
-     0,  0,  0, -Cbi[0], -Cbi[1], -Cbi[2],
-     0,  0,  0, -Cbi[3], -Cbi[4], -Cbi[5],
-     0,  0,  0, -Cbi[6], -Cbi[7], -Cbi[8],
-     0,  0,  0,       0,       0,       0,
-     0,  0,  0,       0,       0,       0,
-     0,  0,  0,       0,       0,       0,
+  // Phi = I + A * dt
+  float Phi[P_DIM*P_DIM] = {
+      1-ssw[0]*DT,    -ssw[1]*DT,    -ssw[2]*DT,    0,    0,    0, 0, 0, 0,
+       -ssw[3]*DT,   1-ssw[4]*DT,    -ssw[5]*DT,    0,    0,    0, 0, 0, 0,
+       -ssw[6]*DT,    -ssw[7]*DT,   1-ssw[8]*DT,    0,    0,    0, 0, 0, 0,
+    -Cbissa[0]*DT, -Cbissa[1]*DT, -Cbissa[2]*DT,    1,    0,    0, 0, 0, 0,
+    -Cbissa[3]*DT, -Cbissa[4]*DT, -Cbissa[5]*DT,    0,    1,    0, 0, 0, 0,
+    -Cbissa[6]*DT, -Cbissa[7]*DT, -Cbissa[8]*DT,    0,    0,    1, 0, 0, 0,
+                0,             0,             0, 1*DT,    0,    0, 1, 0, 0,
+                0,             0,             0,    0, 1*DT,    0, 0, 1, 0,
+                0,             0,             0,    0,    0, 1*DT, 0, 0, 1,
   };
 
-  // Phi = I + A * dt
-  float * Phi = A;  // conserves memory
-  MatrixScaleSelf(A, DT, P_DIM, P_DIM);
-  MatrixAddIdentityToSelf(Phi, P_DIM);
+  // float Phi11[3*3] = {
+  //   1-ssw[0]*DT,  -ssw[1]*DT,  -ssw[2]*DT,
+  //    -ssw[3]*DT, 1-ssw[4]*DT,  -ssw[5]*DT,
+  //    -ssw[6]*DT,  -ssw[7]*DT, 1-ssw[8]*DT,
+  // };
+
+  // float Phi21[3*3] = {
+  //   -Cbissa[0]*DT, -Cbissa[1]*DT, -Cbissa[2]*DT,
+  //   -Cbissa[3]*DT, -Cbissa[4]*DT, -Cbissa[5]*DT,
+  //   -Cbissa[6]*DT, -Cbissa[7]*DT, -Cbissa[8]*DT,
+  // };
 
   // Gamma = B * dt
-  float * Gamma = B;  // conserves memory
-  MatrixScaleSelf(Gamma, DT, P_DIM, U_DIM);
+  float Gamma[P_DIM * U_DIM] = {
+    -1*DT,     0,     0,          0,          0,          0,
+        0, -1*DT,     0,          0,          0,          0,
+        0,     0, -1*DT,          0,          0,          0,
+        0,     0,     0, -Cbi[0]*DT, -Cbi[1]*DT, -Cbi[2]*DT,
+        0,     0,     0, -Cbi[3]*DT, -Cbi[4]*DT, -Cbi[5]*DT,
+        0,     0,     0, -Cbi[6]*DT, -Cbi[7]*DT, -Cbi[8]*DT,
+        0,     0,     0,          0,          0,          0,
+        0,     0,     0,          0,          0,          0,
+        0,     0,     0,          0,          0,          0,
+  };
+
+  // float Gamma22[3*3] = {
+  //   -Cbi[0]*DT, -Cbi[1]*DT, -Cbi[2]*DT,
+  //   -Cbi[3]*DT, -Cbi[4]*DT, -Cbi[5]*DT,
+  //   -Cbi[6]*DT, -Cbi[7]*DT, -Cbi[8]*DT,
+  // };
+
+  // float Gamma22t[3*3], Phi11t[3*3], Phi21t[3*3];
+  // MatrixTranspose(Phi11, 3, 3, Phi11t);
+  // MatrixTranspose(Phi21, 3, 3, Phi21t);
+  // MatrixTranspose(Gamma22, 3, 3, Gamma22t);
 
   // 2. Define Q and Qprime
   const float QDiag[U_DIM] = { KALMAN_SIGMA_GYRO * KALMAN_SIGMA_GYRO,
@@ -216,13 +235,21 @@ static void TimeUpdate(const float * x_est_prev, const float * P_est_prev,
     KALMAN_Q_PRIME_POSITION * DT, KALMAN_Q_PRIME_POSITION * DT };
 
   // 3. Propagate P
+  // P_pred = Phi*P*Phi^t + Gamma*Q*Gamma^t + Qprime
+
+  // float P11[3*3], P12[3*3], P13[3*3];
+  // float P21[3*3], P22[3*3], P23[3*3];
+  // float P31[3*3], P32[3*3], P33[3*3];
+
   float * PhiPPhit = P_pred;  // conserves memory
   {
     float PhiP[P_DIM*P_DIM];
     float Phit[P_DIM*P_DIM];
     // PhiPPhit = Phi*P*Phi^t
+//////////////////////////////////////////////////////////////////////////////// 729
     MatrixMultiply(Phi, P_est_prev, P_DIM, P_DIM, P_DIM, PhiP);
     MatrixTranspose(Phi, P_DIM, P_DIM, Phit);
+//////////////////////////////////////////////////////////////////////////////// 729
     MatrixMultiply(PhiP, Phit, P_DIM, P_DIM, P_DIM, PhiPPhit);
   }
 
@@ -232,6 +259,7 @@ static void TimeUpdate(const float * x_est_prev, const float * P_est_prev,
     // GammaQGammat = Gamma*Q*Gamma^t
     float Gammat[U_DIM*P_DIM];
     MatrixTranspose(Gamma, P_DIM, U_DIM, Gammat); // Gammat = Gamma^t
+//////////////////////////////////////////////////////////////////////////////// 486 + 54
     MatrixMultiply(MatrixMultiplySelfByDiagonal(Gamma, QDiag, P_DIM, U_DIM),
       Gammat, P_DIM, U_DIM, P_DIM, GammaQGammat);
   }
@@ -278,8 +306,10 @@ static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
 
   // TODO: The following is very sparse and can be optimized.
   QuaternionToDCM(quat_pred, C);  // C = DCM of current attitude
+//////////////////////////////////////////////////////////////////////////////// 54
   MatrixMultiply(C, a0, 3, 3, 1, Ca0);  // Ca0 = C*a0
-  SkewSymmetricFromVector3(a0, ssa0);  // ssa0 = [(C*a0) x]
+  Vector3ToSkewSymmetric3(a0, ssa0);  // ssa0 = [(C*a0) x]
+//////////////////////////////////////////////////////////////////////////////// 54
   MatrixMultiply(ssa0, C, 3, 3, 3, ssa0C);  // Ca0 = ssa0*C
 
   H[0*P_DIM+0] = ssa0C[0*3+0];
@@ -295,6 +325,7 @@ static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
   // 4. Calculate predicted measurement
   // predicted measurement = DCM * a0
   float predicted_measurement[3];
+//////////////////////////////////////////////////////////////////////////////// 54
   MatrixMultiply(C, a0, 3, 3, 1, predicted_measurement);
 
   MeasurementUpdateCommon(x_pred, P_pred, accelerometer, x_est, P_est, 3,
@@ -334,8 +365,9 @@ static void VisionUpdate(float * x_pred, float * P_pred, const float * vision,
 
   // TODO: The following is very sparse and can be optimized.
   QuaternionToDCM(quat_pred, C);  // C = DCM of current attitude
+//////////////////////////////////////////////////////////////////////////////// 54
   MatrixMultiply(C, velocity_pred, 3, 3, 1, Cv);  // Cv = C*v
-  SkewSymmetricFromVector3(Cv, ssCv);  // ssCv = skew-symmetric form of Cv
+  Vector3ToSkewSymmetric3(Cv, ssCv);  // ssCv = skew-symmetric form of Cv
 
   H[0 * P_DIM + 0] = ssCv[0 * 3 + 0];
   H[0 * P_DIM + 1] = ssCv[0 * 3 + 1];
@@ -359,6 +391,7 @@ static void VisionUpdate(float * x_pred, float * P_pred, const float * vision,
 
   // 4. Calculate predicted measurement
   float predicted_measurement[3];
+//////////////////////////////////////////////////////////////////////////////// 54
   MatrixMultiply(C, velocity_pred, 3, 3, 1, predicted_measurement);
 
   MeasurementUpdateCommon(x_pred, P_pred, vision, x_est, P_est, 3, RDiag, H,
@@ -376,8 +409,10 @@ static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
   float Ht[P_DIM*Z_DIM_MAX];
   {
     float HP[Z_DIM_MAX*P_DIM];
+//////////////////////////////////////////////////////////////////////////////// 729
     MatrixMultiply(H, P_pred, z_dim, P_DIM, P_DIM, HP);  // HP = H*P
     MatrixTranspose(H, z_dim, P_DIM, Ht);  // Ht = H^t
+//////////////////////////////////////////////////////////////////////////////// 81
     MatrixAddDiagonalToSelf(MatrixMultiply(HP, Ht, z_dim, P_DIM, z_dim, S),
       R_diag, z_dim);
   }
@@ -386,8 +421,11 @@ static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
   {
     float PHt[P_DIM*Z_DIM_MAX];
     float S_inv[Z_DIM_MAX*Z_DIM_MAX];
+//////////////////////////////////////////////////////////////////////////////// 729
     MatrixMultiply(P_pred, Ht, P_DIM, P_DIM, z_dim, PHt);  // PHt = P*H^t
+//////////////////////////////////////////////////////////////////////////////// 27 (divisions)
     MatrixInverse(S, z_dim, S_inv);  // S_inv = S^-1
+//////////////////////////////////////////////////////////////////////////////// 81
     MatrixMultiply(PHt, S_inv, P_DIM, z_dim, z_dim, K);
   }
 
@@ -395,7 +433,9 @@ static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
   // P_est = (I - KH) * P_pred => OUTPUT 1 of 2
   {
     float KH[P_DIM*P_DIM];
+//////////////////////////////////////////////////////////////////////////////// 243
     MatrixMultiply(K, H, P_DIM, z_dim, P_DIM, KH); // KH = K*H
+//////////////////////////////////////////////////////////////////////////////// 729
     MatrixMultiply(MatrixSubtractSelfFromIdentity(KH, P_DIM), P_pred, P_DIM,
       P_DIM, P_DIM, P_est);
   }
@@ -424,6 +464,7 @@ static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
 
   // delta = K * innovation
   float delta[P_DIM];
+//////////////////////////////////////////////////////////////////////////////// 21
   MatrixMultiply(K, innovation, P_DIM, z_dim, 1, delta);
 
   // dq = Psi * alpha / 2
@@ -445,6 +486,7 @@ static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
     Psi[3*3+2] = quat_pred[0];
 
     const float * alpha = &delta[0];  // alpha is the first 3 elements of delta
+//////////////////////////////////////////////////////////////////////////////// 12 + 4
     VectorScaleSelf(MatrixMultiply(Psi, alpha, 4, 3, 1, dq), 0.5, 4);
   }
 
@@ -464,40 +506,55 @@ static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
 }
 
 // -----------------------------------------------------------------------------
-static float * QuaternionToDCM(const float *quat, float *result)
+static float * QuaternionToDCM(const float *quat, float * result)
 {
-  result[0*3+0] = quat[0] * quat[0] + quat[1] * quat[1] - quat[2] * quat[2]
-    - quat[3] * quat[3];
-  result[0*3+1] = 2 * (quat[1] * quat[2] + quat[0] * quat[3]);
-  result[0*3+2] = 2 * (quat[1] * quat[3] - quat[0] * quat[2]);
+  float temp;
 
-  result[1*3+0] = 2 * (quat[1] * quat[2] - quat[0] * quat[3]);
-  result[1*3+1] = quat[0] * quat[0] - quat[1] * quat[1] + quat[2] * quat[2]
-    - quat[3] * quat[3];
-  result[1*3+2] = 2 * (quat[2] * quat[3] + quat[0] * quat[1]);
+  result[0*3+0] = quat[0] * quat[0];
+  result[1*3+1] = quat[2] * quat[2];
+  temp = quat[1] * quat[1];
+  result[2*3+2] = 0.5 - temp - result[1*3+1];
+  result[1*3+1] += result[0*3+0] - 0.5;
+  result[0*3+0] += temp - 0.5;
 
-  result[2*3+0] = 2 * (quat[1] * quat[3] + quat[0] * quat[2]);
-  result[2*3+1] = 2 * (quat[2] * quat[3] - quat[0] * quat[1]);
-  result[2*3+2] = quat[0] * quat[0] - quat[1] * quat[1] - quat[2] * quat[2]
-    + quat[3] * quat[3];
+  result[0*3+1] = quat[1] * quat[2];
+  result[1*3+0] = result[0*3+1];
+  temp = quat[0] * quat[3];
+  result[1*3+0] -= temp;
+  result[0*3+1] += temp;
+
+  result[0*3+2] = quat[1] * quat[3];
+  result[2*3+0] = result[0*3+2];
+  temp = quat[0] * quat[2];
+  result[2*3+0] += temp;
+  result[0*3+2] -= temp;
+
+  result[1*3+2] = quat[2] * quat[3];
+  result[2*3+1] = result[1*3+2];
+  temp = quat[0] * quat[1];
+  result[2*3+1] -= temp;
+  result[1*3+2] += temp;
+
+  // Double the result.
+  for (size_t i = 0; i < 3*3; i++) result[i] += result[i];
 
   return result;
 }
 
 // -----------------------------------------------------------------------------
-static float * SkewSymmetricFromVector3(const float v[3], float *result)
+static float * SkewSymmetric3Transpose(const float A[3*3] , float result[3*3])
 {
-  result[0*3+0] = 0;
-  result[0*3+1] = -v[2];
-  result[0*3+2] = v[1];
+  result[0*3+0] = 0.0;
+  result[0*3+1] = -A[0*3+1];
+  result[0*3+2] = -A[0*3+2];
 
-  result[1*3+0] = v[2];
-  result[1*3+1] = 0;
-  result[1*3+2] = -v[0];
+  result[1*3+0] = -A[1*3+0];
+  result[1*3+1] = 0.0;
+  result[1*3+2] = -A[1*3+2];
 
-  result[2*3+0] = -v[1];
-  result[2*3+1] = v[0];
-  result[2*3+2] = 0;
+  result[2*3+0] = -A[2*3+0];
+  result[2*3+1] = -A[2*3+1];
+  result[2*3+2] = 0.0;
 
   return result;
 }
@@ -515,6 +572,24 @@ static float * UpdateQuaternion(const float quat[4],
   result[3] = -dq[0] * quat[2] + dq[1] * quat[1] + dq[2] * quat[0] + quat[3];
 
   QuaternionNormalize(result);
+
+  return result;
+}
+
+// -----------------------------------------------------------------------------
+static float * Vector3ToSkewSymmetric3(const float v[3], float * result)
+{
+  result[0*3+0] = 0.0;
+  result[0*3+1] = -v[2];
+  result[0*3+2] = v[1];
+
+  result[1*3+0] = v[2];
+  result[1*3+1] = 0.0;
+  result[1*3+2] = -v[0];
+
+  result[2*3+0] = -v[1];
+  result[2*3+1] = v[0];
+  result[2*3+2] = 0.0;
 
   return result;
 }

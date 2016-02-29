@@ -67,7 +67,7 @@ static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
   const float * z, float * x_est, float * P_est, int z_dim,
   const float * R_diag, const float * H, const float * predicted_measurement);
 static float * QuaternionToDCM(const float *quat, float *result);
-static float * SkewSymmetric3Transpose(const float A[3*3] , float result[3*3]);
+// static float * SkewSymmetric3Transpose(const float A[3*3] , float result[3*3]);
 static float * UpdateQuaternion(const float quat[4],
   const float angular_rate[3], float result[4]);
 static float * Vector3ToSkewSymmetric3(const float vec[3], float *result);
@@ -542,22 +542,22 @@ static float * QuaternionToDCM(const float *quat, float * result)
 }
 
 // -----------------------------------------------------------------------------
-static float * SkewSymmetric3Transpose(const float A[3*3] , float result[3*3])
-{
-  result[0*3+0] = 0.0;
-  result[0*3+1] = -A[0*3+1];
-  result[0*3+2] = -A[0*3+2];
+// static float * SkewSymmetric3Transpose(const float A[3*3] , float result[3*3])
+// {
+//   result[0*3+0] = 0.0;
+//   result[0*3+1] = -A[0*3+1];
+//   result[0*3+2] = -A[0*3+2];
 
-  result[1*3+0] = -A[1*3+0];
-  result[1*3+1] = 0.0;
-  result[1*3+2] = -A[1*3+2];
+//   result[1*3+0] = -A[1*3+0];
+//   result[1*3+1] = 0.0;
+//   result[1*3+2] = -A[1*3+2];
 
-  result[2*3+0] = -A[2*3+0];
-  result[2*3+1] = -A[2*3+1];
-  result[2*3+2] = 0.0;
+//   result[2*3+0] = -A[2*3+0];
+//   result[2*3+1] = -A[2*3+1];
+//   result[2*3+2] = 0.0;
 
-  return result;
-}
+//   return result;
+// }
 
 // -----------------------------------------------------------------------------
 static float * UpdateQuaternion(const float quat[4],

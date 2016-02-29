@@ -79,23 +79,8 @@ void Wait(uint32_t t)
   uint32_t timestamp = GetTimestampMillisFromNow(t);
   while (!TimestampInPast(timestamp)) continue;
 }
-/*
-// -----------------------------------------------------------------------------
-// This function delays execution of the program for APPROXIMATELY
-// "t_microsends" microseconds. Note that time spent in an interrupt routine
-// will NOT count towards this delay.
-void MicroWait(uint32_t t_microseconds)
-{
-  // The following loop seems to take 5 cycles... for some reason.
-  uint32_t countdown = micro_wait_multiplier_ * t_microseconds;
-  asm(
-    "MICROWAIT_LOOP:\n\t"
-    "subs %[countdown], %[countdown], #1\n\t"
-    "bne MICROWAIT_LOOP\n\t"
-    : : [countdown] "r" (countdown) : "cc"
-  );
-}
-*/
+
+
 // =============================================================================
 // Private functions:
 

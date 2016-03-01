@@ -205,9 +205,8 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
           // Swap data buffers.
           from_fc_tail_ = from_fc_head_;
           from_fc_head_ = !from_fc_tail_;
-#ifndef LOG_FLT_CTRL_DEBUG_TO_SD
           SetFlightCtrlInterrupt();
-#else
+#ifdef LOG_FLT_CTRL_DEBUG_TO_SD
           LogFlightControlData();
 #endif
         }

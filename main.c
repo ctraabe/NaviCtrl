@@ -143,7 +143,7 @@ int main(void)
   I2CInit();
   SPISlaveInit();
 
-  Wait(100);
+  Wait(1000);
   UARTPrintf("University of Tokyo NaviCtrl firmware V2");
 
   ReadEEPROM();
@@ -154,6 +154,7 @@ int main(void)
 #endif
   LSM303DLInit();
   FlightCtrlCommsInit();
+  Wait(1000);
   SDCardInit();
   LoggingInit();
 
@@ -173,13 +174,15 @@ int main(void)
   {
     if (flight_ctrl_interrupt_)
     {
-      static uint8_t flight_ctrl_state_pv = 0x00;
       flight_ctrl_interrupt_ = 0;
+/*
+      static uint8_t flight_ctrl_state_pv = 0x00;
       if ((FlightCtrlState() ^ flight_ctrl_state_pv)
         & FC_STATE_BIT_MOTORS_RUNNING) ResetKalman();
-
+*/
       LSM303DLReadMag();
-
+      if (ProcessIncomingVision()) SetNewDataCallback(LogVisionData);
+/*
       // Prepare volatile IMU data for the Kalman filter.
       float gyro[3] = { Gyro(X_BODY_AXIS), Gyro(Y_BODY_AXIS), Gyro(Z_BODY_AXIS)
         };
@@ -202,13 +205,13 @@ int main(void)
 
       PrepareFlightCtrlDataExchange();
 
+*/
       if (flight_ctrl_interrupt_)
       {
         overrun_counter_++;
-        RedLEDOn();
       }
 
-      flight_ctrl_state_pv = FlightCtrlState();
+      // flight_ctrl_state_pv = FlightCtrlState();
     }
 
     ProcessIncomingUART();
@@ -220,14 +223,13 @@ int main(void)
     if (TimestampInPast(led_timer))
     {
       GreenLEDToggle();
-      RedLEDOff();
       led_timer += 100;
-      UARTPrintfSafe("%X,%03X,%+.2f,%+.2f,%+.2f",
-        VisionReliability(),
-        NavMode() | (FlightCtrlState() << 4),
-        KalmanPosition()[0],
-        KalmanPosition()[1],
-        KalmanPosition()[2]);
+      // UARTPrintfSafe("%X,%03X,%+.2f,%+.2f,%+.2f",
+      //   VisionReliability(),
+      //   NavMode() | (FlightCtrlState() << 4),
+      //   KalmanPosition()[0],
+      //   KalmanPosition()[1],
+      //   KalmanPosition()[2]);
     }
   }
 }

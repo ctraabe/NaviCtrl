@@ -16,22 +16,8 @@
     float accelerometer[3];
     float gyro[3];
     float quaternion[4];
-    float position_cmd[3];
-#ifdef LOG_FLT_CTRL_DEBUG_TO_SD
-    int16_t sbus_pitch;
-    int16_t sbus_roll;
-    int16_t sbus_yaw;
-    int16_t sbus_thrust;
-    uint16_t battery_voltage;
     float pressure_altitude;
-    float thrust_command;
-    float heading_command;
-    float angular_command[3];
-    float kalman_p_dot;
-    float kalman_q_dot;
-    float vertical_speed;
-    float vertical_acceleration;
-#endif
+    uint16_t battery_voltage;
 } __attribute__((packed));
 
 enum FlightCtrlStateBits {

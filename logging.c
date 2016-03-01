@@ -18,7 +18,9 @@
 #include "uart.h"
 #include "union_types.h"
 // TODO: remove
+#include "crc16.h"
 #include "led.h"
+#include "vision.h"
 
 
 // =============================================================================
@@ -121,15 +123,29 @@ void LogFlightControlData(void)
 // -----------------------------------------------------------------------------
 void LogMagnetometerData(void)
 {
-  if (!logging_active_) return;
+  if (SDCardNotPresent() || !file_.fs) return;
 
-  const int kMaxChars = 4 + 3 * 6 + 2 * 1 + 2;
-  char ascii[kMaxChars];
+  union U16Bytes temp;
+  temp.bytes[0] = 0xAA;
+  temp.bytes[1] = 0xBB;
+  WriteToFIFO((char *)temp.bytes, 2);
+  WriteToFIFO((char *)MagnetometerVector(), 2*3);
+  temp.u16 = CRCCCITT((uint8_t *)MagnetometerVector(), 2*3);
+  WriteToFIFO((char *)temp.bytes, 2);
+}
 
-  size_t length = snprintf(ascii, kMaxChars, "mag,%i,%i,%i\r\n",
-    MagnetometerVector()[0], MagnetometerVector()[1],
-    MagnetometerVector()[2]);
-  WriteToFIFO(ascii, length);
+// -----------------------------------------------------------------------------
+void LogVisionData(void)
+{
+  if (SDCardNotPresent() || !file_.fs) return;
+
+  union U16Bytes temp;
+  temp.bytes[0] = 0xCC;
+  temp.bytes[1] = 0xDD;
+  WriteToFIFO((char *)temp.bytes, 2);
+  WriteToFIFO((char *)FromVision(), sizeof(struct FromVision));
+  temp.u16 = CRCCCITT((uint8_t *)FromVision(), sizeof(struct FromVision));
+  WriteToFIFO((char *)temp.bytes, 2);
 }
 
 // -----------------------------------------------------------------------------

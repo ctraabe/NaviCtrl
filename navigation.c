@@ -13,25 +13,26 @@
 
 struct Waypoint {
   float target_position[3];
-  float target_heading;
   float transit_speed;
+  float target_heading;
+  float heading_rate;
   float radius;
   uint32_t wait_ms;
 };
 
 #define ROUTE_0_N_WAYPOINTS (1)
 static const struct Waypoint route0[ROUTE_0_N_WAYPOINTS] = {
-  { { +0.0, +0.0, +0.0 }, +0.0, +0.0, +0.0, 0 },
+  { { +0.0, +0.0, +0.0 }, +0.0, +0.0, +0.0, +0.0, 0 },
 };
 
 #define ROUTE_1_N_WAYPOINTS (1)
 static const struct Waypoint route1[ROUTE_1_N_WAYPOINTS] = {
-  { { +0.0, +0.0, +0.0 }, +0.0, +0.0, +0.0, 0 },
+  { { +0.0, +0.0, +0.0 }, +0.0, +0.0, +0.0, +0.0, 0 },
 };
 
 #define ROUTE_2_N_WAYPOINTS (1)
 static const struct Waypoint route2[ROUTE_2_N_WAYPOINTS] = {
-  { { +0.0, +0.0, +0.0 }, +0.0, +0.0, +0.0, 0 },
+  { { +0.0, +0.0, +0.0 }, +0.0, +0.0, +0.0, +0.0, 0 },
 };
 
 static enum NavMode mode_ = NAV_MODE_OFF;
@@ -43,6 +44,12 @@ static const struct Waypoint * final_waypoint_ = &route0[0];
 // =============================================================================
 // Accessors:
 
+float HeadingRate(void)
+{
+  return current_waypoint_->heading_rate;
+}
+
+// -----------------------------------------------------------------------------
 const float * NavDeltaPosition(void)
 {
   return delta_postion_;

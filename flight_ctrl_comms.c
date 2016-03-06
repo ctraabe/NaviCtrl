@@ -233,8 +233,9 @@ void PrepareFlightCtrlDataExchange(void)
     float heading_correction_quat_0;
     float heading_correction_quat_z;
     float target_position[3];
-    float target_speed;
+    float transit_speed;
     float target_heading;
+    float heading_rate;
     uint8_t nav_mode;
     uint8_t status;
     uint16_t crc;
@@ -266,8 +267,9 @@ void PrepareFlightCtrlDataExchange(void)
   to_fc_ptr->target_position[0] = TargetPosition()[0];
   to_fc_ptr->target_position[1] = TargetPosition()[1];
   to_fc_ptr->target_position[2] = TargetPosition()[2];
-  to_fc_ptr->target_speed = TransitSpeed();
+  to_fc_ptr->transit_speed = TransitSpeed();
   to_fc_ptr->target_heading = TargetHeading();
+  to_fc_ptr->heading_rate = HeadingRate();
   to_fc_ptr->nav_mode = (uint8_t)NavMode();
   to_fc_ptr->status = (uint8_t)VisionReliability();
 

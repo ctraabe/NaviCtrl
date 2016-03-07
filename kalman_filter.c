@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 
+#include "attitude.h"
 #include "constants.h"
 #include "matrix.h"
 #include "quaternion.h"
@@ -28,6 +29,7 @@
 #define KALMAN_SIGMA_GYRO (0.007)
 #define KALMAN_SIGMA_VISION (0.02)
 
+static float heading_ = 0.0;
 static float x_[X_DIM] = { 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 static float P_[P_DIM*P_DIM] = { 0.0 };
 
@@ -35,6 +37,12 @@ static float P_[P_DIM*P_DIM] = { 0.0 };
 // =============================================================================
 // Accessors:
 
+float KalmanHeading(void)
+{
+  return heading_;
+}
+
+// -----------------------------------------------------------------------------
 const float * KalmanPosition(void)
 {
   return &x_[7];
@@ -106,6 +114,7 @@ void KalmanVisionUpdate(const float vision[3])
 // -----------------------------------------------------------------------------
 void ResetKalman(void)
 {
+  heading_ = 0.0;
   x_[0] = 1.0;
   for (size_t i = 10; --i; ) x_[i] = 0.0;
 }
@@ -128,6 +137,7 @@ static void TimeUpdate(const float * x_est_prev, const float * P_est_prev,
 
   // Update the quaternion with gyro measurements.
   UpdateQuaternion(quat_prev, gyro, quat_next);
+  heading_ = HeadingFromQuaternion(quat_next);
 
   // Form body to inertial direction-cosine matrix.
   float Cbi[3 * 3], temp[3*3];
@@ -503,6 +513,7 @@ static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
   VectorAddToSelf(x_est, x_pred, X_DIM);
 
   QuaternionNormalize(&x_est[0]);  // normalize the quaternion portion of x_est
+  heading_ = HeadingFromQuaternion(&x_est[0]);
 }
 
 // -----------------------------------------------------------------------------

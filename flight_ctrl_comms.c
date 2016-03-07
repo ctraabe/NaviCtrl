@@ -250,8 +250,7 @@ void PrepareFlightCtrlDataExchange(void)
   // Copy volatile data
   volatile float * quat_v = from_fc_[from_fc_tail_].quaternion;
   float quat[4] = { quat_v[0], quat_v[1], quat_v[2], quat_v[3] };
-  float heading_error = HeadingFromQuaternion(KalmanQuat())
-    - HeadingFromQuaternion(quat);
+  float heading_error = KalmanHeading() - HeadingFromQuaternion(quat);
   WrapToPlusMinusPi(heading_error);
   float quat_c_z = 0.5 * 0.025 * heading_error;
 

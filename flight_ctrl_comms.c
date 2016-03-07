@@ -255,9 +255,9 @@ void PrepareFlightCtrlDataExchange(void)
   float quat_c_z = 0.5 * 0.025 * heading_error;
 
   to_fc_ptr->version = 1;
-  to_fc_ptr->position[0] = NavDeltaPosition()[0];
-  to_fc_ptr->position[1] = NavDeltaPosition()[1];
-  to_fc_ptr->position[2] = NavDeltaPosition()[2];
+  to_fc_ptr->position[0] = KalmanPosition()[0];
+  to_fc_ptr->position[1] = KalmanPosition()[1];
+  to_fc_ptr->position[2] = KalmanPosition()[2];
   to_fc_ptr->velocity[0] = KalmanVelocity()[0];
   to_fc_ptr->velocity[1] = KalmanVelocity()[1];
   to_fc_ptr->velocity[2] = KalmanVelocity()[2];

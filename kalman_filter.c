@@ -117,6 +117,10 @@ void ResetKalman(void)
   heading_ = 0.0;
   x_[0] = 1.0;
   for (size_t i = 10; --i; ) x_[i] = 0.0;
+  for (size_t i = P_DIM * P_DIM; --i; ) P_[i] = 0.0;
+  P_[0*9+0] = 1.0e-05;
+  P_[1*9+1] = 1.0e-05;
+  P_[2*9+2] = 1.0e-05;
 }
 
 

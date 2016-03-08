@@ -16,14 +16,13 @@
     float accelerometer[3];
     float gyro[3];
     float quaternion[4];
-    float position_cmd[3];
+    float pressure_altitude;
 #ifdef LOG_FLT_CTRL_DEBUG_TO_SD
     int16_t sbus_pitch;
     int16_t sbus_roll;
     int16_t sbus_yaw;
     int16_t sbus_thrust;
     uint16_t battery_voltage;
-    float pressure_altitude;
     float thrust_command;
     float heading_command;
     float angular_command[3];
@@ -51,6 +50,9 @@ float Accelerometer(enum BodyAxes axis);
 const volatile float * AccelerometerVector(void);
 
 // -----------------------------------------------------------------------------
+float FilteredPressureAltitude(void);
+
+// -----------------------------------------------------------------------------
 uint8_t FlightCtrlState(void);
 
 // -----------------------------------------------------------------------------
@@ -61,6 +63,9 @@ float Gyro(enum BodyAxes axis);
 
 // -----------------------------------------------------------------------------
 const volatile float * GyroVector(void);
+
+// -----------------------------------------------------------------------------
+float PressureAltitude(void);
 
 // -----------------------------------------------------------------------------
 const volatile float * Quat(void);

@@ -7,6 +7,9 @@
 #include "kalman_filter.h"
 #include "timing.h"
 #include "vector.h"
+#ifdef VISION
+  #include "vision.h"
+#endif
 
 
 // =============================================================================
@@ -153,6 +156,10 @@ void UpdateNavigation(void)
     {
       Vector3Copy(current_position, target_position_);
     }
+#ifdef VISION
+    ResetKalmanBaroAltitudeOffset(FilteredPressureAltitude(),
+      VisionPositionVector()[D_WORLD_AXIS]);
+#endif
   }
 
   Vector3Subtract(current_position, target_position_, delta_postion_);

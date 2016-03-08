@@ -26,12 +26,14 @@
 #define KALMAN_SIGMA_ACCELEROMETER_Y (0.005)
 #define KALMAN_SIGMA_ACCELEROMETER_Z (0.042)
 #define KALMAN_SIGMA_ACCELEROMETER_G (0.25)
+#define KALMAN_SIGMA_BARO (0.68)
 #define KALMAN_SIGMA_GYRO (0.007)
 #define KALMAN_SIGMA_VISION (0.02)
 
 static float heading_ = 0.0;
 static float x_[X_DIM] = { 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 static float P_[P_DIM*P_DIM] = { 0.0 };
+static float baro_altitude_offset = 0.0;
 
 
 // =============================================================================
@@ -69,8 +71,10 @@ static void TimeUpdate(const float * x_est_prev, const float * P_est_prev,
   float * P_pred);
 static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
   const float * accelerometer, float * x_est, float * P_est);
-static void VisionUpdate(float * x_pred, float * P_pred, const float * vision,
-  float * x_est, float * P_est);
+static void BaroAltitudeUpdate(const float *x_pred, const float *P_pred,
+  float baro_altitude, float *x_est, float *P_est);
+static void VisionUpdate(const float * x_pred, const float * P_pred,
+  const float * vision, float * x_est, float * P_est);
 static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
   const float * z, float * x_est, float * P_est, int z_dim,
   const float * R_diag, const float * H, const float * predicted_measurement);
@@ -102,6 +106,16 @@ void KalmanAccelerometerUpdate(const float accelerometer[3])
 }
 
 // -----------------------------------------------------------------------------
+void KalmanBaroAltitudeUpdate(float baro_altitude)
+{
+  float x_est[X_DIM];
+  float P_est[P_DIM*P_DIM];
+  BaroAltitudeUpdate(x_, P_, baro_altitude, x_est, P_est);
+  VectorCopy(x_est, X_DIM, x_);
+  MatrixCopy(P_est, P_DIM, P_DIM, P_);
+}
+
+// -----------------------------------------------------------------------------
 void KalmanVisionUpdate(const float vision[3])
 {
   float x_est[X_DIM];
@@ -121,6 +135,13 @@ void ResetKalman(void)
   P_[0*9+0] = 1.0e-05;
   P_[1*9+1] = 1.0e-05;
   P_[2*9+2] = 1.0e-05;
+}
+
+// -----------------------------------------------------------------------------
+void ResetKalmanBaroAltitudeOffset(float baro_altitude, float position_down)
+{
+  baro_altitude_offset = baro_altitude - (-position_down);
+  x_[9] = position_down;
 }
 
 
@@ -306,10 +327,11 @@ static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
   const float * quat_pred = &x_pred[0]; // predicted attitude quaternion
 
   // 2. Assign diagonal elements of R
-  float R_diag[3];
-  R_diag[0] = KALMAN_SIGMA_ACCELEROMETER_G * KALMAN_SIGMA_ACCELEROMETER_G;
-  R_diag[1] = KALMAN_SIGMA_ACCELEROMETER_G * KALMAN_SIGMA_ACCELEROMETER_G;
-  R_diag[2] = KALMAN_SIGMA_ACCELEROMETER_G * KALMAN_SIGMA_ACCELEROMETER_G;
+  const float R_diag[3] = {
+    KALMAN_SIGMA_ACCELEROMETER_G * KALMAN_SIGMA_ACCELEROMETER_G,
+    KALMAN_SIGMA_ACCELEROMETER_G * KALMAN_SIGMA_ACCELEROMETER_G,
+    KALMAN_SIGMA_ACCELEROMETER_G * KALMAN_SIGMA_ACCELEROMETER_G,
+  };
 
   // 3. Assign elements of H
   float C[3*3];
@@ -347,8 +369,8 @@ static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
 }
 
 // -----------------------------------------------------------------------------
-static void VisionUpdate(float * x_pred, float * P_pred, const float * vision,
-  float * x_est, float * P_est)
+static void BaroAltitudeUpdate(const float *x_pred, const float *P_pred,
+  float baro_altitude, float *x_est, float *P_est)
 {
   // There are 4 variables that are unique to each type of measurement.
   //
@@ -362,14 +384,52 @@ static void VisionUpdate(float * x_pred, float * P_pred, const float * vision,
   // can calculate estimates (x_est and P_est) using prediction (x_pred and
   // P_pred), measurement (z), and the four variables.
 
-  float * quat_pred = &x_pred[0];  // predicted attitude quaternion
-  float * velocity_pred = &x_pred[4];  // predicted velocity in i-frame
+  const float *r_pred = &x_pred[7]; // predicted position in i-frame
 
   // 2. Assign diagonal elements of R
-  float RDiag[3];
-  RDiag[0] = KALMAN_SIGMA_VISION * KALMAN_SIGMA_VISION;
-  RDiag[1] = KALMAN_SIGMA_VISION * KALMAN_SIGMA_VISION;
-  RDiag[2] = KALMAN_SIGMA_VISION * KALMAN_SIGMA_VISION;
+  const float RDiag[1] = { KALMAN_SIGMA_BARO * KALMAN_SIGMA_BARO };
+
+  // 3. Assign elements of H
+  // measurement: barometric altitude = alt0 + (-1)*(rz + delta_rz)
+  // predicted measurement: alt0 + (-1)*rz
+  // innovation = measurement - predicted measurement
+  //            = (-1)*delta_rz
+  // Therefore H = [0 0 0  0 0 0  0 0 -1]
+  float H[1*P_DIM] = { 0 };  // error state observation matrix
+  H[0*P_DIM+8] = -1;
+
+  // 4. Calculate predicted measurement
+  float predicted_measurement[1] = { -r_pred[2] + baro_altitude_offset };
+
+  MeasurementUpdateCommon(x_pred, P_pred, &baro_altitude, x_est, P_est, 1,
+    RDiag, H, predicted_measurement);
+}
+
+// -----------------------------------------------------------------------------
+static void VisionUpdate(const float * x_pred, const float * P_pred,
+  const float * vision, float * x_est, float * P_est)
+{
+  // There are 4 variables that are unique to each type of measurement.
+  //
+  // 1. z_dim: dimension of measurement vector z
+  // 2. R_diag: array of diagonal elements of measurement covariance matrix R
+  // 3. H: error state observation matrix, i.e. Jacobian of observation equation
+  // 4. predicted_measurement: prediction of measurement vector z, calculated
+  //    using prediction of state vector x (x_pred)
+  //
+  // After these variables become available, function MeasurementUpdateCommon
+  // can calculate estimates (x_est and P_est) using prediction (x_pred and
+  // P_pred), measurement (z), and the four variables.
+
+  const float * quat_pred = &x_pred[0];  // predicted attitude quaternion
+  const float * velocity_pred = &x_pred[4];  // predicted velocity in i-frame
+
+  // 2. Assign diagonal elements of R
+  const float RDiag[3] = {
+    KALMAN_SIGMA_VISION * KALMAN_SIGMA_VISION,
+    KALMAN_SIGMA_VISION * KALMAN_SIGMA_VISION,
+    KALMAN_SIGMA_VISION * KALMAN_SIGMA_VISION,
+  };
 
   // 3. Assign elements of H
   float C[3*3];

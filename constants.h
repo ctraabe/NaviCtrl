@@ -11,5 +11,11 @@ enum BodyAxes {
   Z_BODY_AXIS = 2,
 };
 
+enum WorldAxes {
+  N_WORLD_AXIS = 0,  // North
+  E_WORLD_AXIS = 1,  // East
+  D_WORLD_AXIS = 2,  // Down
+};
+
 
 #endif  // CONSTANTS_H_

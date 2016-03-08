@@ -36,6 +36,13 @@ enum NavModeBits {
 static volatile struct FromFlightCtrl from_fc_[2] = { { 0 } };
 static volatile union U16Bytes crc_[2];
 static volatile size_t from_fc_head_ = 1, from_fc_tail_ = 0;
+static volatile float filtered_pressure_altitude_ = 0.0;
+
+
+// =============================================================================
+// Private function declarations:
+
+static void FilterPressureAltitude(void);
 
 
 // =============================================================================
@@ -50,6 +57,12 @@ float Accelerometer(enum BodyAxes axis)
 const volatile float * AccelerometerVector(void)
 {
   return from_fc_[from_fc_tail_].accelerometer;
+}
+
+// -----------------------------------------------------------------------------
+float FilteredPressureAltitude(void)
+{
+  return filtered_pressure_altitude_;
 }
 
 // -----------------------------------------------------------------------------
@@ -80,6 +93,12 @@ const volatile float * GyroVector(void)
 const volatile float * Quat(void)
 {
   return from_fc_[from_fc_tail_].quaternion;
+}
+
+// -----------------------------------------------------------------------------
+float PressureAltitude(void)
+{
+  return from_fc_[from_fc_tail_].pressure_altitude;
 }
 
 // -----------------------------------------------------------------------------
@@ -205,6 +224,7 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
           // Swap data buffers.
           from_fc_tail_ = from_fc_head_;
           from_fc_head_ = !from_fc_tail_;
+          FilterPressureAltitude();
 #ifndef LOG_FLT_CTRL_DEBUG_TO_SD
           SetFlightCtrlInterrupt();
 #else
@@ -270,10 +290,24 @@ void PrepareFlightCtrlDataExchange(void)
   to_fc_ptr->target_heading = TargetHeading();
   to_fc_ptr->heading_rate = HeadingRate();
   to_fc_ptr->nav_mode = (uint8_t)NavMode();
+#ifdef VISION
   to_fc_ptr->status = (uint8_t)VisionReliability();
+#endif
 
   to_fc_ptr->crc = CRCCCITT((uint8_t *)to_fc_ptr, sizeof(struct ToFC) - 2);
 
   SPITxBuffer(sizeof(struct ToFC));
   // NotifyFlightCtrl();  // Request SPI communication.
+}
+
+
+// =============================================================================
+// Private functions:
+
+static void FilterPressureAltitude(void)
+{
+  static float delay = 0.0;
+  float temp = 0.0121236750338117 * from_fc_[from_fc_tail_].pressure_altitude;
+  filtered_pressure_altitude_ = temp + (1 + 0.975752649932377) * delay;
+  delay = temp + 0.975752649932377 * delay;
 }

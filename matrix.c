@@ -58,6 +58,23 @@ float * MatrixCopy(const float * A, size_t A_rows, size_t A_cols,
 }
 
 // -----------------------------------------------------------------------------
+float * MatrixCopyToSubmatrix(const float * A, float * B, size_t row,
+  size_t col, size_t A_rows, size_t A_cols, size_t B_cols)
+{
+  float * ptr_B = &B[row * B_cols + col];
+  for (size_t i = 0; i < A_rows; i++)
+  {
+    for (size_t j = 0; j < A_cols; j++)
+    {
+      *ptr_B++ = *A++;
+    }
+    ptr_B += B_cols - A_cols;
+  }
+
+  return B;
+}
+
+// -----------------------------------------------------------------------------
 float * MatrixInverse(const float * A, size_t size, float * result)
 {
   float A_copy[MAX_INVERSE_MATRIX_SIZE * MAX_INVERSE_MATRIX_SIZE];
@@ -92,7 +109,7 @@ float * MatrixInverse(const float * A, size_t size, float * result)
       }
     }
 
-    // Make diagonal 1.
+    // Make diagonal 1 (size divisions and (2*size-1)*size multiplications).
     float a = 1.0 / A_copy[k * size + k];
     for (size_t j = 0; j < size; j++)
     {
@@ -101,7 +118,7 @@ float * MatrixInverse(const float * A, size_t size, float * result)
     }
     A_copy[k * size + k] = 1.0;
 
-    // Row subtraction.
+    // Row subtraction (2*size*(size-1)*size multiplications).
     for (size_t i = 0; i < size; i++)
     {
       if (i != k)
@@ -131,7 +148,7 @@ float * MatrixMultiply(const float * A, const float * B, size_t A_rows,
       result[i * B_cols + j] = 0;
       for (size_t k = 0; k < A_cols; k++)
       {
-        result[i * B_cols + j] += A[A_cols * i + k] * B[j + B_cols * k];
+        result[i * B_cols + j] += A[i * A_cols + k] * B[j + B_cols * k];
       }
     }
   }
@@ -150,6 +167,26 @@ float * MatrixMultiplyByDiagonal(const float * A, const float * B,
     for (size_t j = 0; j < A_cols; j++)
     {
       result[i * A_cols + j] = A[i * A_cols + j] * B[j];
+    }
+  }
+
+  return result;
+}
+
+// -----------------------------------------------------------------------------
+// This function multiplies matrix A by the transpose of matrix B on the left.
+float * MatrixMultiplyByTranspose(const float * A, const float * B,
+  size_t A_rows, size_t A_cols, size_t B_rows, float *result)
+{
+  for (size_t i = 0; i < A_rows; i++)
+  {
+    for (size_t j = 0; j < B_rows; j++)
+    {
+      result[i * B_rows + j] = 0;
+      for (size_t k = 0; k < A_cols; k++)
+      {
+        result[i * A_cols + j] += A[i * A_cols + k] * B[j * A_cols + k];
+      }
     }
   }
 
@@ -287,6 +324,24 @@ float * SetMatrixToIdentity(float * A, size_t size)
   for (size_t i = 0; i < size; i++) A[i * size + i] = 1.0;
 
   return A;
+}
+
+// -----------------------------------------------------------------------------
+float * SubmatrixCopyToMatrix(const float * A, float * B, size_t row,
+  size_t col, size_t A_cols, size_t B_rows, size_t B_cols)
+{
+  const float * ptr_A = &A[row * A_cols + col];
+  float * ptr_B = B;
+  for (size_t i = 0; i < B_rows; i++)
+  {
+    for (size_t j = 0; j < B_cols; j++)
+    {
+      *ptr_B++ = *ptr_A++;
+    }
+    ptr_A += A_cols - B_cols;
+  }
+
+  return B;
 }
 
 // -----------------------------------------------------------------------------

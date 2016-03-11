@@ -26,6 +26,10 @@ float * MatrixCopy(const float * A, size_t A_rows, size_t A_cols,
   float * result);
 
 // -----------------------------------------------------------------------------
+float * MatrixCopyToSubmatrix(const float * A, float * B, size_t row,
+  size_t col, size_t A_rows, size_t A_cols, size_t B_cols);
+
+// -----------------------------------------------------------------------------
 float * MatrixInverse(const float * A, size_t size, float * result);
 
 // -----------------------------------------------------------------------------
@@ -38,6 +42,11 @@ float * MatrixMultiply(const float * A, const float * B, size_t A_rows,
 // B on the left.
 float * MatrixMultiplyByDiagonal(const float * A, const float * B,
   size_t A_rows, size_t A_cols, float *result);
+
+// -----------------------------------------------------------------------------
+// This function multiplies matrix A by the transpose of matrix B on the left.
+float * MatrixMultiplyByTranspose(const float * A, const float * B,
+  size_t A_rows, size_t A_cols, size_t B_rows, float *result);
 
 // -----------------------------------------------------------------------------
 // This function multiplies a vector representing a diagonal-matrix A by matrix
@@ -84,6 +93,10 @@ float * MatrixTranspose(const float * A, size_t A_rows, size_t A_cols,
 
 // -----------------------------------------------------------------------------
 float * SetMatrixToIdentity(float * A, size_t size);
+
+// -----------------------------------------------------------------------------
+float * SubmatrixCopyToMatrix(const float * A, float * B, size_t row,
+  size_t col, size_t A_cols, size_t B_rows, size_t B_cols);
 
 // -----------------------------------------------------------------------------
 float * VectorToDiagonal(const float * v, size_t length, float * result);

@@ -390,10 +390,6 @@ static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
   // can calculate estimates (x_est and P_est) using prediction (x_pred and
   // P_pred), measurement (z), and the four variables.
 
-  // a0 (specific force in initial orientation) is defined as the average of the
-  // first several specific force measurements.
-  const float a0[3] = { 0, 0, -GRAVITY_ACCELERATION };
-
   const float * quat_pred = &x_pred[0]; // predicted attitude quaternion
 
   // 2. Assign diagonal elements of R
@@ -404,35 +400,20 @@ static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
   };
 
   // 3. Assign elements of H
+  // H = Cib * [[0 0 -G]^t x ]
   float C[3*3];
-  float Ca0[3*1];
-  float ssa0C[3*3];
-  float ssa0[3*3];
-  float H[3*P_DIM] = { 0 };  // error state observation matrix
-
-  // TODO: The following is very sparse and can be optimized.
   QuaternionToDCM(quat_pred, C);  // C = DCM of current attitude
-//////////////////////////////////////////////////////////////////////////////// 54
-  MatrixMultiply(C, a0, 3, 3, 1, Ca0);  // Ca0 = C*a0
-  Vector3ToSkewSymmetric3(a0, ssa0);  // ssa0 = [(C*a0) x]
-//////////////////////////////////////////////////////////////////////////////// 54
-  MatrixMultiply(ssa0, C, 3, 3, 3, ssa0C);  // Ca0 = ssa0*C
-
-  H[0*P_DIM+0] = ssa0C[0*3+0];
-  H[0*P_DIM+1] = ssa0C[0*3+1];
-  H[0*P_DIM+2] = ssa0C[0*3+2];
-  H[1*P_DIM+0] = ssa0C[1*3+0];
-  H[1*P_DIM+1] = ssa0C[1*3+1];
-  H[1*P_DIM+2] = ssa0C[1*3+2];
-  H[2*P_DIM+0] = ssa0C[2*3+0];
-  H[2*P_DIM+1] = ssa0C[2*3+1];
-  H[2*P_DIM+2] = ssa0C[2*3+2];
+  const float H[3*P_DIM] = {
+     G * C[1*3+0],  G * C[1*3+1],  G * C[1*3+2], 0, 0, 0, 0, 0, 0,
+    -G * C[0*3+0], -G * C[0*3+1], -G * C[0*3+2], 0, 0, 0, 0, 0, 0,
+                0,             0,             0, 0, 0, 0, 0, 0, 0,
+  };
 
   // 4. Calculate predicted measurement
   // predicted measurement = DCM * a0
-  float predicted_measurement[3];
-//////////////////////////////////////////////////////////////////////////////// 54
-  MatrixMultiply(C, a0, 3, 3, 1, predicted_measurement);
+  float predicted_measurement[3] = {
+    H[1*P_DIM+2], -H[0*P_DIM+2], -G * C[2*3+2]
+  };
 
   MeasurementUpdateCommon(x_pred, P_pred, accelerometer, x_est, P_est, 3,
     R_diag, H, predicted_measurement);
@@ -465,8 +446,7 @@ static void BaroAltitudeUpdate(const float *x_pred, const float *P_pred,
   // innovation = measurement - predicted measurement
   //            = (-1)*delta_rz
   // Therefore H = [0 0 0  0 0 0  0 0 -1]
-  float H[1*P_DIM] = { 0 };  // error state observation matrix
-  H[0*P_DIM+8] = -1;
+  const float H[1*P_DIM] = { 0, 0, 0, 0, 0, 0, 0, 0, -1 };
 
   // 4. Calculate predicted measurement
   float predicted_measurement[1] = { -r_pred[2] + baro_altitude_offset };
@@ -509,7 +489,7 @@ static void VisionUpdate(const float * x_pred, const float * P_pred,
 
   // TODO: The following is very sparse and can be optimized.
   QuaternionToDCM(quat_pred, C);  // C = DCM of current attitude
-//////////////////////////////////////////////////////////////////////////////// 54
+//////////////////////////////////////////////////////////////////////////////// 9
   MatrixMultiply(C, velocity_pred, 3, 3, 1, Cv);  // Cv = C*v
   Vector3ToSkewSymmetric3(Cv, ssCv);  // ssCv = skew-symmetric form of Cv
 
@@ -534,12 +514,12 @@ static void VisionUpdate(const float * x_pred, const float * P_pred,
   H[2 * P_DIM + 5] = C[2 * 3 + 2];
 
   // 4. Calculate predicted measurement
-  float predicted_measurement[3];
-//////////////////////////////////////////////////////////////////////////////// 54
-  MatrixMultiply(C, velocity_pred, 3, 3, 1, predicted_measurement);
+  // float predicted_measurement[3];
+//////////////////////////////////////////////////////////////////////////////// 9
+  // MatrixMultiply(C, velocity_pred, 3, 3, 1, predicted_measurement);
 
   MeasurementUpdateCommon(x_pred, P_pred, vision, x_est, P_est, 3, RDiag, H,
-    predicted_measurement);
+    Cv);
 }
 
 // -----------------------------------------------------------------------------
@@ -550,27 +530,26 @@ static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
   // Calculate Kalman gain (this code is common for all measurements).
   // Compute S = H*P*H^t + R.
   float S[Z_DIM_MAX*Z_DIM_MAX];
-  float Ht[P_DIM*Z_DIM_MAX];
+  float PHt[P_DIM*Z_DIM_MAX];
   {
-    float HP[Z_DIM_MAX*P_DIM];
-//////////////////////////////////////////////////////////////////////////////// 729
-    MatrixMultiply(H, P_pred, z_dim, P_DIM, P_DIM, HP);  // HP = H*P
+    float Ht[P_DIM*Z_DIM_MAX];
     MatrixTranspose(H, z_dim, P_DIM, Ht);  // Ht = H^t
+//////////////////////////////////////////////////////////////////////////////// 243
+    MatrixMultiply(P_pred, Ht, P_DIM, P_DIM, z_dim, PHt);  // PHt = P*H^t
 //////////////////////////////////////////////////////////////////////////////// 81
-    MatrixAddDiagonalToSelf(MatrixMultiply(HP, Ht, z_dim, P_DIM, z_dim, S),
-      R_diag, z_dim);
+    MatrixAddDiagonalToSelf(MatrixMultiply(H, PHt, z_dim, P_DIM, z_dim, S),
+      R_diag, z_dim);  // S = H*P*H^t + R
   }
+
   // Compute Kalman gain K = P*H^t*S^-1.
   float K[P_DIM*Z_DIM_MAX];
   {
-    float PHt[P_DIM*Z_DIM_MAX];
     float S_inv[Z_DIM_MAX*Z_DIM_MAX];
-//////////////////////////////////////////////////////////////////////////////// 729
-    MatrixMultiply(P_pred, Ht, P_DIM, P_DIM, z_dim, PHt);  // PHt = P*H^t
-//////////////////////////////////////////////////////////////////////////////// 27 (divisions)
+//////////////////////////////////////////////////////////////////////////////// 51 multiplications and 3 divisions
     MatrixInverse(S, z_dim, S_inv);  // S_inv = S^-1
 //////////////////////////////////////////////////////////////////////////////// 81
-    MatrixMultiply(PHt, S_inv, P_DIM, z_dim, z_dim, K);
+    MatrixMultiply(PHt, S_inv, P_DIM, z_dim, z_dim, K);  // K = P*H^t*S^-1
+
   }
 
   // Update error covariance matrix (This code is common for all measurements.)

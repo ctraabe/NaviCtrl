@@ -189,7 +189,7 @@ int main(void)
         Accelerometer(Z_BODY_AXIS) * GRAVITY_ACCELERATION };
       KalmanTimeUpdate(gyro, accelerometer);
       KalmanAccelerometerUpdate(accelerometer);
-      KalmanBaroAltitudeUpdate(PressureAltitude());
+      // KalmanBaroAltitudeUpdate(PressureAltitude());
 #ifndef VISION
       ProcessIncomingUBlox();
 #else
@@ -223,9 +223,14 @@ int main(void)
       GreenLEDToggle();
       RedLEDOff();
       led_timer += 100;
-      UARTPrintfSafe("%X,%03X",
+      UARTPrintfSafe("%X,%03X,%02.2f,%02.2f,%02.2f,%0.4f",
         VisionReliability(),
-        NavMode() | (FlightCtrlState() << 4));
+        NavMode() | (FlightCtrlState() << 4),
+        KalmanPosition()[0],
+        KalmanPosition()[1],
+        KalmanPosition()[2],
+        KalmanHeading()
+        );
     }
   }
 }

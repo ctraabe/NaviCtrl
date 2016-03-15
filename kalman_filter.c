@@ -22,7 +22,9 @@
 #define G GRAVITY_ACCELERATION
 #define KALMAN_Q_PRIME_ALPHA (0)
 #define KALMAN_Q_PRIME_VELOCITY (0.001)
-#define KALMAN_Q_PRIME_POSITION (0.0)
+#define KALMAN_Q_PRIME_H_POSITION (0.0)
+#define KALMAN_Q_PRIME_V_POSITION (0.0)
+// #define KALMAN_Q_PRIME_V_POSITION (0.001)
 #define KALMAN_SIGMA_ACCELEROMETER_X (0.005)
 #define KALMAN_SIGMA_ACCELEROMETER_Y (0.005)
 #define KALMAN_SIGMA_ACCELEROMETER_Z (0.042)
@@ -30,6 +32,7 @@
 #define KALMAN_SIGMA_BARO (0.68)
 #define KALMAN_SIGMA_GYRO (0.007)
 #define KALMAN_SIGMA_VISION (0.02)
+// #define KALMAN_SIGMA_VISION (0.005)
 
 static float heading_ = 0.0;
 static float x_[X_DIM] = { 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
@@ -365,8 +368,8 @@ static void TimeUpdate(const float * x_est_prev, const float * P_est_prev,
   const float QprimeDiag[P_DIM] = { KALMAN_Q_PRIME_ALPHA * DT,
     KALMAN_Q_PRIME_ALPHA * DT, KALMAN_Q_PRIME_ALPHA * DT,
     KALMAN_Q_PRIME_VELOCITY * DT, KALMAN_Q_PRIME_VELOCITY * DT,
-    KALMAN_Q_PRIME_VELOCITY * DT, KALMAN_Q_PRIME_POSITION * DT,
-    KALMAN_Q_PRIME_POSITION * DT, KALMAN_Q_PRIME_POSITION * DT };
+    KALMAN_Q_PRIME_VELOCITY * DT, KALMAN_Q_PRIME_H_POSITION * DT,
+    KALMAN_Q_PRIME_H_POSITION * DT, KALMAN_Q_PRIME_V_POSITION * DT };
 
   // P_pred = Phi*P*Phi^t + Gamma*Q*Gamma^t + Qprime
   // recall that (float *)P_pred = (float *)PhiPPhit
@@ -393,30 +396,124 @@ static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
   const float * quat_pred = &x_pred[0]; // predicted attitude quaternion
 
   // 2. Assign diagonal elements of R
-  const float R_diag[3] = {
-    KALMAN_SIGMA_ACCELEROMETER_G * KALMAN_SIGMA_ACCELEROMETER_G,
+  const float R_diag[2] = {
     KALMAN_SIGMA_ACCELEROMETER_G * KALMAN_SIGMA_ACCELEROMETER_G,
     KALMAN_SIGMA_ACCELEROMETER_G * KALMAN_SIGMA_ACCELEROMETER_G,
   };
 
   // 3. Assign elements of H
   // H = Cib * [[0 0 -G]^t x ]
+  // const float H[2*P_DIM] = {
+  //    G * C[1*3+0],  G * C[1*3+1],  G * C[1*3+2], 0, 0, 0, 0, 0, 0,
+  //   -G * C[0*3+0], -G * C[0*3+1], -G * C[0*3+2], 0, 0, 0, 0, 0, 0,
+  // };
+
+  // Compute S = H*P*H^t + R.
   float C[3*3];
   QuaternionToDCM(quat_pred, C);  // C = DCM of current attitude
-  const float H[3*P_DIM] = {
-     G * C[1*3+0],  G * C[1*3+1],  G * C[1*3+2], 0, 0, 0, 0, 0, 0,
-    -G * C[0*3+0], -G * C[0*3+1], -G * C[0*3+2], 0, 0, 0, 0, 0, 0,
-                0,             0,             0, 0, 0, 0, 0, 0, 0,
+  const float H11[2*3] = {
+     G * C[1*3+0],  G * C[1*3+1],  G * C[1*3+2],
+    -G * C[0*3+0], -G * C[0*3+1], -G * C[0*3+2],
   };
 
-  // 4. Calculate predicted measurement
+  float P11[3*3], P12[3*6], P21[6*3], P22[6*6];
+  SubmatrixCopyToMatrix(P_pred, P11, 0, 0, P_DIM, 3, 3);
+  SubmatrixCopyToMatrix(P_pred, P12, 0, 3, P_DIM, 3, 6);
+  SubmatrixCopyToMatrix(P_pred, P21, 3, 0, P_DIM, 6, 3);
+  SubmatrixCopyToMatrix(P_pred, P22, 3, 3, P_DIM, 6, 6);
+
+  float PHt[P_DIM*2];
+  float * PHt11 = &PHt[0*2+0];  // 3x2
+  float * PHt21 = &PHt[3*2+0];  // 6x2
+  MatrixMultiplyByTranspose(P11, H11, 3, 3, 2, PHt11);
+  MatrixMultiplyByTranspose(P21, H11, 6, 3, 2, PHt21);
+
+  float HPHt11[2*2];
+  MatrixMultiply(H11, PHt11, 2, 3, 2, HPHt11);
+
+  float * S = HPHt11;  // Conserves memory
+  MatrixAddDiagonalToSelf(S, R_diag, 2);
+
+  float S_inv[2*2];
+  // TODO: make a 2x2 specific inverse routine for speed.
+  MatrixInverse(S, 2, S_inv);
+
+  // Compute Kalman gain K = P*H^t*S^-1.
+  float K[P_DIM*2];
+  float * K11 = &K[0*2+0];  // 3x2
+  float * K21 = &K[3*2+0];  // 6x2
+  MatrixMultiply(PHt11, S_inv, 3, 2, 2, K11);
+  MatrixMultiply(PHt21, S_inv, 6, 2, 2, K21);
+
+  // Update error covariance matrix (This code is common for all measurements.)
+  // P_est = (I - KH) * P_pred
+  float IKH1[P_DIM*3];
+  float * IKH11 = &IKH1[0*3+0];  // 3x3
+  float * IKH21 = &IKH1[3*3+0];  // 6x3
+  MatrixSubtractSelfFromIdentity(MatrixMultiply(K11, H11, 3, 2, 3, IKH11), 3);
+  MatrixNegateSelf(MatrixMultiply(K21, H11, 6, 2, 3, IKH21), 6, 3);
+
+  float PE11[3*3], PE12[3*6], PE21[6*3], PE22[6*6];
+  MatrixMultiply(IKH11, P11, 3, 3, 3, PE11);
+  MatrixMultiply(IKH11, P12, 3, 3, 6, PE12);
+  MatrixAddToSelf(MatrixMultiply(IKH21, P11, 6, 3, 3, PE21), P21, 6, 3);
+  MatrixAddToSelf(MatrixMultiply(IKH21, P12, 6, 3, 6, PE22), P22, 6, 6);
+
+  MatrixCopyToSubmatrix(PE11, P_est, 0, 0, 3, 3, P_DIM);
+  MatrixCopyToSubmatrix(PE12, P_est, 0, 3, 3, 6, P_DIM);
+  MatrixCopyToSubmatrix(PE21, P_est, 3, 0, 6, 3, P_DIM);
+  MatrixCopyToSubmatrix(PE22, P_est, 3, 3, 6, 6, P_DIM);
+
   // predicted measurement = DCM * a0
-  float predicted_measurement[3] = {
-    H[1*P_DIM+2], -H[0*P_DIM+2], -G * C[2*3+2]
+  float predicted_measurement[2] = {
+    H11[1*3+2], -H11[0*3+2]
   };
 
-  MeasurementUpdateCommon(x_pred, P_pred, accelerometer, x_est, P_est, 3,
-    R_diag, H, predicted_measurement);
+  // Calculate innovation (this code is common for all measurements).
+  float innovation[2];  // A.K.A. measurement residual
+  VectorSubtract(accelerometer, predicted_measurement, 2, innovation);
+
+  // delta = K * innovation
+  float delta[P_DIM];
+  MatrixMultiply(K, innovation, P_DIM, 2, 1, delta);
+
+  // dq = Psi * alpha / 2
+  float dq[4];
+  {
+    const float * quat_pred = &x_pred[0];
+    float Psi[4*3];
+    Psi[0*3+0] = -quat_pred[1];
+    Psi[0*3+1] = -quat_pred[2];
+    Psi[0*3+2] = -quat_pred[3];
+    Psi[1*3+0] = quat_pred[0];
+    Psi[1*3+1] = -quat_pred[3];
+    Psi[1*3+2] = quat_pred[2];
+    Psi[2*3+0] = quat_pred[3];
+    Psi[2*3+1] = quat_pred[0];
+    Psi[2*3+2] = -quat_pred[1];
+    Psi[3*3+0] = -quat_pred[2];
+    Psi[3*3+1] = quat_pred[1];
+    Psi[3*3+2] = quat_pred[0];
+
+    const float * alpha = &delta[0];  // alpha is the first 3 elements of delta
+    VectorScaleSelf(MatrixMultiply(Psi, alpha, 4, 3, 1, dq), 0.5, 4);
+  }
+
+  x_est[0] = dq[0];
+  x_est[1] = dq[1];
+  x_est[2] = dq[2];
+  x_est[3] = dq[3];
+  x_est[4] = delta[3];
+  x_est[5] = delta[4];
+  x_est[6] = delta[5];
+  x_est[7] = delta[6];
+  x_est[8] = delta[7];
+  x_est[9] = delta[8];
+  VectorAddToSelf(x_est, x_pred, X_DIM);
+
+  QuaternionNormalize(&x_est[0]);  // normalize the quaternion portion of x_est
+  heading_ = HeadingFromQuaternion(&x_est[0]);
+
 }
 
 // -----------------------------------------------------------------------------

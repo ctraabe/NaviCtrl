@@ -402,48 +402,48 @@ static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
 
   // 3. Assign elements of H
   // H = Cib * [[0 0 -G]^t x ]
+  float C[3*3];
+  QuaternionToDCM(quat_pred, C);  // C = DCM of current attitude
   // const float H[2*P_DIM] = {
   //    G * C[1*3+0],  G * C[1*3+1],  G * C[1*3+2], 0, 0, 0, 0, 0, 0,
   //   -G * C[0*3+0], -G * C[0*3+1], -G * C[0*3+2], 0, 0, 0, 0, 0, 0,
   // };
-
-  // Compute S = H*P*H^t + R.
-  float C[3*3];
-  QuaternionToDCM(quat_pred, C);  // C = DCM of current attitude
   const float H11[2*3] = {
      G * C[1*3+0],  G * C[1*3+1],  G * C[1*3+2],
     -G * C[0*3+0], -G * C[0*3+1], -G * C[0*3+2],
   };
-  // const float H12[2*6] = { 0 };
-
-  float P11[3*3], P12[3*6], P21[6*3], P22[6*6];
-  SubmatrixCopyToMatrix(P_pred, P11, 0, 0, P_DIM, 3, 3);
-  SubmatrixCopyToMatrix(P_pred, P12, 0, 3, P_DIM, 3, 6);
-  SubmatrixCopyToMatrix(P_pred, P21, 3, 0, P_DIM, 6, 3);
-  SubmatrixCopyToMatrix(P_pred, P22, 3, 3, P_DIM, 6, 6);
-
-  float PHt[P_DIM*2];
-  float * PHt11 = &PHt[0*2+0];  // 3x2
-  float * PHt21 = &PHt[3*2+0];  // 6x2
-  MatrixMultiplyByTranspose(P11, H11, 3, 3, 2, PHt11);
-  MatrixMultiplyByTranspose(P21, H11, 6, 3, 2, PHt21);
-
-  float HPHt11[2*2];
-  MatrixMultiply(H11, PHt11, 2, 3, 2, HPHt11);
-
-  float * S = HPHt11;  // Conserves memory
-  MatrixAddDiagonalToSelf(S, R_diag, 2);
-
-  float S_inv[2*2];
-  // TODO: make a 2x2 specific inverse routine for speed.
-  MatrixInverse(S, 2, S_inv);
 
   // Compute Kalman gain K = P*H^t*S^-1.
   float K[P_DIM*2];
   float * K11 = &K[0*2+0];  // 3x2
   float * K21 = &K[3*2+0];  // 6x2
-  MatrixMultiply(PHt11, S_inv, 3, 2, 2, K11);
-  MatrixMultiply(PHt21, S_inv, 6, 2, 2, K21);
+  float P11[3*3], P12[3*6], P21[6*3], P22[6*6];
+  SubmatrixCopyToMatrix(P_pred, P11, 0, 0, P_DIM, 3, 3);
+  SubmatrixCopyToMatrix(P_pred, P12, 0, 3, P_DIM, 3, 6);
+  SubmatrixCopyToMatrix(P_pred, P21, 3, 0, P_DIM, 6, 3);
+  SubmatrixCopyToMatrix(P_pred, P22, 3, 3, P_DIM, 6, 6);
+  {
+    // Compute S = H*P*H^t + R.
+    // const float H12[2*6] = { 0 };
+
+
+    float PHt11[3*2], PHt21[6*2];
+    MatrixMultiplyByTranspose(P11, H11, 3, 3, 2, PHt11);
+    MatrixMultiplyByTranspose(P21, H11, 6, 3, 2, PHt21);
+
+    float HPHt[2*2];
+    MatrixMultiply(H11, PHt11, 2, 3, 2, HPHt);
+
+    float * S = HPHt;  // Conserves memory
+    MatrixAddDiagonalToSelf(S, R_diag, 2);
+
+    float S_inv[2*2];
+    // TODO: make a 2x2 specific inverse routine for speed.
+    MatrixInverse(S, 2, S_inv);
+
+    MatrixMultiply(PHt11, S_inv, 3, 2, 2, K11);
+    MatrixMultiply(PHt21, S_inv, 6, 2, 2, K21);
+  }
 
   // Update error covariance matrix.
   // P_est = (I - KH) * P_pred
@@ -467,7 +467,7 @@ static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
   }
 
   // predicted measurement = DCM * a0
-  float predicted_measurement[2] = { H11[1*3+2], -H11[0*3+2] };
+  const float predicted_measurement[2] = { H11[1*3+2], -H11[0*3+2] };
 
   // Calculate innovation.
   float innovation[2];  // A.K.A. measurement residual
@@ -533,7 +533,7 @@ static void BaroAltitudeUpdate(const float *x_pred, const float *P_pred,
   const float *r_pred = &x_pred[7]; // predicted position in i-frame
 
   // 2. Assign diagonal elements of R
-  const float RDiag[1] = { KALMAN_SIGMA_BARO * KALMAN_SIGMA_BARO };
+  const float R_diag[1] = { KALMAN_SIGMA_BARO * KALMAN_SIGMA_BARO };
 
   // 3. Assign elements of H
   // measurement: barometric altitude = alt0 + (-1)*(rz + delta_rz)
@@ -559,8 +559,8 @@ static void BaroAltitudeUpdate(const float *x_pred, const float *P_pred,
   // float HPHt[1*1];
   // HPHt[0*1+0] = P_pred[8*P_DIM+8];
 
-  // float S_inv[1*1] = 1.0 / (HPHt[0*1+0] + RDiag[0*1+0]);
-  float S_inv[1*1] = { 1.0 / (P22[0*1+0] + RDiag[0*1+0]) };
+  // float S_inv[1*1] = 1.0 / (HPHt[0*1+0] + R_diag[0*1+0]);
+  float S_inv[1*1] = { 1.0 / (P22[0*1+0] + R_diag[0*1+0]) };
 
   // Compute Kalman gain K = P*H^t*S^-1.
   float * K = PHt;  // Conserves memory
@@ -569,7 +569,7 @@ static void BaroAltitudeUpdate(const float *x_pred, const float *P_pred,
   // const float H[1*P_DIM] = { 0, 0, 0, 0, 0, 0, 0, 0, -1 };
   // float predicted_measurement[1] = { -r_pred[2] + baro_altitude_offset };
   // MeasurementUpdateCommon(x_pred, P_pred, &baro_altitude, x_est, P_est, 1,
-  //   RDiag, H, predicted_measurement);
+  //   R_diag, H, predicted_measurement);
 
   // Update error covariance matrix.
   // P_est = (I - KH) * P_pred
@@ -842,7 +842,6 @@ static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
     MatrixInverse(S, z_dim, S_inv);  // S_inv = S^-1
 //////////////////////////////////////////////////////////////////////////////// 81
     MatrixMultiply(PHt, S_inv, P_DIM, z_dim, z_dim, K);  // K = P*H^t*S^-1
-
   }
 
   // Update error covariance matrix (This code is common for all measurements.)

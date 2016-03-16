@@ -511,9 +511,7 @@ static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
   x_est[9] = delta[8];
   VectorAddToSelf(x_est, x_pred, X_DIM);
 
-  QuaternionNormalize(&x_est[0]);  // normalize the quaternion portion of x_est
-  heading_ = HeadingFromQuaternion(&x_est[0]);
-
+  QuaternionNormalizingFilter(&x_est[0]);  // normalize the quaternion portion of x_est
 }
 
 // -----------------------------------------------------------------------------
@@ -635,7 +633,7 @@ static void BaroAltitudeUpdate(const float *x_pred, const float *P_pred,
   x_est[9] = delta[8];
   VectorAddToSelf(x_est, x_pred, X_DIM);
 
-  QuaternionNormalize(&x_est[0]);  // normalize the quaternion portion of x_est
+  QuaternionNormalizingFilter(&x_est[0]);  // normalize the quaternion portion of x_est
 }
 
 // -----------------------------------------------------------------------------
@@ -808,8 +806,7 @@ static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
   x_est[9] = delta[8];
   VectorAddToSelf(x_est, x_pred, X_DIM);
 
-  QuaternionNormalize(&x_est[0]);  // normalize the quaternion portion of x_est
-  heading_ = HeadingFromQuaternion(&x_est[0]);
+  QuaternionNormalizingFilter(&x_est[0]);  // normalize the quaternion portion of x_est
 }
 
 // -----------------------------------------------------------------------------
@@ -897,7 +894,7 @@ static float * UpdateQuaternion(const float quat[4],
   result[2] =  dq[0] * quat[3] + dq[1] * quat[0] - dq[2] * quat[1] + quat[2];
   result[3] = -dq[0] * quat[2] + dq[1] * quat[1] + dq[2] * quat[0] + quat[3];
 
-  QuaternionNormalize(result);
+  QuaternionNormalizingFilter(result);
 
   return result;
 }

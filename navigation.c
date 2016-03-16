@@ -116,7 +116,7 @@ float TransitSpeed(void)
 void UpdateNavigation(void)
 {
   static float radius_squared = 1.0;
-  static uint32_t next_waypoint_time = 0, waypoint_reached = 0;  // , baro_reset = 0;
+  static uint32_t next_waypoint_time = 0, waypoint_reached = 0, baro_reset = 0;
 
   const float * current_position = KalmanPosition();
 
@@ -147,15 +147,15 @@ void UpdateNavigation(void)
     {
       Vector3Copy(current_position, target_position_);
     }
-// #ifdef VISION
-//     if (!baro_reset && (RequestedNavMode() != NAV_MODE_OFF)
-//       && (FlightCtrlState() & FC_STATE_BIT_MOTORS_RUNNING))
-//     {
-//       baro_reset = 1;
-//       ResetKalmanBaroAltitudeOffset(FilteredPressureAltitude(),
-//         VisionPositionVector()[D_WORLD_AXIS]);
-//     }
-// #endif
+#ifdef VISION
+    if (!baro_reset && (RequestedNavMode() != NAV_MODE_OFF)
+      && (FlightCtrlState() & FC_STATE_BIT_MOTORS_RUNNING))
+    {
+      baro_reset = 1;
+      ResetKalmanBaroAltitudeOffset(FilteredPressureAltitude(),
+        VisionPositionVector()[D_WORLD_AXIS]);
+    }
+#endif
   }
 
   Vector3Subtract(current_position, target_position_, delta_postion_);

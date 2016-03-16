@@ -652,55 +652,167 @@ static void VisionUpdate(const float * x_pred, const float * P_pred,
   // can calculate estimates (x_est and P_est) using prediction (x_pred and
   // P_pred), measurement (z), and the four variables.
 
-  const float * quat_pred = &x_pred[0];  // predicted attitude quaternion
+  const float * quat_pred = &x_pred[0]; // predicted attitude quaternion
   const float * velocity_pred = &x_pred[4];  // predicted velocity in i-frame
 
   // 2. Assign diagonal elements of R
-  const float RDiag[3] = {
+  const float R_diag[3] = {
     KALMAN_SIGMA_VISION * KALMAN_SIGMA_VISION,
     KALMAN_SIGMA_VISION * KALMAN_SIGMA_VISION,
     KALMAN_SIGMA_VISION * KALMAN_SIGMA_VISION,
   };
 
   // 3. Assign elements of H
-  float C[3*3];
-  float Cv[3];
-  float ssCv[3*3];
-  float H[3*P_DIM] = { 0 };  // error state observation matrix
-
-  // TODO: The following is very sparse and can be optimized.
+  // H = Cib * [ C*ssv C 0 ]
+  float C[3*3], H11[3*3], temp[3*3];
   QuaternionToDCM(quat_pred, C);  // C = DCM of current attitude
-//////////////////////////////////////////////////////////////////////////////// 9
-  MatrixMultiply(C, velocity_pred, 3, 3, 1, Cv);  // Cv = C*v
-  Vector3ToSkewSymmetric3(Cv, ssCv);  // ssCv = skew-symmetric form of Cv
+  float * ssv = temp;  // Conserves memory
+  Vector3ToSkewSymmetric3(velocity_pred, ssv);  // ssv = skew-symmetric of v
+  MatrixMultiply(C, ssv, 3, 3, 3, H11);
+  const float * H12 = C;  // Conserves memory
 
-  H[0 * P_DIM + 0] = ssCv[0 * 3 + 0];
-  H[0 * P_DIM + 1] = ssCv[0 * 3 + 1];
-  H[0 * P_DIM + 2] = ssCv[0 * 3 + 2];
-  H[1 * P_DIM + 0] = ssCv[1 * 3 + 0];
-  H[1 * P_DIM + 1] = ssCv[1 * 3 + 1];
-  H[1 * P_DIM + 2] = ssCv[1 * 3 + 2];
-  H[2 * P_DIM + 0] = ssCv[2 * 3 + 0];
-  H[2 * P_DIM + 1] = ssCv[2 * 3 + 1];
-  H[2 * P_DIM + 2] = ssCv[2 * 3 + 2];
+  // Compute Kalman gain K = P*H^t*S^-1.
+  float K[P_DIM*3];
+  float P11[3*3], P12[3*3], P13[3*3];
+  float P21[3*3], P22[3*3], P23[3*3];
+  float P31[3*3], P32[3*3], P33[3*3];
+  SubmatrixCopyToMatrix(P_pred, P11, 0, 0, P_DIM, 3, 3);
+  SubmatrixCopyToMatrix(P_pred, P12, 0, 3, P_DIM, 3, 3);
+  SubmatrixCopyToMatrix(P_pred, P13, 0, 6, P_DIM, 3, 3);
+  SubmatrixCopyToMatrix(P_pred, P21, 3, 0, P_DIM, 3, 3);
+  SubmatrixCopyToMatrix(P_pred, P22, 3, 3, P_DIM, 3, 3);
+  SubmatrixCopyToMatrix(P_pred, P23, 3, 6, P_DIM, 3, 3);
+  SubmatrixCopyToMatrix(P_pred, P31, 6, 0, P_DIM, 3, 3);
+  SubmatrixCopyToMatrix(P_pred, P32, 6, 3, P_DIM, 3, 3);
+  SubmatrixCopyToMatrix(P_pred, P33, 6, 6, P_DIM, 3, 3);
+  {
+    // Compute S = H*P*H^t + R
+    float PHt[P_DIM*3];
+    float * PHt11 = &PHt[0*3+0];  // 3x3
+    float * PHt21 = &PHt[3*3+0];  // 3x3
+    float * PHt31 = &PHt[6*3+0];  // 3x3
+    MatrixMultiplyByTranspose(P11, H11, 3, 3, 3, temp);
+    MatrixMultiplyByTranspose(P12, H12, 3, 3, 3, PHt11);
+    MatrixAddToSelf(PHt11, temp, 3, 3);
+    MatrixMultiplyByTranspose(P21, H11, 3, 3, 3, temp);
+    MatrixMultiplyByTranspose(P22, H12, 3, 3, 3, PHt21);
+    MatrixAddToSelf(PHt21, temp, 3, 3);
+    MatrixMultiplyByTranspose(P31, H11, 3, 3, 3, temp);
+    MatrixMultiplyByTranspose(P32, H12, 3, 3, 3, PHt31);
+    MatrixAddToSelf(PHt31, temp, 3, 3);
 
-  H[0 * P_DIM + 3] = C[0 * 3 + 0];
-  H[0 * P_DIM + 4] = C[0 * 3 + 1];
-  H[0 * P_DIM + 5] = C[0 * 3 + 2];
-  H[1 * P_DIM + 3] = C[1 * 3 + 0];
-  H[1 * P_DIM + 4] = C[1 * 3 + 1];
-  H[1 * P_DIM + 5] = C[1 * 3 + 2];
-  H[2 * P_DIM + 3] = C[2 * 3 + 0];
-  H[2 * P_DIM + 4] = C[2 * 3 + 1];
-  H[2 * P_DIM + 5] = C[2 * 3 + 2];
+    float HPHt[3*3];
+    MatrixMultiply(H11, PHt11, 3, 3, 3, temp);
+    MatrixMultiply(H12, PHt21, 3, 3, 3, HPHt);
+    MatrixAddToSelf(HPHt, temp, 3, 3);
 
-  // 4. Calculate predicted measurement
-  // float predicted_measurement[3];
-//////////////////////////////////////////////////////////////////////////////// 9
-  // MatrixMultiply(C, velocity_pred, 3, 3, 1, predicted_measurement);
+    float * S = HPHt;  // Conserves memory
+    MatrixAddDiagonalToSelf(S, R_diag, 3);
 
-  MeasurementUpdateCommon(x_pred, P_pred, vision, x_est, P_est, 3, RDiag, H,
-    Cv);
+    float S_inv[3*3];
+    MatrixInverse(S, 3, S_inv);
+
+    MatrixMultiply(PHt, S_inv, P_DIM, 3, 3, K);
+  }
+
+  // Update error covariance matrix.
+  // P_est = (I - KH) * P_pred
+  {
+    float * K11 = &K[0*3+0];  // 3x3
+    float * K21 = &K[3*3+0];  // 3x3
+    float * K31 = &K[6*3+0];  // 3x3
+
+    float IKH11[3*3], IKH12[3*3];
+    float IKH21[3*3], IKH22[3*3];
+    float IKH31[3*3], IKH32[3*3];
+    MatrixSubtractSelfFromIdentity(MatrixMultiply(K11, H11, 3, 3, 3, IKH11), 3);
+    MatrixNegateSelf(MatrixMultiply(K11, H12, 3, 3, 3, IKH12), 3, 3);
+    MatrixNegateSelf(MatrixMultiply(K21, H11, 3, 3, 3, IKH21), 3, 3);
+    MatrixSubtractSelfFromIdentity(MatrixMultiply(K21, H12, 3, 3, 3, IKH22), 3);
+    MatrixNegateSelf(MatrixMultiply(K31, H11, 3, 3, 3, IKH31), 3, 3);
+    MatrixNegateSelf(MatrixMultiply(K31, H12, 3, 3, 3, IKH32), 3, 3);
+
+    float P_est11[3*3], P_est12[3*3], P_est13[3*3];
+    float P_est21[3*3], P_est22[3*3], P_est23[3*3];
+    float P_est31[3*3], P_est32[3*3], P_est33[3*3];
+
+    MatrixMultiply(IKH11, P11, 3, 3, 3, temp);
+    MatrixAddToSelf(MatrixMultiply(IKH12, P21, 3, 3, 3, P_est11), temp, 3, 3);
+    MatrixMultiply(IKH11, P12, 3, 3, 3, temp);
+    MatrixAddToSelf(MatrixMultiply(IKH12, P22, 3, 3, 3, P_est12), temp, 3, 3);
+    MatrixMultiply(IKH11, P13, 3, 3, 3, temp);
+    MatrixAddToSelf(MatrixMultiply(IKH12, P23, 3, 3, 3, P_est13), temp, 3, 3);
+    MatrixMultiply(IKH21, P11, 3, 3, 3, temp);
+    MatrixAddToSelf(MatrixMultiply(IKH22, P21, 3, 3, 3, P_est21), temp, 3, 3);
+    MatrixMultiply(IKH21, P12, 3, 3, 3, temp);
+    MatrixAddToSelf(MatrixMultiply(IKH22, P22, 3, 3, 3, P_est22), temp, 3, 3);
+    MatrixMultiply(IKH21, P13, 3, 3, 3, temp);
+    MatrixAddToSelf(MatrixMultiply(IKH22, P23, 3, 3, 3, P_est23), temp, 3, 3);
+    MatrixAddToSelf(MatrixMultiply(IKH31, P11, 3, 3, 3, temp), P31, 3, 3);
+    MatrixAddToSelf(MatrixMultiply(IKH32, P21, 3, 3, 3, P_est31), temp, 3, 3);
+    MatrixAddToSelf(MatrixMultiply(IKH31, P12, 3, 3, 3, temp), P32, 3, 3);
+    MatrixAddToSelf(MatrixMultiply(IKH32, P22, 3, 3, 3, P_est32), temp, 3, 3);
+    MatrixAddToSelf(MatrixMultiply(IKH31, P13, 3, 3, 3, temp), P33, 3, 3);
+    MatrixAddToSelf(MatrixMultiply(IKH32, P23, 3, 3, 3, P_est33), temp, 3, 3);
+
+    MatrixCopyToSubmatrix(P_est11, P_est, 0, 0, 3, 3, P_DIM);
+    MatrixCopyToSubmatrix(P_est12, P_est, 0, 3, 3, 3, P_DIM);
+    MatrixCopyToSubmatrix(P_est13, P_est, 0, 6, 3, 3, P_DIM);
+    MatrixCopyToSubmatrix(P_est21, P_est, 3, 0, 3, 3, P_DIM);
+    MatrixCopyToSubmatrix(P_est22, P_est, 3, 3, 3, 3, P_DIM);
+    MatrixCopyToSubmatrix(P_est23, P_est, 3, 6, 3, 3, P_DIM);
+    MatrixCopyToSubmatrix(P_est31, P_est, 6, 0, 3, 3, P_DIM);
+    MatrixCopyToSubmatrix(P_est32, P_est, 6, 3, 3, 3, P_DIM);
+    MatrixCopyToSubmatrix(P_est33, P_est, 6, 6, 3, 3, P_DIM);
+  }
+
+  // // predicted measurement = DCM * a0
+  float predicted_measurement[3];
+  MatrixMultiply(C, velocity_pred, 3, 3, 1, predicted_measurement);
+
+  // Calculate innovation.
+  float innovation[3];  // A.K.A. measurement residual
+  VectorSubtract(vision, predicted_measurement, 3, innovation);
+
+  // delta = K * innovation
+  float delta[P_DIM];
+  MatrixMultiply(K, innovation, P_DIM, 3, 1, delta);
+
+  // dq = Psi * alpha / 2
+  float dq[4];
+  {
+    const float * quat_pred = &x_pred[0];
+    float Psi[4*3];
+    Psi[0*3+0] = -quat_pred[1];
+    Psi[0*3+1] = -quat_pred[2];
+    Psi[0*3+2] = -quat_pred[3];
+    Psi[1*3+0] = quat_pred[0];
+    Psi[1*3+1] = -quat_pred[3];
+    Psi[1*3+2] = quat_pred[2];
+    Psi[2*3+0] = quat_pred[3];
+    Psi[2*3+1] = quat_pred[0];
+    Psi[2*3+2] = -quat_pred[1];
+    Psi[3*3+0] = -quat_pred[2];
+    Psi[3*3+1] = quat_pred[1];
+    Psi[3*3+2] = quat_pred[0];
+
+    const float * alpha = &delta[0];  // alpha is the first 3 elements of delta
+    VectorScaleSelf(MatrixMultiply(Psi, alpha, 4, 3, 1, dq), 0.5, 4);
+  }
+
+  x_est[0] = dq[0];
+  x_est[1] = dq[1];
+  x_est[2] = dq[2];
+  x_est[3] = dq[3];
+  x_est[4] = delta[3];
+  x_est[5] = delta[4];
+  x_est[6] = delta[5];
+  x_est[7] = delta[6];
+  x_est[8] = delta[7];
+  x_est[9] = delta[8];
+  VectorAddToSelf(x_est, x_pred, X_DIM);
+
+  QuaternionNormalizingFilter(&x_est[0]);  // normalize the quaternion portion of x_est
 }
 
 // -----------------------------------------------------------------------------

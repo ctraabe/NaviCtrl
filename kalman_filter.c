@@ -414,6 +414,7 @@ static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
      G * C[1*3+0],  G * C[1*3+1],  G * C[1*3+2],
     -G * C[0*3+0], -G * C[0*3+1], -G * C[0*3+2],
   };
+  // const float H12[2*6] = { 0 };
 
   float P11[3*3], P12[3*6], P21[6*3], P22[6*6];
   SubmatrixCopyToMatrix(P_pred, P11, 0, 0, P_DIM, 3, 3);
@@ -444,31 +445,31 @@ static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
   MatrixMultiply(PHt11, S_inv, 3, 2, 2, K11);
   MatrixMultiply(PHt21, S_inv, 6, 2, 2, K21);
 
-  // Update error covariance matrix (This code is common for all measurements.)
+  // Update error covariance matrix.
   // P_est = (I - KH) * P_pred
-  float IKH1[P_DIM*3];
-  float * IKH11 = &IKH1[0*3+0];  // 3x3
-  float * IKH21 = &IKH1[3*3+0];  // 6x3
-  MatrixSubtractSelfFromIdentity(MatrixMultiply(K11, H11, 3, 2, 3, IKH11), 3);
-  MatrixNegateSelf(MatrixMultiply(K21, H11, 6, 2, 3, IKH21), 6, 3);
+  {
+    float IKH1[P_DIM*3];
+    float * IKH11 = &IKH1[0*3+0];  // 3x3
+    float * IKH21 = &IKH1[3*3+0];  // 6x3
+    MatrixSubtractSelfFromIdentity(MatrixMultiply(K11, H11, 3, 2, 3, IKH11), 3);
+    MatrixNegateSelf(MatrixMultiply(K21, H11, 6, 2, 3, IKH21), 6, 3);
 
-  float PE11[3*3], PE12[3*6], PE21[6*3], PE22[6*6];
-  MatrixMultiply(IKH11, P11, 3, 3, 3, PE11);
-  MatrixMultiply(IKH11, P12, 3, 3, 6, PE12);
-  MatrixAddToSelf(MatrixMultiply(IKH21, P11, 6, 3, 3, PE21), P21, 6, 3);
-  MatrixAddToSelf(MatrixMultiply(IKH21, P12, 6, 3, 6, PE22), P22, 6, 6);
+    float P_est11[3*3], P_est12[3*6], P_est21[6*3], P_est22[6*6];
+    MatrixMultiply(IKH11, P11, 3, 3, 3, P_est11);
+    MatrixMultiply(IKH11, P12, 3, 3, 6, P_est12);
+    MatrixAddToSelf(MatrixMultiply(IKH21, P11, 6, 3, 3, P_est21), P21, 6, 3);
+    MatrixAddToSelf(MatrixMultiply(IKH21, P12, 6, 3, 6, P_est22), P22, 6, 6);
 
-  MatrixCopyToSubmatrix(PE11, P_est, 0, 0, 3, 3, P_DIM);
-  MatrixCopyToSubmatrix(PE12, P_est, 0, 3, 3, 6, P_DIM);
-  MatrixCopyToSubmatrix(PE21, P_est, 3, 0, 6, 3, P_DIM);
-  MatrixCopyToSubmatrix(PE22, P_est, 3, 3, 6, 6, P_DIM);
+    MatrixCopyToSubmatrix(P_est11, P_est, 0, 0, 3, 3, P_DIM);
+    MatrixCopyToSubmatrix(P_est12, P_est, 0, 3, 3, 6, P_DIM);
+    MatrixCopyToSubmatrix(P_est21, P_est, 3, 0, 6, 3, P_DIM);
+    MatrixCopyToSubmatrix(P_est22, P_est, 3, 3, 6, 6, P_DIM);
+  }
 
   // predicted measurement = DCM * a0
-  float predicted_measurement[2] = {
-    H11[1*3+2], -H11[0*3+2]
-  };
+  float predicted_measurement[2] = { H11[1*3+2], -H11[0*3+2] };
 
-  // Calculate innovation (this code is common for all measurements).
+  // Calculate innovation.
   float innovation[2];  // A.K.A. measurement residual
   VectorSubtract(accelerometer, predicted_measurement, 2, innovation);
 
@@ -542,13 +543,99 @@ static void BaroAltitudeUpdate(const float *x_pred, const float *P_pred,
   // innovation = measurement - predicted measurement
   //            = (-1)*delta_rz
   // Therefore H = [0 0 0  0 0 0  0 0 -1]
-  const float H[1*P_DIM] = { 0, 0, 0, 0, 0, 0, 0, 0, -1 };
+  // const float H[1*P_DIM] = { 0, 0, 0, 0, 0, 0, 0, 0, -1 };
+
+  // Compute S = H*P*H^t + R.
+  // const float H11[1*8] = { 0 };
+  // const float H12[1*1] = { -1 };
+
+  float P11[8*8], P12[8*1], P21[1*8], P22[1*1];
+  SubmatrixCopyToMatrix(P_pred, P11, 0, 0, P_DIM, 8, 8);
+  SubmatrixCopyToMatrix(P_pred, P12, 0, 8, P_DIM, 8, 1);
+  SubmatrixCopyToMatrix(P_pred, P21, 8, 0, P_DIM, 1, 8);
+  SubmatrixCopyToMatrix(P_pred, P22, 8, 8, P_DIM, 1, 1);
+
+  float PHt[P_DIM*1];
+  MatrixNegateSelf(SubmatrixCopyToMatrix(P_pred, PHt, 0, 8, P_DIM, 9, 1), 9, 1);
+
+  // float HPHt[1*1];
+  // HPHt[0*1+0] = P_pred[8*P_DIM+8];
+
+  // float S_inv[1*1] = 1.0 / (HPHt[0*1+0] + RDiag[0*1+0]);
+  float S_inv[1*1] = { 1.0 / (P22[0*1+0] + RDiag[0*1+0]) };
+
+  // Compute Kalman gain K = P*H^t*S^-1.
+  float * K = PHt;  // Conserves memory
+  MatrixScaleSelf(K, S_inv[0*1+0], 9, 1);
+
+  // const float H[1*P_DIM] = { 0, 0, 0, 0, 0, 0, 0, 0, -1 };
+  // float predicted_measurement[1] = { -r_pred[2] + baro_altitude_offset };
+  // MeasurementUpdateCommon(x_pred, P_pred, &baro_altitude, x_est, P_est, 1,
+  //   RDiag, H, predicted_measurement);
+
+  // Update error covariance matrix.
+  // P_est = (I - KH) * P_pred
+  {
+    float IKH22[1*1] = { 1.0 + K[8*1+0] };
+
+    float P_est11[8*8], P_est12[8*1], P_est21[1*8], P_est22[1*1];
+    MatrixAddToSelf(MatrixMultiply(K, P21, 8, 1, 8, P_est11), P11, 8, 8);
+    MatrixAddToSelf(MatrixMultiply(K, P22, 8, 1, 1, P_est12), P12, 8, 1);
+    MatrixMultiply(IKH22, P21, 1, 1, 8, P_est21);
+    MatrixMultiply(IKH22, P22, 1, 1, 1, P_est22);
+
+    MatrixCopyToSubmatrix(P_est11, P_est, 0, 0, 8, 8, P_DIM);
+    MatrixCopyToSubmatrix(P_est12, P_est, 0, 8, 8, 1, P_DIM);
+    MatrixCopyToSubmatrix(P_est21, P_est, 8, 0, 1, 8, P_DIM);
+    MatrixCopyToSubmatrix(P_est22, P_est, 8, 8, 1, 1, P_DIM);
+  }
 
   // 4. Calculate predicted measurement
   float predicted_measurement[1] = { -r_pred[2] + baro_altitude_offset };
 
-  MeasurementUpdateCommon(x_pred, P_pred, &baro_altitude, x_est, P_est, 1,
-    RDiag, H, predicted_measurement);
+  // Calculate innovation.
+  float innovation[1];  // A.K.A. measurement residual
+  VectorSubtract(&baro_altitude, predicted_measurement, 1, innovation);
+
+  // delta = K * innovation
+  float delta[P_DIM];
+  MatrixMultiply(K, innovation, P_DIM, 1, 1, delta);
+
+  // dq = Psi * alpha / 2
+  float dq[4];
+  {
+    const float * quat_pred = &x_pred[0];
+    float Psi[4*3];
+    Psi[0*3+0] = -quat_pred[1];
+    Psi[0*3+1] = -quat_pred[2];
+    Psi[0*3+2] = -quat_pred[3];
+    Psi[1*3+0] = quat_pred[0];
+    Psi[1*3+1] = -quat_pred[3];
+    Psi[1*3+2] = quat_pred[2];
+    Psi[2*3+0] = quat_pred[3];
+    Psi[2*3+1] = quat_pred[0];
+    Psi[2*3+2] = -quat_pred[1];
+    Psi[3*3+0] = -quat_pred[2];
+    Psi[3*3+1] = quat_pred[1];
+    Psi[3*3+2] = quat_pred[0];
+
+    const float * alpha = &delta[0];  // alpha is the first 3 elements of delta
+    VectorScaleSelf(MatrixMultiply(Psi, alpha, 4, 3, 1, dq), 0.5, 4);
+  }
+
+  x_est[0] = dq[0];
+  x_est[1] = dq[1];
+  x_est[2] = dq[2];
+  x_est[3] = dq[3];
+  x_est[4] = delta[3];
+  x_est[5] = delta[4];
+  x_est[6] = delta[5];
+  x_est[7] = delta[6];
+  x_est[8] = delta[7];
+  x_est[9] = delta[8];
+  VectorAddToSelf(x_est, x_pred, X_DIM);
+
+  QuaternionNormalize(&x_est[0]);  // normalize the quaternion portion of x_est
 }
 
 // -----------------------------------------------------------------------------

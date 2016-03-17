@@ -78,9 +78,9 @@ static void BaroAltitudeUpdate(const float *x_pred, const float *P_pred,
   float baro_altitude, float *x_est, float *P_est);
 static void VisionUpdate(const float * x_pred, const float * P_pred,
   const float * vision, float * x_est, float * P_est);
-static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
-  const float * z, float * x_est, float * P_est, int z_dim,
-  const float * R_diag, const float * H, const float * predicted_measurement);
+static void MeasurementUpdateCommon(const float * x_pred,
+  const float * measurement, const float * predicted_measurement,
+  const float * K, float * x_est, int z_dim);
 static float * MatrixMultiplySkewSymmetric3(const float * A, const float B[3*3],
   size_t A_rows, float * result);
 static float * QuaternionToDCM(const float *quat, float *result);
@@ -469,49 +469,8 @@ static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
   // predicted measurement = DCM * a0
   const float predicted_measurement[2] = { H11[1*3+2], -H11[0*3+2] };
 
-  // Calculate innovation.
-  float innovation[2];  // A.K.A. measurement residual
-  VectorSubtract(accelerometer, predicted_measurement, 2, innovation);
-
-  // delta = K * innovation
-  float delta[P_DIM];
-  MatrixMultiply(K, innovation, P_DIM, 2, 1, delta);
-
-  // dq = Psi * alpha / 2
-  float dq[4];
-  {
-    const float * quat_pred = &x_pred[0];
-    float Psi[4*3];
-    Psi[0*3+0] = -quat_pred[1];
-    Psi[0*3+1] = -quat_pred[2];
-    Psi[0*3+2] = -quat_pred[3];
-    Psi[1*3+0] = quat_pred[0];
-    Psi[1*3+1] = -quat_pred[3];
-    Psi[1*3+2] = quat_pred[2];
-    Psi[2*3+0] = quat_pred[3];
-    Psi[2*3+1] = quat_pred[0];
-    Psi[2*3+2] = -quat_pred[1];
-    Psi[3*3+0] = -quat_pred[2];
-    Psi[3*3+1] = quat_pred[1];
-    Psi[3*3+2] = quat_pred[0];
-
-    const float * alpha = &delta[0];  // alpha is the first 3 elements of delta
-    VectorScaleSelf(MatrixMultiply(Psi, alpha, 4, 3, 1, dq), 0.5, 4);
-  }
-
-  x_est[0] = dq[0];
-  x_est[1] = dq[1];
-  x_est[2] = dq[2];
-  x_est[3] = dq[3];
-  x_est[4] = delta[3];
-  x_est[5] = delta[4];
-  x_est[6] = delta[5];
-  x_est[7] = delta[6];
-  x_est[8] = delta[7];
-  x_est[9] = delta[8];
-  VectorAddToSelf(x_est, x_pred, X_DIM);
-
-  QuaternionNormalizingFilter(&x_est[0]);  // normalize the quaternion portion of x_est
+  MeasurementUpdateCommon(x_pred, accelerometer, predicted_measurement, K,
+    x_est, 2);
 }
 
 // -----------------------------------------------------------------------------
@@ -591,49 +550,8 @@ static void BaroAltitudeUpdate(const float *x_pred, const float *P_pred,
   // 4. Calculate predicted measurement
   float predicted_measurement[1] = { -r_pred[2] + baro_altitude_offset };
 
-  // Calculate innovation.
-  float innovation[1];  // A.K.A. measurement residual
-  VectorSubtract(&baro_altitude, predicted_measurement, 1, innovation);
-
-  // delta = K * innovation
-  float delta[P_DIM];
-  MatrixMultiply(K, innovation, P_DIM, 1, 1, delta);
-
-  // dq = Psi * alpha / 2
-  float dq[4];
-  {
-    const float * quat_pred = &x_pred[0];
-    float Psi[4*3];
-    Psi[0*3+0] = -quat_pred[1];
-    Psi[0*3+1] = -quat_pred[2];
-    Psi[0*3+2] = -quat_pred[3];
-    Psi[1*3+0] = quat_pred[0];
-    Psi[1*3+1] = -quat_pred[3];
-    Psi[1*3+2] = quat_pred[2];
-    Psi[2*3+0] = quat_pred[3];
-    Psi[2*3+1] = quat_pred[0];
-    Psi[2*3+2] = -quat_pred[1];
-    Psi[3*3+0] = -quat_pred[2];
-    Psi[3*3+1] = quat_pred[1];
-    Psi[3*3+2] = quat_pred[0];
-
-    const float * alpha = &delta[0];  // alpha is the first 3 elements of delta
-    VectorScaleSelf(MatrixMultiply(Psi, alpha, 4, 3, 1, dq), 0.5, 4);
-  }
-
-  x_est[0] = dq[0];
-  x_est[1] = dq[1];
-  x_est[2] = dq[2];
-  x_est[3] = dq[3];
-  x_est[4] = delta[3];
-  x_est[5] = delta[4];
-  x_est[6] = delta[5];
-  x_est[7] = delta[6];
-  x_est[8] = delta[7];
-  x_est[9] = delta[8];
-  VectorAddToSelf(x_est, x_pred, X_DIM);
-
-  QuaternionNormalizingFilter(&x_est[0]);  // normalize the quaternion portion of x_est
+  MeasurementUpdateCommon(x_pred, &baro_altitude, predicted_measurement, K,
+    x_est, 1);
 }
 
 // -----------------------------------------------------------------------------
@@ -770,56 +688,20 @@ static void VisionUpdate(const float * x_pred, const float * P_pred,
   float predicted_measurement[3];
   MatrixMultiply(C, velocity_pred, 3, 3, 1, predicted_measurement);
 
-  // Calculate innovation.
-  float innovation[3];  // A.K.A. measurement residual
-  VectorSubtract(vision, predicted_measurement, 3, innovation);
-
-  // delta = K * innovation
-  float delta[P_DIM];
-  MatrixMultiply(K, innovation, P_DIM, 3, 1, delta);
-
-  // dq = Psi * alpha / 2
-  float dq[4];
-  {
-    const float * quat_pred = &x_pred[0];
-    float Psi[4*3];
-    Psi[0*3+0] = -quat_pred[1];
-    Psi[0*3+1] = -quat_pred[2];
-    Psi[0*3+2] = -quat_pred[3];
-    Psi[1*3+0] = quat_pred[0];
-    Psi[1*3+1] = -quat_pred[3];
-    Psi[1*3+2] = quat_pred[2];
-    Psi[2*3+0] = quat_pred[3];
-    Psi[2*3+1] = quat_pred[0];
-    Psi[2*3+2] = -quat_pred[1];
-    Psi[3*3+0] = -quat_pred[2];
-    Psi[3*3+1] = quat_pred[1];
-    Psi[3*3+2] = quat_pred[0];
-
-    const float * alpha = &delta[0];  // alpha is the first 3 elements of delta
-    VectorScaleSelf(MatrixMultiply(Psi, alpha, 4, 3, 1, dq), 0.5, 4);
-  }
-
-  x_est[0] = dq[0];
-  x_est[1] = dq[1];
-  x_est[2] = dq[2];
-  x_est[3] = dq[3];
-  x_est[4] = delta[3];
-  x_est[5] = delta[4];
-  x_est[6] = delta[5];
-  x_est[7] = delta[6];
-  x_est[8] = delta[7];
-  x_est[9] = delta[8];
-  VectorAddToSelf(x_est, x_pred, X_DIM);
-
-  QuaternionNormalizingFilter(&x_est[0]);  // normalize the quaternion portion of x_est
+  MeasurementUpdateCommon(x_pred, vision, predicted_measurement, K, x_est, 3);
 }
 
 // -----------------------------------------------------------------------------
+static void MeasurementUpdateCommon(const float * x_pred,
+  const float * measurement, const float * predicted_measurement,
+  const float * K, float * x_est, int z_dim)
+/*
 static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
-  const float * z, float * x_est, float * P_est, int z_dim,
+  const float * measurement, float * x_est, float * P_est, int z_dim,
   const float * R_diag, const float * H, const float * predicted_measurement)
+*/
 {
+/*
   // Calculate Kalman gain (this code is common for all measurements).
   // Compute S = H*P*H^t + R.
   float S[Z_DIM_MAX*Z_DIM_MAX];
@@ -872,10 +754,10 @@ static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
   //       [-q2  q1  q0]
   //
   // Therefore dq = Psi/2 * alpha.
-
+*/
   // Calculate innovation (this code is common for all measurements).
   float innovation[Z_DIM_MAX];  // A.K.A. measurement residual
-  VectorSubtract(z, predicted_measurement, z_dim, innovation);
+  VectorSubtract(measurement, predicted_measurement, z_dim, innovation);
 
   // delta = K * innovation
   float delta[P_DIM];
@@ -917,7 +799,7 @@ static void MeasurementUpdateCommon(const float * x_pred, const float * P_pred,
   x_est[9] = delta[8];
   VectorAddToSelf(x_est, x_pred, X_DIM);
 
-  QuaternionNormalizingFilter(&x_est[0]);  // normalize the quaternion portion of x_est
+  QuaternionNormalizingFilter(&x_est[0]);  // normalize the quaternion portion
 }
 
 // -----------------------------------------------------------------------------

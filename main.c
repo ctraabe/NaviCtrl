@@ -189,7 +189,7 @@ int main(void)
         Accelerometer(Z_BODY_AXIS) * GRAVITY_ACCELERATION };
       KalmanTimeUpdate(gyro, accelerometer);
       KalmanAccelerometerUpdate(accelerometer);
-      KalmanBaroAltitudeUpdate(PressureAltitude());
+      // KalmanBaroAltitudeUpdate(PressureAltitude());
 #ifndef VISION
       ProcessIncomingUBlox();
 #else

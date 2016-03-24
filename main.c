@@ -223,13 +223,12 @@ int main(void)
       GreenLEDToggle();
       RedLEDOff();
       led_timer += 100;
-      UARTPrintfSafe("%X,%03X,%02.2f,%02.2f,%02.2f,%0.4f",
+      UARTPrintfSafe("%X,%03X,%02.2f,%02.2f,%02.2f",
         VisionReliability(),
         NavMode() | (FlightCtrlState() << 4),
         KalmanPosition()[0],
         KalmanPosition()[1],
-        KalmanPosition()[2],
-        KalmanHeading()
+        KalmanPosition()[2]
         );
     }
   }

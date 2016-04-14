@@ -49,6 +49,47 @@ float * QuaternionInverseMultiply(const float quat1[4], const float quat2[4],
 }
 
 // -----------------------------------------------------------------------------
+float * QuaternionInverseRotateVector(const float quat[4], const float v[3],
+  float result[3])
+{
+  float temp, r_2[3][3];
+
+  r_2[0][0] = quat[0] * quat[0];
+  r_2[1][1] = quat[2] * quat[2];
+  temp = quat[1] * quat[1];
+  r_2[2][2] = 0.5 - temp - r_2[1][1];
+  r_2[1][1] += r_2[0][0] - 0.5;
+  r_2[0][0] += temp - 0.5;
+
+  r_2[0][1] = quat[1] * quat[2];
+  r_2[1][0] = r_2[0][1];
+  temp = -quat[0] * quat[3];
+  r_2[1][0] += temp;
+  r_2[0][1] -= temp;
+
+  r_2[0][2] = quat[1] * quat[3];
+  r_2[2][0] = r_2[0][2];
+  temp = -quat[0] * quat[2];
+  r_2[2][0] -= temp;
+  r_2[0][2] += temp;
+
+  r_2[1][2] = quat[2] * quat[3];
+  r_2[2][1] = r_2[1][2];
+  temp = -quat[0] * quat[1];
+  r_2[2][1] += temp;
+  r_2[1][2] -= temp;
+
+  result[0] = r_2[0][0] * v[0] + r_2[0][1] * v[1] + r_2[0][2] * v[2];
+  result[0] += result[0];
+  result[1] = r_2[1][0] * v[0] + r_2[1][1] * v[1] + r_2[1][2] * v[2];
+  result[1] += result[1];
+  result[2] = r_2[2][0] * v[0] + r_2[2][1] * v[1] + r_2[2][2] * v[2];
+  result[2] += result[2];
+
+  return result;
+}
+
+// -----------------------------------------------------------------------------
 float * QuaternionMultiply(const float quat1[4], const float quat2[4],
   float result[4])
 {

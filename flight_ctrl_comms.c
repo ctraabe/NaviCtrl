@@ -4,7 +4,6 @@
 #include "crc16.h"
 #include "heading.h"
 #include "irq_priority.h"
-#include "kalman_filter.h"
 #include "main.h"
 #include "spi_slave.h"
 #include "timing.h"
@@ -270,17 +269,17 @@ void PrepareFlightCtrlDataExchange(void)
   // Copy volatile data
   volatile float * quat_v = from_fc_[from_fc_tail_].quaternion;
   float quat[4] = { quat_v[0], quat_v[1], quat_v[2], quat_v[3] };
-  float heading_error = KalmanHeading() - HeadingFromQuaternion(quat);
+  float heading_error = VisionHeading() - HeadingFromQuaternion(quat);
   WrapToPlusMinusPi(heading_error);
   float quat_c_z = 0.5 * 0.025 * heading_error;
 
   to_fc_ptr->version = 1;
-  to_fc_ptr->position[0] = KalmanPosition()[0];
-  to_fc_ptr->position[1] = KalmanPosition()[1];
-  to_fc_ptr->position[2] = KalmanPosition()[2];
-  to_fc_ptr->velocity[0] = KalmanVelocity()[0];
-  to_fc_ptr->velocity[1] = KalmanVelocity()[1];
-  to_fc_ptr->velocity[2] = KalmanVelocity()[2];
+  to_fc_ptr->position[0] = VisionPositionVector()[0];
+  to_fc_ptr->position[1] = VisionPositionVector()[1];
+  to_fc_ptr->position[2] = VisionPositionVector()[2];
+  to_fc_ptr->velocity[0] = VisionBodyVelocityVector()[0];
+  to_fc_ptr->velocity[1] = VisionBodyVelocityVector()[1];
+  to_fc_ptr->velocity[2] = VisionBodyVelocityVector()[2];
   to_fc_ptr->heading_correction_quat_0 = sqrt(1.0 - quat_c_z * quat_c_z);
   to_fc_ptr->heading_correction_quat_z = quat_c_z;
   to_fc_ptr->target_position[0] = TargetPosition()[0];
@@ -291,7 +290,7 @@ void PrepareFlightCtrlDataExchange(void)
   to_fc_ptr->heading_rate = HeadingRate();
   to_fc_ptr->nav_mode = (uint8_t)NavMode();
 #ifdef VISION
-  to_fc_ptr->status = (uint8_t)VisionReliability();
+  to_fc_ptr->status = (uint8_t)VisionStatus();
 #endif
 
   to_fc_ptr->crc = CRCCCITT((uint8_t *)to_fc_ptr, sizeof(struct ToFC) - 2);

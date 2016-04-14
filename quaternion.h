@@ -20,6 +20,10 @@ float * QuaternionInverseMultiply(const float quat1[4], const float quat2[4],
   float result[4]);
 
 // -----------------------------------------------------------------------------
+float * QuaternionInverseRotateVector(const float quat[4], const float v[3],
+  float result[3]);
+
+// -----------------------------------------------------------------------------
 float * QuaternionMultiply(const float quat1[4], const float quat2[4],
   float result[4]);
 

@@ -4,7 +4,6 @@
 
 #include "custom_math.h"
 #include "flight_ctrl_comms.h"
-#include "kalman_filter.h"
 #include "timing.h"
 #include "vector.h"
 #ifdef VISION
@@ -25,42 +24,19 @@ struct Waypoint {
   uint32_t wait_ms;
 };
 
-#define ROUTE_0_N_WAYPOINTS (8)
+#define ROUTE_0_N_WAYPOINTS (1)
 static const struct Waypoint route0[ROUTE_0_N_WAYPOINTS] = {
-  { { +0.0, +0.0, -1.5 }, +0.75, +0.35, +0.0, +0.2, +0.2, 0 },
-  { { +2.0, +0.0, -1.5 }, +0.75, +0.50, +0.0, +0.2, +0.2, 0 },
-  { { +2.0, +3.1, -1.5 }, +0.75, +0.50, +0.0, +0.2, +0.2, 0 },
-  { { +6.0, +3.1, -1.5 }, +0.75, +0.35, +0.0, +0.2, +0.2, 10000 },
-  { { +2.0, +3.1, -1.5 }, +0.75, +0.35, +0.0, +0.2, +0.2, 0 },
-  { { +2.0, +0.0, -1.5 }, +0.75, +0.50, +0.0, +0.2, +0.2, 0 },
-  { { +0.0, +0.0, -1.5 }, +0.75, +0.35, +0.0, +0.2, +0.2, 2000 },
-  { { +0.0, +0.0, +1.5 }, +0.50, +0.35, +0.0, +0.2, +0.2, 0 },
+  { { +0.0, +0.0, -1.0 }, +0.75, +0.35, +0.0, +0.2, +0.2, 0 },
 };
 
-#define ROUTE_1_N_WAYPOINTS (6)
+#define ROUTE_1_N_WAYPOINTS (1)
 static const struct Waypoint route1[ROUTE_1_N_WAYPOINTS] = {
-  { { +0.0, +0.0, -1.5 }, +0.75, +0.35, +0.0, +0.2, +0.2, 0 },
-  { { +2.0, +0.0, -2.0 }, +0.75, +0.35, +0.0, +0.2, +0.2, 0 },
-  { { +6.6, +0.0, -2.25 }, +0.75, +0.35, +0.0, +0.2, +0.2, 8000 },
-  { { +2.0, +0.0, -2.25 }, +0.75, +0.35, +0.0, +0.2, +0.2, 0 },
-  { { +0.0, +0.0, -1.5 }, +0.75, +0.35, +0.0, +0.2, +0.2, 2000 },
-  { { +0.0, +0.0, +1.5 }, +0.50, +0.35, +0.0, +0.2, +0.2, 0 },
+  { { +0.0, +0.0, -1.0 }, +0.75, +0.35, +0.0, +0.2, +0.2, 0 },
 };
 
-#define ROUTE_2_N_WAYPOINTS (12)
+#define ROUTE_2_N_WAYPOINTS (1)
 static const struct Waypoint route2[ROUTE_2_N_WAYPOINTS] = {
-  { { +0.0, +0.0, -1.5 }, +0.75, +0.35, +0.0, +0.2, +0.2, 0 },
-  { { +2.0, +0.0, -1.5 }, +0.75, +0.50, +0.0, +0.2, +0.2, 0 },
-  { { +2.0, +3.1, -1.5 }, +0.75, +0.50, +0.0, +0.2, +0.2, 0 },
-  { { +6.0, +3.1, -1.5 }, +0.75, +0.50, +0.0, +0.2, +0.2, 0 },
-  { { +6.6, -0.1, -1.5 }, +0.75, +0.50, +0.0, +0.2, +0.2, 0 },
-  { { +10.7, -0.1, -1.75 }, +0.75, +0.50, +0.0, +0.2, +0.2, 2500 },
-  { { +10.7, +1.6, -1.75 }, +0.75, +0.50, +0.0, +0.2, +0.2, 8000 },
-  { { +10.7, -0.1, -1.75 }, +0.75, +0.50, +0.0, +0.2, +0.2, 0 },
-  { { +6.6, -0.1, -2.25 }, +0.75, +0.35, +0.0, +0.2, +0.2, 0 },
-  { { +2.0, +0.0, -2.25 }, +0.75, +0.35, +0.0, +0.2, +0.2, 0 },
-  { { +0.0, +0.0, -1.5 }, +0.60, +0.35, +0.0, +0.2, +0.2, 2000 },
-  { { +0.0, +0.0, +1.5 }, +0.50, +0.35, +0.0, +0.2, +0.2, 0 },
+  { { +0.0, +0.0, -1.0 }, +0.75, +0.35, +0.0, +0.2, +0.2, 0 },
 };
 
 static enum NavMode mode_ = NAV_MODE_OFF;
@@ -115,9 +91,9 @@ float TransitSpeed(void)
 void UpdateNavigation(void)
 {
   static float radius_squared = 1.0;
-  static uint32_t next_waypoint_time = 0, waypoint_reached = 0;  // , baro_reset = 0;
+  static uint32_t next_waypoint_time = 0, waypoint_reached = 0;
 
-  const float * current_position = KalmanPosition();
+  const float * current_position = VisionPositionVector();
 
   if (RequestedNavMode() != mode_)
   {
@@ -146,19 +122,10 @@ void UpdateNavigation(void)
     {
       Vector3Copy(current_position, target_position_);
     }
-// #ifdef VISION
-//     if (!baro_reset && (RequestedNavMode() != NAV_MODE_OFF)
-//       && (FlightCtrlState() & FC_STATE_BIT_MOTORS_RUNNING))
-//     {
-//       baro_reset = 1;
-//       ResetKalmanBaroAltitudeOffset(FilteredPressureAltitude(),
-//         VisionPositionVector()[D_WORLD_AXIS]);
-//     }
-// #endif
   }
 
   Vector3Subtract(current_position, target_position_, delta_postion_);
-  delta_heading_ = WrapToPlusMinusPi(KalmanHeading()
+  delta_heading_ = WrapToPlusMinusPi(VisionHeading()
     - current_waypoint_->target_heading);
 
   if ((RequestedNavMode() == NAV_MODE_AUTO))

@@ -6,17 +6,21 @@
 
 #include "constants.h"
 
+struct FromVision {
+  uint32_t dt;  // microseconds
+  uint16_t status;
+  float position[3];  // meters
+  float quaternion[3];
+} __attribute__((packed));
+
 
 // =============================================================================
 // Accessors:
 
-const float * VisionAngularVelocityVector(void);
-
-// -----------------------------------------------------------------------------
 const float * VisionBodyVelocityVector(void);
 
 // -----------------------------------------------------------------------------
-uint16_t VisionCaptureTime(void);
+float VisionHeading(void);
 
 // -----------------------------------------------------------------------------
 const float * VisionPositionVector(void);
@@ -25,7 +29,13 @@ const float * VisionPositionVector(void);
 const float * VisionQuaternionVector(void);
 
 // -----------------------------------------------------------------------------
-uint16_t VisionReliability(void);
+uint16_t VisionStatus(void);
+
+// -----------------------------------------------------------------------------
+const float * VisionVelocityVector(void);
+
+// -----------------------------------------------------------------------------
+const struct FromVision * FromVision(void);
 
 
 // =============================================================================

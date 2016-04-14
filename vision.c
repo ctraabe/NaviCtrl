@@ -23,21 +23,11 @@
 static volatile uint8_t rx_buffer_[VISION_RX_BUFFER_LENGTH];
 static volatile size_t rx_buffer_head_ = 0;
 
-static struct FromVision {
-  uint16_t latency;  // Latency (ms)
-  uint32_t capture_time;
-  uint16_t reliability;
-  float velocity[3];  // (mm/frame)
-  float quaternion[3];  // [q_x, q_y, q_z]
-  float angular_velocity[3];  // (rad/frame)
-  float position[3];  // (mm)
-  uint16_t latency_ranging;  // (ms)
-  float nearest_point_parameters[3];  // Distance and two angles, TBD
-  float marking_point_parameters[3];  // Distance and two angles, TBD
-} __attribute__((packed)) from_vision_;
+static struct FromVision from_vision_;
 
-// static float inertial_velocity_[3];
 static float quaternion_[4];
+static float body_velocity_[3], inertial_velocity_[3];
+static float heading_;
 
 
 // =============================================================================
@@ -51,21 +41,15 @@ static void ReceiveVisionData(void);
 // =============================================================================
 // Accessors:
 
-const float * VisionAngularVelocityVector(void)
-{
-  return &from_vision_.angular_velocity[0];
-}
-
-// -----------------------------------------------------------------------------
 const float * VisionBodyVelocityVector(void)
 {
-  return &from_vision_.velocity[0];
+  return &body_velocity_[0];
 }
 
 // -----------------------------------------------------------------------------
-uint16_t VisionCaptureTime(void)
+float VisionHeading(void)
 {
-  return from_vision_.capture_time;
+  return heading_;
 }
 
 // -----------------------------------------------------------------------------
@@ -81,9 +65,21 @@ const float * VisionQuaternionVector(void)
 }
 
 // -----------------------------------------------------------------------------
-uint16_t VisionReliability(void)
+uint16_t VisionStatus(void)
 {
-  return from_vision_.reliability;
+  return from_vision_.status;
+}
+
+// -----------------------------------------------------------------------------
+const float * VisionVelocityVector(void)
+{
+  return &inertial_velocity_[0];
+}
+
+// -----------------------------------------------------------------------------
+const struct FromVision * FromVision(void)
+{
+  return &from_vision_;
 }
 
 
@@ -216,21 +212,7 @@ static uint32_t ProcessIncomingVisionByte(uint8_t byte)
 // -----------------------------------------------------------------------------
 static void ProcessVisionData(void)
 {
-  // Convert velocity from mm/frame (at 30 fps) to m/s.
-  from_vision_.velocity[0] *= 30.0 / 1000.0;
-  from_vision_.velocity[1] *= 30.0 / 1000.0;
-  from_vision_.velocity[2] *= 30.0 / 1000.0;
-
-  // Convert angular rate from rad/frame (at 30 fps) to rad/s.
-  from_vision_.angular_velocity[0] *= 30.0;
-  from_vision_.angular_velocity[1] *= 30.0;
-  from_vision_.angular_velocity[2] *= 30.0;
-
-  // Convert position from mm to m.
-  from_vision_.position[0] /= 1000.0;
-  from_vision_.position[1] /= 1000.0;
-  from_vision_.position[2] /= 1000.0;
-
+  static float position_pv[3] = { 0.0 };
   // Compute full quaternion.
   quaternion_[1] = from_vision_.quaternion[0];
   quaternion_[2] = from_vision_.quaternion[1];
@@ -238,12 +220,18 @@ static void ProcessVisionData(void)
   quaternion_[0] = sqrt(1.0 - quaternion_[1] * quaternion_[1] - quaternion_[2]
     * quaternion_[2] - quaternion_[3] * quaternion_[3]);
 
-  // Compute inertial velocity.
-  // QuaternionRotateVector(quaternion_, from_vision_.velocity,
-  //   inertial_velocity_);
+  // Compute heading.
+  heading_ = HeadingFromQuaternion(quaternion_);
 
-  // Compute heading angle.
-  // heading_ = HeadingFromQuaternion(quaternion_);
+  // Take the derivative of position.
+  float dt_inv = 1.0e6 / (float)from_vision_.dt;  // seconds
+  inertial_velocity_[0] = (from_vision_.position[0] - position_pv[0]) * dt_inv;
+  inertial_velocity_[1] = (from_vision_.position[1] - position_pv[1]) * dt_inv;
+  inertial_velocity_[2] = (from_vision_.position[2] - position_pv[2]) * dt_inv;
+
+  // Rotate velocity to the body axis.
+  QuaternionInverseRotateVector(quaternion_, inertial_velocity_,
+    body_velocity_);
 }
 
 // -----------------------------------------------------------------------------

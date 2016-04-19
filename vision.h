@@ -15,6 +15,12 @@ struct FromVision {
 
 
 // =============================================================================
+// Global data (workaround):
+
+extern struct FromVision g_from_vision;
+
+
+// =============================================================================
 // Accessors:
 
 const float * VisionBodyVelocityVector(void);

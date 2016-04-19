@@ -204,6 +204,12 @@ int main(void)
     {
       GreenLEDToggle();
       led_timer += 100;
+      UARTPrintfSafe("%0.2f,%0.2f,%0.2f,%0.2f",
+        g_from_vision.position[N_WORLD_AXIS],
+        g_from_vision.position[E_WORLD_AXIS],
+        g_from_vision.position[D_WORLD_AXIS],
+        VisionHeading()
+        );
     }
   }
 }

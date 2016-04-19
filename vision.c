@@ -13,6 +13,12 @@
 
 
 // =============================================================================
+// Global data (workaround):
+
+struct FromVision g_from_vision;
+
+
+// =============================================================================
 // Private data:
 
 #define VISION_UART_BAUD (115200)
@@ -22,8 +28,6 @@
 
 static volatile uint8_t rx_buffer_[VISION_RX_BUFFER_LENGTH];
 static volatile size_t rx_buffer_head_ = 0;
-
-static struct FromVision from_vision_;
 
 static float quaternion_[4];
 static float body_velocity_[3], inertial_velocity_[3];
@@ -55,7 +59,7 @@ float VisionHeading(void)
 // -----------------------------------------------------------------------------
 const float * VisionPositionVector(void)
 {
-  return &from_vision_.position[0];
+  return &g_from_vision.position[0];
 }
 
 // -----------------------------------------------------------------------------
@@ -67,7 +71,7 @@ const float * VisionQuaternionVector(void)
 // -----------------------------------------------------------------------------
 uint16_t VisionStatus(void)
 {
-  return from_vision_.status;
+  return g_from_vision.status;
 }
 
 // -----------------------------------------------------------------------------
@@ -79,7 +83,7 @@ const float * VisionVelocityVector(void)
 // -----------------------------------------------------------------------------
 const struct FromVision * FromVision(void)
 {
-  return &from_vision_;
+  return &g_from_vision;
 }
 
 
@@ -191,7 +195,7 @@ static uint32_t ProcessIncomingVisionByte(uint8_t byte)
       {
         if(byte == crc.bytes[1])
         {
-          memcpy(&from_vision_, payload_buffer, PAYLOAD_LENGTH);
+          memcpy(&g_from_vision, payload_buffer, PAYLOAD_LENGTH);
           ProcessVisionData();
           new_data = 1;
         }
@@ -214,9 +218,9 @@ static void ProcessVisionData(void)
 {
   static float position_pv[3] = { 0.0 };
   // Compute full quaternion.
-  quaternion_[1] = from_vision_.quaternion[0];
-  quaternion_[2] = from_vision_.quaternion[1];
-  quaternion_[3] = from_vision_.quaternion[2];
+  quaternion_[1] = g_from_vision.quaternion[0];
+  quaternion_[2] = g_from_vision.quaternion[1];
+  quaternion_[3] = g_from_vision.quaternion[2];
   quaternion_[0] = sqrt(1.0 - quaternion_[1] * quaternion_[1] - quaternion_[2]
     * quaternion_[2] - quaternion_[3] * quaternion_[3]);
 
@@ -224,10 +228,10 @@ static void ProcessVisionData(void)
   heading_ = HeadingFromQuaternion(quaternion_);
 
   // Take the derivative of position.
-  float dt_inv = 1.0e6 / (float)from_vision_.dt;  // seconds
-  inertial_velocity_[0] = (from_vision_.position[0] - position_pv[0]) * dt_inv;
-  inertial_velocity_[1] = (from_vision_.position[1] - position_pv[1]) * dt_inv;
-  inertial_velocity_[2] = (from_vision_.position[2] - position_pv[2]) * dt_inv;
+  float dt_inv = 1.0e6 / (float)g_from_vision.dt;  // seconds
+  inertial_velocity_[0] = (g_from_vision.position[0] - position_pv[0]) * dt_inv;
+  inertial_velocity_[1] = (g_from_vision.position[1] - position_pv[1]) * dt_inv;
+  inertial_velocity_[2] = (g_from_vision.position[2] - position_pv[2]) * dt_inv;
 
   // Rotate velocity to the body axis.
   QuaternionInverseRotateVector(quaternion_, inertial_velocity_,

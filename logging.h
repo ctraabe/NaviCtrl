@@ -5,6 +5,8 @@
 #include <inttypes.h>
 #include <stddef.h>
 
+#include "flight_ctrl_comms.h"
+
 
 // =============================================================================
 // Accessors:
@@ -30,10 +32,13 @@ void OpenLogFile(const char * filename);
 void CloseLogFile(void);
 
 // -----------------------------------------------------------------------------
-void LogFlightControlData(void);
+void LogFromFlightCtrlData(void);
 
 // -----------------------------------------------------------------------------
 void LogMagnetometerData(void);
+
+// -----------------------------------------------------------------------------
+void LogToFlightCtrlData(const struct ToFlightCtrl * data);
 
 // -----------------------------------------------------------------------------
 void LogVisionData(void);

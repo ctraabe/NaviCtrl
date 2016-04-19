@@ -9,28 +9,43 @@
 #include "navigation.h"
 
 
-  struct FromFlightCtrl {
-    uint16_t timestamp;
-    uint8_t nav_mode_request;
-    uint8_t state;
-    float accelerometer[3];
-    float gyro[3];
-    float quaternion[4];
-    float pressure_altitude;
+struct FromFlightCtrl {
+  uint16_t timestamp;
+  uint8_t nav_mode_request;
+  uint8_t state;
+  float accelerometer[3];
+  float gyro[3];
+  float quaternion[4];
+  float pressure_altitude;
 #ifdef LOG_FLT_CTRL_DEBUG_TO_SD
-    // int16_t sbus_pitch;
-    // int16_t sbus_roll;
-    // int16_t sbus_yaw;
-    // int16_t sbus_thrust;
-    // uint16_t battery_voltage;
-    // float thrust_command;
-    // float heading_command;
-    // float angular_command[3];
-    // float kalman_p_dot;
-    // float kalman_q_dot;
-    // float vertical_speed;
-    // float vertical_acceleration;
+  // int16_t sbus_pitch;
+  // int16_t sbus_roll;
+  // int16_t sbus_yaw;
+  // int16_t sbus_thrust;
+  // uint16_t battery_voltage;
+  // float thrust_command;
+  // float heading_command;
+  // float angular_command[3];
+  // float kalman_p_dot;
+  // float kalman_q_dot;
+  // float vertical_speed;
+  // float vertical_acceleration;
 #endif
+} __attribute__((packed));
+
+struct ToFlightCtrl {
+  uint16_t version;
+  float position[3];
+  float velocity[3];
+  float heading_correction_quat_0;
+  float heading_correction_quat_z;
+  float target_position[3];
+  float transit_speed;
+  float target_heading;
+  float heading_rate;
+  uint8_t nav_mode;
+  uint8_t status;
+  uint16_t crc;
 } __attribute__((packed));
 
 enum FlightCtrlStateBits {

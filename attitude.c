@@ -2,6 +2,7 @@
 
 #include <math.h>
 
+#include "constants.h"
 #include "quaternion.h"
 #include "vector.h"
 

@@ -4,6 +4,7 @@
 #include "crc16.h"
 #include "heading.h"
 #include "irq_priority.h"
+#include "kalman_filter.h"
 #include "main.h"
 #include "spi_slave.h"
 #include "timing.h"
@@ -227,7 +228,7 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
 #ifndef LOG_FLT_CTRL_DEBUG_TO_SD
           SetFlightCtrlInterrupt();
 #else
-          LogFlightControlData();
+          LogFromFlightCtrlData();
 #endif
         }
         goto RESET;
@@ -245,31 +246,20 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
 // -----------------------------------------------------------------------------
 void PrepareFlightCtrlDataExchange(void)
 {
-  struct ToFC {
-    uint16_t version;
-    float position[3];
-    float velocity[3];
-    float heading_correction_quat_0;
-    float heading_correction_quat_z;
-    float target_position[3];
-    float transit_speed;
-    float target_heading;
-    float heading_rate;
-    uint8_t nav_mode;
-    uint8_t status;
-    uint16_t crc;
-  } __attribute__((packed));
-
-  // _Static_assert(sizeof(struct ToFC) < SPI_TX_BUFFER_LENGTH,
+  // _Static_assert(sizeof(struct ToFlightCtrl) < SPI_TX_BUFFER_LENGTH,
   //   "ToFC is too large for the SPI TX buffer");
 
-  struct ToFC * to_fc_ptr = (struct ToFC *)RequestSPITxBuffer();
+  struct ToFlightCtrl * to_fc_ptr = (struct ToFlightCtrl *)RequestSPITxBuffer();
   if (!to_fc_ptr) return;
 
   // Copy volatile data
   volatile float * quat_v = from_fc_[from_fc_tail_].quaternion;
   float quat[4] = { quat_v[0], quat_v[1], quat_v[2], quat_v[3] };
-  float heading_error = VisionHeading() - HeadingFromQuaternion(quat);
+  float heading_error;
+  if (VisionStatus() != 1)
+    heading_error = 0;
+  else
+    heading_error = VisionHeading() - HeadingFromQuaternion(quat);
   WrapToPlusMinusPi(heading_error);
   float quat_c_z = 0.5 * 0.025 * heading_error;
 
@@ -277,9 +267,9 @@ void PrepareFlightCtrlDataExchange(void)
   to_fc_ptr->position[0] = VisionPositionVector()[0];
   to_fc_ptr->position[1] = VisionPositionVector()[1];
   to_fc_ptr->position[2] = VisionPositionVector()[2];
-  to_fc_ptr->velocity[0] = VisionBodyVelocityVector()[0];
-  to_fc_ptr->velocity[1] = VisionBodyVelocityVector()[1];
-  to_fc_ptr->velocity[2] = VisionBodyVelocityVector()[2];
+  to_fc_ptr->velocity[0] = KalmanVelocityVector()[0];
+  to_fc_ptr->velocity[1] = KalmanVelocityVector()[1];
+  to_fc_ptr->velocity[2] = KalmanVelocityVector()[2];
   to_fc_ptr->heading_correction_quat_0 = sqrt(1.0 - quat_c_z * quat_c_z);
   to_fc_ptr->heading_correction_quat_z = quat_c_z;
   to_fc_ptr->target_position[0] = TargetPosition()[0];
@@ -293,9 +283,14 @@ void PrepareFlightCtrlDataExchange(void)
   to_fc_ptr->status = (uint8_t)VisionStatus();
 #endif
 
-  to_fc_ptr->crc = CRCCCITT((uint8_t *)to_fc_ptr, sizeof(struct ToFC) - 2);
+  to_fc_ptr->crc = CRCCCITT((uint8_t *)to_fc_ptr, sizeof(struct ToFlightCtrl)
+    - 2);
 
-  SPITxBuffer(sizeof(struct ToFC));
+#ifdef LOG_FLT_CTRL_DEBUG_TO_SD
+  LogToFlightCtrlData(to_fc_ptr);
+#endif
+
+  SPITxBuffer(sizeof(struct ToFlightCtrl));
   // NotifyFlightCtrl();  // Request SPI communication.
 }
 

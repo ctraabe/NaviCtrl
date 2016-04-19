@@ -31,7 +31,7 @@ static volatile size_t rx_buffer_head_ = 0;
 
 static float quaternion_[4];
 static float body_velocity_[3], inertial_velocity_[3];
-static float heading_;
+static float dt_, heading_;
 
 
 // =============================================================================
@@ -48,6 +48,12 @@ static void ReceiveVisionData(void);
 const float * VisionBodyVelocityVector(void)
 {
   return &body_velocity_[0];
+}
+
+// -----------------------------------------------------------------------------
+float VisionDT(void)
+{
+  return dt_;
 }
 
 // -----------------------------------------------------------------------------
@@ -236,6 +242,8 @@ static void ProcessVisionData(void)
   // Rotate velocity to the body axis.
   QuaternionInverseRotateVector(quaternion_, inertial_velocity_,
     body_velocity_);
+
+  dt_ = 1e-6 * (float)g_from_vision.dt;
 }
 
 // -----------------------------------------------------------------------------

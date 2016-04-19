@@ -5,6 +5,7 @@
 #include "flight_ctrl_comms.h"
 #include "i2c.h"
 #include "irq_priority.h"
+#include "kalman_filter.h"
 #include "led.h"
 #include "logging.h"
 #include "lsm303dl.h"
@@ -174,7 +175,11 @@ int main(void)
     ProcessIncomingUBlox();
 #else
 #ifdef LOG_FLT_CTRL_DEBUG_TO_SD
-    if (ProcessIncomingVision()) SetNewDataCallback(LogVisionData);
+    if (ProcessIncomingVision())
+    {
+      SetNewDataCallback(LogVisionData);
+      KalmanVisionUpdate(g_from_vision.position, VisionDT(), VisionStatus());
+    }
 #endif
 #endif
 
@@ -183,6 +188,8 @@ int main(void)
       flight_ctrl_interrupt_ = 0;
 
       LSM303DLReadMag();
+
+      KalmanTimeUpdate((float *)Quat(), (float *)AccelerometerVector());
 
       UpdateNavigation();
 

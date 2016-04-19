@@ -107,7 +107,7 @@ void CloseLogFile(void)
 }
 
 // -----------------------------------------------------------------------------
-void LogFlightControlData(void)
+void LogFromFlightCtrlData(void)
 {
   if (SDCardNotPresent() || !file_.fs) return;
 
@@ -132,6 +132,18 @@ void LogMagnetometerData(void)
     MagnetometerVector()[0], MagnetometerVector()[1],
     MagnetometerVector()[2]);
   WriteToFIFO(ascii, length);
+}
+
+// -----------------------------------------------------------------------------
+void LogToFlightCtrlData(const struct ToFlightCtrl * data)
+{
+  if (SDCardNotPresent() || !file_.fs) return;
+
+  union U16Bytes temp;
+  temp.bytes[0] = 0xEE;
+  temp.bytes[1] = 0xFF;
+  WriteToFIFO((char *)temp.bytes, 2);
+  WriteToFIFO((char *)data, sizeof(struct ToFlightCtrl));
 }
 
 // -----------------------------------------------------------------------------

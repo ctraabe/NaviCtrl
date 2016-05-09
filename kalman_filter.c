@@ -395,7 +395,8 @@ static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
   const float * quat_pred = &x_pred[0]; // predicted attitude quaternion
 
   // 2. Assign diagonal elements of R
-  const float R_diag[2] = {
+  const float R_diag[3] = {
+    KALMAN_SIGMA_ACCELEROMETER_G * KALMAN_SIGMA_ACCELEROMETER_G,
     KALMAN_SIGMA_ACCELEROMETER_G * KALMAN_SIGMA_ACCELEROMETER_G,
     KALMAN_SIGMA_ACCELEROMETER_G * KALMAN_SIGMA_ACCELEROMETER_G,
   };
@@ -404,73 +405,75 @@ static void AccelerometerUpdate(const float * x_pred, const float * P_pred,
   // H = Cib * [[0 0 -G]^t x ]
   float C[3*3];
   QuaternionToDCM(quat_pred, C);  // C = DCM of current attitude
-  // const float H[2*P_DIM] = {
-  //    G * C[1*3+0],  G * C[1*3+1],  G * C[1*3+2], 0, 0, 0, 0, 0, 0,
-  //   -G * C[0*3+0], -G * C[0*3+1], -G * C[0*3+2], 0, 0, 0, 0, 0, 0,
+  // const float H[3*P_DIM] = {
+  //   -G * C[0*3+1], G * C[0*3+0], 0, 0, 0, 0, 0, 0, 0,
+  //   -G * C[1*3+1], G * C[1*3+0], 0, 0, 0, 0, 0, 0, 0,
+  //   -G * C[2*3+1], G * C[2*3+0], 0, 0, 0, 0, 0, 0, 0,
   // };
-  const float H11[2*3] = {
-     G * C[1*3+0],  G * C[1*3+1],  G * C[1*3+2],
-    -G * C[0*3+0], -G * C[0*3+1], -G * C[0*3+2],
+  const float H11[3*2] = {
+    -G * C[0*3+1], G * C[0*3+0],
+    -G * C[1*3+1], G * C[1*3+0],
+    -G * C[2*3+1], G * C[2*3+0],
   };
 
   // Compute Kalman gain K = P*H^t*S^-1.
-  float K[P_DIM*2];
-  float * K11 = &K[0*2+0];  // 3x2
-  float * K21 = &K[3*2+0];  // 6x2
-  float P11[3*3], P12[3*6], P21[6*3], P22[6*6];
-  SubmatrixCopyToMatrix(P_pred, P11, 0, 0, P_DIM, 3, 3);
-  SubmatrixCopyToMatrix(P_pred, P12, 0, 3, P_DIM, 3, 6);
-  SubmatrixCopyToMatrix(P_pred, P21, 3, 0, P_DIM, 6, 3);
-  SubmatrixCopyToMatrix(P_pred, P22, 3, 3, P_DIM, 6, 6);
+  float K[P_DIM*3];
+  float * K11 = &K[0*3+0];  // 2x3
+  float * K21 = &K[2*3+0];  // 7x3
+  float P11[2*2], P12[2*7], P21[7*2], P22[7*7];
+  SubmatrixCopyToMatrix(P_pred, P11, 0, 0, P_DIM, 2, 2);
+  SubmatrixCopyToMatrix(P_pred, P12, 0, 2, P_DIM, 2, 7);
+  SubmatrixCopyToMatrix(P_pred, P21, 2, 0, P_DIM, 7, 2);
+  SubmatrixCopyToMatrix(P_pred, P22, 2, 2, P_DIM, 7, 7);
   {
     // Compute S = H*P*H^t + R.
     // const float H12[2*6] = { 0 };
 
+    float PHt11[2*3], PHt21[7*3];
+    MatrixMultiplyByTranspose(P11, H11, 2, 2, 3, PHt11);
+    MatrixMultiplyByTranspose(P21, H11, 7, 2, 3, PHt21);
 
-    float PHt11[3*2], PHt21[6*2];
-    MatrixMultiplyByTranspose(P11, H11, 3, 3, 2, PHt11);
-    MatrixMultiplyByTranspose(P21, H11, 6, 3, 2, PHt21);
-
-    float HPHt[2*2];
-    MatrixMultiply(H11, PHt11, 2, 3, 2, HPHt);
+    float HPHt[3*3];
+    MatrixMultiply(H11, PHt11, 3, 2, 3, HPHt);
 
     float * S = HPHt;  // Conserves memory
-    MatrixAddDiagonalToSelf(S, R_diag, 2);
+    MatrixAddDiagonalToSelf(S, R_diag, 3);
 
-    float S_inv[2*2];
+    float S_inv[3*3];
     // TODO: make a 2x2 specific inverse routine for speed.
-    MatrixInverse(S, 2, S_inv);
+    MatrixInverse(S, 3, S_inv);
 
-    MatrixMultiply(PHt11, S_inv, 3, 2, 2, K11);
-    MatrixMultiply(PHt21, S_inv, 6, 2, 2, K21);
+    MatrixMultiply(PHt11, S_inv, 2, 3, 3, K11);
+    MatrixMultiply(PHt21, S_inv, 7, 3, 3, K21);
   }
 
   // Update error covariance matrix.
   // P_est = (I - KH) * P_pred
   {
-    float IKH1[P_DIM*3];
-    float * IKH11 = &IKH1[0*3+0];  // 3x3
-    float * IKH21 = &IKH1[3*3+0];  // 6x3
-    MatrixSubtractSelfFromIdentity(MatrixMultiply(K11, H11, 3, 2, 3, IKH11), 3);
-    MatrixNegateSelf(MatrixMultiply(K21, H11, 6, 2, 3, IKH21), 6, 3);
+    float IKH1[P_DIM*2];
+    float * IKH11 = &IKH1[0*2+0];  // 2x2
+    float * IKH21 = &IKH1[2*2+0];  // 7x2
+    MatrixSubtractSelfFromIdentity(MatrixMultiply(K11, H11, 2, 3, 2, IKH11), 2);
+    MatrixNegateSelf(MatrixMultiply(K21, H11, 7, 3, 2, IKH21), 7, 2);
 
-    float P_est11[3*3], P_est12[3*6], P_est21[6*3], P_est22[6*6];
-    MatrixMultiply(IKH11, P11, 3, 3, 3, P_est11);
-    MatrixMultiply(IKH11, P12, 3, 3, 6, P_est12);
-    MatrixAddToSelf(MatrixMultiply(IKH21, P11, 6, 3, 3, P_est21), P21, 6, 3);
-    MatrixAddToSelf(MatrixMultiply(IKH21, P12, 6, 3, 6, P_est22), P22, 6, 6);
+    float P_est11[2*2], P_est12[2*7], P_est21[7*2], P_est22[7*7];
+    MatrixMultiply(IKH11, P11, 2, 2, 2, P_est11);
+    MatrixMultiply(IKH11, P12, 2, 2, 7, P_est12);
+    MatrixAddToSelf(MatrixMultiply(IKH21, P11, 7, 2, 2, P_est21), P21, 7, 2);
+    MatrixAddToSelf(MatrixMultiply(IKH21, P12, 7, 2, 7, P_est22), P22, 7, 7);
 
-    MatrixCopyToSubmatrix(P_est11, P_est, 0, 0, 3, 3, P_DIM);
-    MatrixCopyToSubmatrix(P_est12, P_est, 0, 3, 3, 6, P_DIM);
-    MatrixCopyToSubmatrix(P_est21, P_est, 3, 0, 6, 3, P_DIM);
-    MatrixCopyToSubmatrix(P_est22, P_est, 3, 3, 6, 6, P_DIM);
+    MatrixCopyToSubmatrix(P_est11, P_est, 0, 0, 2, 2, P_DIM);
+    MatrixCopyToSubmatrix(P_est12, P_est, 0, 2, 2, 7, P_DIM);
+    MatrixCopyToSubmatrix(P_est21, P_est, 2, 0, 7, 2, P_DIM);
+    MatrixCopyToSubmatrix(P_est22, P_est, 2, 2, 7, 7, P_DIM);
   }
 
-  // predicted measurement = DCM * a0
-  const float predicted_measurement[2] = { H11[1*3+2], -H11[0*3+2] };
+  // predicted measurement = Cib * [0 0 -G]^t
+  const float predicted_measurement[3] = { C[0*3+2] * -G, C[1*3+2] * -G,
+    C[2*3+2] * -G };
 
   MeasurementUpdateCommon(x_pred, accelerometer, predicted_measurement, K,
-    x_est, 2);
+    x_est, 3);
 }
 
 // -----------------------------------------------------------------------------

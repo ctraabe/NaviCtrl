@@ -225,10 +225,9 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
           from_fc_tail_ = from_fc_head_;
           from_fc_head_ = !from_fc_tail_;
           FilterPressureAltitude();
-#ifndef LOG_FLT_CTRL_DEBUG_TO_SD
           SetFlightCtrlInterrupt();
-#else
-          LogFromFlightCtrlData();
+#ifdef LOG_FLT_CTRL_DEBUG_TO_SD
+          // LogFromFlightCtrlData();
 #endif
         }
         goto RESET;

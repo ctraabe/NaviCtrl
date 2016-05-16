@@ -19,6 +19,7 @@
 #include "union_types.h"
 // TODO: remove
 #include "crc16.h"
+#include "kalman_filter.h"
 #include "led.h"
 #include "vision.h"
 
@@ -144,6 +145,20 @@ void LogToFlightCtrlData(const struct ToFlightCtrl * data)
   temp.bytes[1] = 0xFF;
   WriteToFIFO((char *)temp.bytes, 2);
   WriteToFIFO((char *)data, sizeof(struct ToFlightCtrl));
+}
+
+// -----------------------------------------------------------------------------
+void LogKalmanData(void)
+{
+  if (SDCardNotPresent() || !file_.fs) return;
+
+  union U16Bytes temp;
+  temp.bytes[0] = 0x88;
+  temp.bytes[1] = 0x99;
+  WriteToFIFO((char *)temp.bytes, 2);
+  WriteToFIFO((char *)KalmanVelocityVector(), sizeof(float) * 3);
+  temp.u16 = CRCCCITT((uint8_t *)KalmanVelocityVector(), sizeof(float) * 3);
+  WriteToFIFO((char *)temp.bytes, 2);
 }
 
 // -----------------------------------------------------------------------------

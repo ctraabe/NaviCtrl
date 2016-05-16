@@ -174,13 +174,14 @@ int main(void)
 #ifndef VISION
     ProcessIncomingUBlox();
 #else
-#ifdef LOG_FLT_CTRL_DEBUG_TO_SD
     if (ProcessIncomingVision())
     {
-      SetNewDataCallback(LogVisionData);
       KalmanVisionUpdate(g_from_vision.position, VisionDT(), VisionStatus());
-    }
+#ifdef LOG_FLT_CTRL_DEBUG_TO_SD
+      SetNewDataCallback(LogVisionData);
+      SetNewDataCallback(LogKalmanData);
 #endif
+    }
 #endif
 
     if (flight_ctrl_interrupt_)

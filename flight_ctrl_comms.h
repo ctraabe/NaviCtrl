@@ -17,7 +17,6 @@
     float gyro[3];
     float quaternion[4];
     float pressure_altitude;
-    uint16_t battery_voltage;
 } __attribute__((packed));
 
 enum FlightCtrlStateBits {

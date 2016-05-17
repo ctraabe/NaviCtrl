@@ -51,7 +51,17 @@ void FiftyHzInterruptHandler(void)
 
   uint16_t button = GPIO_ReadBit(GPIO3, GPIO_Pin_1);
   static uint16_t button_pv = 0;
-  if (button && (button_pv == 0x7FFF)) ResetKalman();
+  if (button && (button_pv == 0x7FFF))
+  {
+    if (LoggingActive())
+    {
+      CloseLogFile();
+    }
+    else
+    {
+      OpenLogFile(0);
+    }
+  }
   button_pv = (button_pv << 1) | button;
 }
 

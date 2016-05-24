@@ -155,7 +155,7 @@ int main(void)
   LSM303DLInit();
   FlightCtrlCommsInit();
   SDCardInit();
-  LoggingInit();
+  NavigationInit();
 
   ExternalButtonInit();
 
@@ -223,13 +223,13 @@ int main(void)
       GreenLEDToggle();
       RedLEDOff();
       led_timer += 100;
-      UARTPrintfSafe("%X,%03X,%02.2f,%02.2f,%02.2f",
-        VisionReliability(),
-        NavMode() | (FlightCtrlState() << 4),
-        KalmanPosition()[0],
-        KalmanPosition()[1],
-        KalmanPosition()[2]
-        );
+      // UARTPrintfSafe("%X,%03X,%02.2f,%02.2f,%02.2f",
+      //   VisionReliability(),
+      //   NavMode() | (FlightCtrlState() << 4),
+      //   KalmanPosition()[0],
+      //   KalmanPosition()[1],
+      //   KalmanPosition()[2]
+      //   );
     }
   }
 }

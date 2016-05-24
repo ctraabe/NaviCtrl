@@ -10,7 +10,7 @@
 #include <stdio.h>
 
 #include "91x_lib.h"
-#include "ff.h"  // FatFs
+#include "ff.h"  // from libfatfs
 #include "flight_ctrl_comms.h"
 #include "lsm303dl.h"
 #include "sd_card.h"
@@ -27,7 +27,6 @@
 #define LOG_FIFO_LENGTH (512)
 #define MAX_FILENAME_LENGTH (80)
 
-static FATFS fat_fs_ = { 0 };
 static FIL file_ = { 0 };
 static FRESULT file_status_ = FR_INVALID_DRIVE;
 static char filename_[MAX_FILENAME_LENGTH];
@@ -54,28 +53,6 @@ uint32_t LoggingActive(void)
 // =============================================================================
 // Public functions:
 
-void LoggingInit(void)
-{
-  SDCardInit();
-  if (SDCardNotPresent())
-    UARTPrintf("logging: SD card not present");
-  else
-    MountLoggingFS();
-}
-
-// -----------------------------------------------------------------------------
-void MountLoggingFS(void)
-{
-  file_status_ = f_mount(&fat_fs_, "", 1);
-}
-
-// -----------------------------------------------------------------------------
-void UnmountLoggingFS(void)
-{
-  file_status_ = f_mount(NULL, "", 0);
-}
-
-// -----------------------------------------------------------------------------
 void OpenLogFile(const char * filename)
 {
   if (file_status_ == FR_INVALID_DRIVE) return;
@@ -107,7 +84,7 @@ void CloseLogFile(void)
 // -----------------------------------------------------------------------------
 void LogFlightControlData(void)
 {
-  if (SDCardNotPresent() || !file_.fs) return;
+  if (!SDCardFSMounted()) return;
 
   union U16Bytes temp;
   temp.bytes[0] = 0xB5;
@@ -135,7 +112,7 @@ void LogMagnetometerData(void)
 // -----------------------------------------------------------------------------
 void ProcessLogging(void)
 {
-  if (SDCardNotPresent())
+  if (!SDCardFSMounted())
   {
     logging_active_ = 0;
     return;
@@ -225,7 +202,7 @@ void ProcessLogging(void)
 // -----------------------------------------------------------------------------
 void LogWrite(char * buffer, uint32_t length)
 {
-  if (SDCardNotPresent() || !file_.fs) return;
+  if (!SDCardFSMounted()) return;
   UINT n_bytes_written;
   file_status_ = f_write(&file_, buffer, length, &n_bytes_written);
 }

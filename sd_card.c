@@ -7,8 +7,8 @@
 
 #include "91x_lib.h"
 #include "diskio.h"  // from libfatfs
+#include "ff.h"  // from libfatfs
 #include "irq_priority.h"
-#include "logging.h"
 #include "timing.h"
 #include "uart.h"
 // TODO: remove
@@ -61,6 +61,8 @@ static volatile BYTE * volatile rx_buffer_ = 0;
 static const BYTE * volatile tx_buffer_ = 0;
 static DSTATUS status_ = STA_NODISK | STA_NOINIT;
 static BYTE card_type_ = 0;
+static FATFS fat_fs_ = { 0 };
+static FRESULT fs_status_ = FR_INVALID_DRIVE;
 
 
 // =============================================================================
@@ -139,6 +141,29 @@ void SDCardInit(void)
 
   // Deselect the SD Card.
   CSPinHigh();
+
+  if (SDCardNotPresent())
+    UARTPrintf("logging: SD card not present");
+  else
+    SDCardMountFS();
+}
+
+// -----------------------------------------------------------------------------
+void SDCardMountFS(void)
+{
+  fs_status_ = f_mount(&fat_fs_, "", 1);
+}
+
+// -----------------------------------------------------------------------------
+void SDCardUnmountFS(void)
+{
+  fs_status_ = f_mount(NULL, "", 0);
+}
+
+// -----------------------------------------------------------------------------
+uint32_t SDCardFSMounted(void)
+{
+  return !SDCardNotPresent() && (fs_status_ == FR_OK);
 }
 
 // -----------------------------------------------------------------------------
@@ -649,15 +674,13 @@ void SDCardPresentHandler(void)
   wiu_init.WIU_Line = WIU_Line11;  // Pin P5.3
   if (SDCardNotPresent())
   {
-    UARTTxByte('o');
     wiu_init.WIU_TriggerEdge = WIU_FallingEdge;
-    UnmountLoggingFS();
+    SDCardUnmountFS();
   }
   else
   {
-    UARTTxByte('i');
     wiu_init.WIU_TriggerEdge = WIU_RisingEdge;
-    MountLoggingFS();
+    SDCardMountFS();
   }
   WIU_Init(&wiu_init);
 }

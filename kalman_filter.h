@@ -1,23 +1,27 @@
 #ifndef KALMAN_FILTER_H_
 #define KALMAN_FILTER_H_
 
+
+#include "constants.h"
+
 #include <inttypes.h>
 
 
 // =============================================================================
 // Accessors:
 
-float * KalmanVelocityVector(void);
+float KalmanVelocity(enum WorldAxes axis);
 
+// -----------------------------------------------------------------------------
+const float * KalmanVelocityVector(void);
 
 // =============================================================================
 // Public functions:
 
-void KalmanTimeUpdate(const float quaternion[4], const float accelerometer[3]);
+void KalmanTimeUpdate(void);
 
 // -----------------------------------------------------------------------------
-void KalmanVisionUpdate(const float vision_position[3], float vision_dt,
-  int16_t vision_status);
+void KalmanVisionUpdate(void);
 
 
 #endif // KALMAN_FILTER_H_

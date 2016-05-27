@@ -176,7 +176,7 @@ int main(void)
 #else
     if (ProcessIncomingVision())
     {
-      KalmanVisionUpdate(g_from_vision.position, VisionDT(), VisionStatus());
+      KalmanVisionUpdate();
 #ifdef LOG_FLT_CTRL_DEBUG_TO_SD
       SetNewDataCallback(LogVisionData);
       SetNewDataCallback(LogKalmanData);
@@ -190,7 +190,7 @@ int main(void)
 
       LSM303DLReadMag();
 
-      KalmanTimeUpdate((float *)Quat(), (float *)AccelerometerVector());
+      KalmanTimeUpdate();
 
       UpdateNavigation();
 
@@ -212,12 +212,12 @@ int main(void)
     {
       GreenLEDToggle();
       led_timer += 100;
-      UARTPrintfSafe("%0.2f,%0.2f,%0.2f,%0.2f",
-        g_from_vision.position[N_WORLD_AXIS],
-        g_from_vision.position[E_WORLD_AXIS],
-        g_from_vision.position[D_WORLD_AXIS],
-        VisionHeading()
-        );
+      // UARTPrintfSafe("%0.2f,%0.2f,%0.2f,%0.2f",
+      //   g_from_vision.position[N_WORLD_AXIS],
+      //   g_from_vision.position[E_WORLD_AXIS],
+      //   g_from_vision.position[D_WORLD_AXIS],
+      //   VisionHeading()
+      //   );
     }
   }
 }

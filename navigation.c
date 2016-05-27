@@ -55,9 +55,9 @@ float HeadingRate(void)
 }
 
 // -----------------------------------------------------------------------------
-const float * NavDeltaPosition(void)
+float NavDeltaPosition(enum WorldAxes axis)
 {
-  return delta_postion_;
+  return delta_postion_[axis];
 }
 
 // -----------------------------------------------------------------------------
@@ -73,9 +73,9 @@ float TargetHeading(void)
 }
 
 // -----------------------------------------------------------------------------
-const float * TargetPosition(void)
+float TargetPosition(enum WorldAxes axis)
 {
-  return target_position_;
+  return target_position_[axis];
 }
 
 // -----------------------------------------------------------------------------

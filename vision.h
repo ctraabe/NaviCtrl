@@ -6,18 +6,13 @@
 
 #include "constants.h"
 
+
 struct FromVision {
   uint32_t dt;  // microseconds
-  uint16_t status;
   float position[3];  // meters
   float quaternion[3];
+  uint16_t status;
 } __attribute__((packed));
-
-
-// =============================================================================
-// Global data (workaround):
-
-extern struct FromVision g_from_vision;
 
 
 // =============================================================================
@@ -30,6 +25,9 @@ float VisionDT(void);
 
 // -----------------------------------------------------------------------------
 float VisionHeading(void);
+
+// -----------------------------------------------------------------------------
+float VisionPosition(enum WorldAxes axis);
 
 // -----------------------------------------------------------------------------
 const float * VisionPositionVector(void);

@@ -263,17 +263,17 @@ void PrepareFlightCtrlDataExchange(void)
   float quat_c_z = 0.5 * 0.025 * heading_error;
 
   to_fc_ptr->version = 1;
-  to_fc_ptr->position[0] = VisionPositionVector()[0];
-  to_fc_ptr->position[1] = VisionPositionVector()[1];
-  to_fc_ptr->position[2] = VisionPositionVector()[2];
-  to_fc_ptr->velocity[0] = KalmanVelocityVector()[0];
-  to_fc_ptr->velocity[1] = KalmanVelocityVector()[1];
-  to_fc_ptr->velocity[2] = KalmanVelocityVector()[2];
+  to_fc_ptr->position[0] = VisionPosition(N_WORLD_AXIS);
+  to_fc_ptr->position[1] = VisionPosition(E_WORLD_AXIS);
+  to_fc_ptr->position[2] = VisionPosition(D_WORLD_AXIS);
+  to_fc_ptr->velocity[0] = KalmanVelocity(N_WORLD_AXIS);
+  to_fc_ptr->velocity[1] = KalmanVelocity(E_WORLD_AXIS);
+  to_fc_ptr->velocity[2] = KalmanVelocity(D_WORLD_AXIS);
   to_fc_ptr->heading_correction_quat_0 = sqrt(1.0 - quat_c_z * quat_c_z);
   to_fc_ptr->heading_correction_quat_z = quat_c_z;
-  to_fc_ptr->target_position[0] = TargetPosition()[0];
-  to_fc_ptr->target_position[1] = TargetPosition()[1];
-  to_fc_ptr->target_position[2] = TargetPosition()[2];
+  to_fc_ptr->target_position[0] = TargetPosition(N_WORLD_AXIS);
+  to_fc_ptr->target_position[1] = TargetPosition(E_WORLD_AXIS);
+  to_fc_ptr->target_position[2] = TargetPosition(D_WORLD_AXIS);
   to_fc_ptr->transit_speed = TransitSpeed();
   to_fc_ptr->target_heading = TargetHeading();
   to_fc_ptr->heading_rate = HeadingRate();

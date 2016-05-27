@@ -2,6 +2,9 @@
 #define NAVIGATION_H_
 
 
+#include "constants.h"
+
+
 enum NavMode {
   NAV_MODE_OFF = 0,
   NAV_MODE_HOLD = 0x01,
@@ -16,7 +19,7 @@ enum NavMode {
 float HeadingRate(void);
 
 // -----------------------------------------------------------------------------
-const float * NavDeltaPosition(void);
+float NavDeltaPosition(enum WorldAxes axis);
 
 // -----------------------------------------------------------------------------
 enum NavMode NavMode(void);
@@ -25,7 +28,7 @@ enum NavMode NavMode(void);
 float TargetHeading(void);
 
 // -----------------------------------------------------------------------------
-const float * TargetPosition(void);
+float TargetPosition(enum WorldAxes axis);
 
 // -----------------------------------------------------------------------------
 float TransitSpeed(void);

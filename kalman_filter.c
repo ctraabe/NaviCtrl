@@ -5,6 +5,7 @@
 #include "flight_ctrl_comms.h"
 #include "quaternion.h"
 #include "vector.h"
+#include "vision.h"
 
 
 // =============================================================================
@@ -20,7 +21,13 @@ static float velocity_[3] = { 0.0 };  // m/s
 // =============================================================================
 // Accessors:
 
-float * KalmanVelocityVector(void)
+float KalmanVelocity(enum WorldAxes axis)
+{
+  return velocity_[axis];
+}
+
+// -----------------------------------------------------------------------------
+const float * KalmanVelocityVector(void)
 {
   return velocity_;
 }
@@ -29,10 +36,11 @@ float * KalmanVelocityVector(void)
 // =============================================================================
 // Public functions:
 
-void KalmanTimeUpdate(const float quaternion[4], const float accelerometer[3])
+void KalmanTimeUpdate(void)
 {
   float acceleration_ned[3];  // NED inertial axis
-  QuaternionInverseRotateVector(quaternion, accelerometer, acceleration_ned);
+  QuaternionInverseRotateVector((float *)Quat(), (float *)AccelerometerVector(),
+    acceleration_ned);
 
   // Remove acceleration due to gravity.
   acceleration_ned[D_WORLD_AXIS] -= -1.0;
@@ -48,22 +56,21 @@ void KalmanTimeUpdate(const float quaternion[4], const float accelerometer[3])
 }
 
 // -----------------------------------------------------------------------------
-void KalmanVisionUpdate(const float vision_position[3], float vision_dt,
-  int16_t vision_status)
+void KalmanVisionUpdate(void)
 {
   static float dt = 1e6, position_pv[3] = { 0.0 };
-  dt += (vision_dt > 0.0) ? vision_dt : 1e-2;
+  dt += (VisionDT() > 0.0) ? VisionDT() : 1e-2;
   float k = p_ / (p_ + R_VISION_DERIVATIVE);
 
-  if (vision_status == 1)
+  if (VisionStatus() == 1)
   {
     Vector3AddToSelf(Vector3ScaleSelf(velocity_, 1.0 - k),
-      Vector3ScaleSelf(Vector3SubtractSelfFrom(position_pv, vision_position),
-      1.0 / dt));
+      Vector3ScaleSelf(Vector3SubtractSelfFrom(position_pv,
+      VisionPositionVector()), k / dt));
 
     // Update estimate error covariance, dt, and past value.
     p_ = (1.0 - k) * p_;
     dt = 0.0;
-    Vector3Copy(vision_position, position_pv);
+    Vector3Copy(VisionPositionVector(), position_pv);
   }
 }

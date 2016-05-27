@@ -24,7 +24,7 @@ struct {
   uint16_t version;
   int16_t magnetometer_bias[3];
   float magnetometer_scale[3];
-}__attribute__((packed)) eeprom_;
+} eeprom_;
 
 
 // =============================================================================

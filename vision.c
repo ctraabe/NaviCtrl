@@ -13,12 +13,6 @@
 
 
 // =============================================================================
-// Global data (workaround):
-
-struct FromVision g_from_vision;
-
-
-// =============================================================================
 // Private data:
 
 #define VISION_UART_BAUD (115200)
@@ -29,16 +23,19 @@ struct FromVision g_from_vision;
 static volatile uint8_t rx_buffer_[VISION_RX_BUFFER_LENGTH];
 static volatile size_t rx_buffer_head_ = 0;
 
-static float quaternion_[4];
-static float body_velocity_[3], inertial_velocity_[3];
-static float dt_, heading_;
+static float position_[3] = { 0.0 }, quaternion_[4] = { 1.0, 0.0, 0.0, 0.0 };
+static float body_velocity_[3] = { 0.0 }, inertial_velocity_[3] = { 0.0 };
+static float dt_ = 0.0 , heading_ = 0.0;
+static uint16_t status_ = 0;
+// TODO: remove (this is only here for logging)
+static struct FromVision from_vision_;
 
 
 // =============================================================================
 // Private function declarations:
 
 static uint32_t ProcessIncomingVisionByte(uint8_t byte);
-static void ProcessVisionData(void);
+static void ProcessVisionData(struct FromVision * from_vision);
 static void ReceiveVisionData(void);
 
 
@@ -63,9 +60,15 @@ float VisionHeading(void)
 }
 
 // -----------------------------------------------------------------------------
+float VisionPosition(enum WorldAxes axis)
+{
+  return position_[axis];
+}
+
+// -----------------------------------------------------------------------------
 const float * VisionPositionVector(void)
 {
-  return &g_from_vision.position[0];
+  return &position_[0];
 }
 
 // -----------------------------------------------------------------------------
@@ -77,7 +80,7 @@ const float * VisionQuaternionVector(void)
 // -----------------------------------------------------------------------------
 uint16_t VisionStatus(void)
 {
-  return g_from_vision.status;
+  return status_;
 }
 
 // -----------------------------------------------------------------------------
@@ -86,10 +89,11 @@ const float * VisionVelocityVector(void)
   return &inertial_velocity_[0];
 }
 
+// TODO: remove (this is only here for logging)
 // -----------------------------------------------------------------------------
 const struct FromVision * FromVision(void)
 {
-  return &g_from_vision;
+  return &from_vision_;
 }
 
 
@@ -201,8 +205,9 @@ static uint32_t ProcessIncomingVisionByte(uint8_t byte)
       {
         if(byte == crc.bytes[1])
         {
-          memcpy(&g_from_vision, payload_buffer, PAYLOAD_LENGTH);
-          ProcessVisionData();
+          ProcessVisionData((struct FromVision *)payload_buffer);
+          // TODO: remove (this is only here for logging)
+          memcpy(&from_vision_, payload_buffer, PAYLOAD_LENGTH);
           new_data = 1;
         }
         goto RESET;
@@ -220,13 +225,18 @@ static uint32_t ProcessIncomingVisionByte(uint8_t byte)
 }
 
 // -----------------------------------------------------------------------------
-static void ProcessVisionData(void)
+static void ProcessVisionData(struct FromVision * from_vision)
 {
   static float position_pv[3] = { 0.0 };
+  // Copy the position.
+  position_[0] = from_vision->position[0];
+  position_[1] = from_vision->position[1];
+  position_[2] = from_vision->position[2];
+
   // Compute full quaternion.
-  quaternion_[1] = g_from_vision.quaternion[0];
-  quaternion_[2] = g_from_vision.quaternion[1];
-  quaternion_[3] = g_from_vision.quaternion[2];
+  quaternion_[1] = from_vision->quaternion[0];
+  quaternion_[2] = from_vision->quaternion[1];
+  quaternion_[3] = from_vision->quaternion[2];
   quaternion_[0] = sqrt(1.0 - quaternion_[1] * quaternion_[1] - quaternion_[2]
     * quaternion_[2] - quaternion_[3] * quaternion_[3]);
 
@@ -234,16 +244,17 @@ static void ProcessVisionData(void)
   heading_ = HeadingFromQuaternion(quaternion_);
 
   // Take the derivative of position.
-  float dt_inv = 1.0e6 / (float)g_from_vision.dt;  // seconds
-  inertial_velocity_[0] = (g_from_vision.position[0] - position_pv[0]) * dt_inv;
-  inertial_velocity_[1] = (g_from_vision.position[1] - position_pv[1]) * dt_inv;
-  inertial_velocity_[2] = (g_from_vision.position[2] - position_pv[2]) * dt_inv;
+  float dt_inv = 1.0e6 / (float)from_vision->dt;  // seconds
+  inertial_velocity_[0] = (from_vision->position[0] - position_pv[0]) * dt_inv;
+  inertial_velocity_[1] = (from_vision->position[1] - position_pv[1]) * dt_inv;
+  inertial_velocity_[2] = (from_vision->position[2] - position_pv[2]) * dt_inv;
 
   // Rotate velocity to the body axis.
   QuaternionInverseRotateVector(quaternion_, inertial_velocity_,
     body_velocity_);
 
-  dt_ = 1e-6 * (float)g_from_vision.dt;
+  status_ = from_vision->status;
+  dt_ = 1e-6 * (float)from_vision->dt;
 }
 
 // -----------------------------------------------------------------------------

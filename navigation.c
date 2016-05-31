@@ -215,9 +215,9 @@ void NavigationInit(void)
         waypoints_[i][j].target_position[2],
         waypoints_[i][j].transit_speed,
         waypoints_[i][j].radius,
-        waypoints_[i][j].target_heading,
-        waypoints_[i][j].heading_rate,
-        waypoints_[i][j].heading_range,
+        waypoints_[i][j].target_heading * 180.0 / M_PI,
+        waypoints_[i][j].heading_rate * 180.0 / M_PI,
+        waypoints_[i][j].heading_range * 180.0 / M_PI,
         waypoints_[i][j].wait_ms);
     }
   }

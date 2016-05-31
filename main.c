@@ -20,7 +20,7 @@
   #include "vision.h"
 #endif
 // TODO: remove
-#include "attitude.h"
+#include "crc16.h"
 
 
 // =============================================================================
@@ -202,7 +202,33 @@ int main(void)
       UpdateNavigation();
 
       PrepareFlightCtrlDataExchange();
-
+/*
+      struct LogPacket {
+        uint16_t header;
+        uint8_t reliability;
+        uint8_t nav_mode;
+        uint32_t timestamp;
+        float position[3];
+        float velocity[3];
+        uint16_t crc;
+      } __attribute__((packed));
+      struct LogPacket* log_packet = (struct LogPacket *)RequestUARTTxBuffer();
+      if (log_packet)
+      {
+        log_packet->header = 0x1122;
+        log_packet->reliability = VisionReliability();
+        log_packet->nav_mode = NavMode() | (FlightCtrlState() << 4);
+        log_packet->timestamp = GetTimestamp();
+        log_packet->position[0] = KalmanPosition()[0];
+        log_packet->position[1] = KalmanPosition()[1];
+        log_packet->position[2] = KalmanPosition()[2];
+        log_packet->velocity[0] = KalmanVelocity()[0];
+        log_packet->velocity[1] = KalmanVelocity()[1];
+        log_packet->velocity[2] = KalmanVelocity()[2];
+        log_packet->crc = CRCCCITT((uint8_t *)log_packet, sizeof(struct LogPacket) - 2);
+        UARTTxBuffer(sizeof(struct LogPacket));
+      }
+*/
       if (flight_ctrl_interrupt_)
       {
         overrun_counter_++;
@@ -223,13 +249,14 @@ int main(void)
       GreenLEDToggle();
       RedLEDOff();
       led_timer += 100;
-      // UARTPrintfSafe("%X,%03X,%02.2f,%02.2f,%02.2f",
-      //   VisionReliability(),
-      //   NavMode() | (FlightCtrlState() << 4),
-      //   KalmanPosition()[0],
-      //   KalmanPosition()[1],
-      //   KalmanPosition()[2]
-      //   );
+      UARTPrintfSafe("%X,%03X,%+06.2f,%+06.2f,%+06.2f",
+        VisionReliability(),
+        NavMode() | (FlightCtrlState() << 4),
+        KalmanPosition()[0],
+        KalmanPosition()[1],
+        KalmanPosition()[2]
+        );
+      // UARTPrintfSafe("%+06.2f,%+06.2f,%+06.2f", GyroVector()[0], GyroVector()[1], GyroVector()[2]);
     }
   }
 }

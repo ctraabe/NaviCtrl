@@ -197,6 +197,7 @@ int main(void)
       {
         KalmanVisionUpdate(VisionBodyVelocityVector());
       }
+      CheckVisionFreshness();
 #endif
 
       UpdateNavigation();

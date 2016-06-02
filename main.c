@@ -175,21 +175,30 @@ int main(void)
     {
       static uint8_t flight_ctrl_state_pv = 0x00;
       flight_ctrl_interrupt_ = 0;
+
       if ((FlightCtrlState() ^ flight_ctrl_state_pv)
-        & FC_STATE_BIT_MOTORS_RUNNING) ResetKalman();
+        & FC_STATE_BIT_MOTORS_RUNNING)
+      {
+        ResetKalman();
+      }
 
       LSM303DLReadMag();
 
       // Prepare volatile IMU data for the Kalman filter.
-      float gyro[3] = { Gyro(X_BODY_AXIS), Gyro(Y_BODY_AXIS), Gyro(Z_BODY_AXIS)
+      float gyro[3] = {
+        Gyro(X_BODY_AXIS),
+        Gyro(Y_BODY_AXIS),
+        Gyro(Z_BODY_AXIS)
         };
       float accelerometer[3] = {
         Accelerometer(X_BODY_AXIS) * GRAVITY_ACCELERATION,
         Accelerometer(Y_BODY_AXIS) * GRAVITY_ACCELERATION,
-        Accelerometer(Z_BODY_AXIS) * GRAVITY_ACCELERATION };
+        Accelerometer(Z_BODY_AXIS) * GRAVITY_ACCELERATION
+        };
       KalmanTimeUpdate(gyro, accelerometer);
       KalmanAccelerometerUpdate(accelerometer);
       // KalmanBaroAltitudeUpdate(PressureAltitude());
+
 #ifndef VISION
       ProcessIncomingUBlox();
 #else
@@ -203,33 +212,38 @@ int main(void)
       UpdateNavigation();
 
       PrepareFlightCtrlDataExchange();
-/*
-      struct LogPacket {
-        uint16_t header;
-        uint8_t reliability;
-        uint8_t nav_mode;
-        uint32_t timestamp;
-        float position[3];
-        float velocity[3];
-        uint16_t crc;
-      } __attribute__((packed));
-      struct LogPacket* log_packet = (struct LogPacket *)RequestUARTTxBuffer();
-      if (log_packet)
+
+      if (RCSwitch() == 1)
       {
-        log_packet->header = 0x1122;
-        log_packet->reliability = VisionReliability();
-        log_packet->nav_mode = NavMode() | (FlightCtrlState() << 4);
-        log_packet->timestamp = GetTimestamp();
-        log_packet->position[0] = KalmanPosition()[0];
-        log_packet->position[1] = KalmanPosition()[1];
-        log_packet->position[2] = KalmanPosition()[2];
-        log_packet->velocity[0] = KalmanVelocity()[0];
-        log_packet->velocity[1] = KalmanVelocity()[1];
-        log_packet->velocity[2] = KalmanVelocity()[2];
-        log_packet->crc = CRCCCITT((uint8_t *)log_packet, sizeof(struct LogPacket) - 2);
-        UARTTxBuffer(sizeof(struct LogPacket));
+        struct LogPacket {
+          uint16_t header;
+          uint8_t reliability;
+          uint8_t nav_mode;
+          uint32_t timestamp;
+          float position[3];
+          float velocity[3];
+          uint16_t crc;
+        } __attribute__((packed));
+        struct LogPacket * log_packet
+          = (struct LogPacket *)RequestUARTTxBuffer();
+        if (log_packet)
+        {
+          log_packet->header = 0x1122;
+          log_packet->reliability = VisionReliability();
+          log_packet->nav_mode = NavMode() | (FlightCtrlState() << 4);
+          log_packet->timestamp = GetTimestamp();
+          log_packet->position[0] = KalmanPosition()[0];
+          log_packet->position[1] = KalmanPosition()[1];
+          log_packet->position[2] = KalmanPosition()[2];
+          log_packet->velocity[0] = KalmanVelocity()[0];
+          log_packet->velocity[1] = KalmanVelocity()[1];
+          log_packet->velocity[2] = KalmanVelocity()[2];
+          log_packet->crc = CRCCCITT((uint8_t *)log_packet,
+            sizeof(struct LogPacket) - 2);
+          UARTTxBuffer(sizeof(struct LogPacket));
+        }
       }
-*/
+
       if (flight_ctrl_interrupt_)
       {
         overrun_counter_++;
@@ -250,14 +264,17 @@ int main(void)
       GreenLEDToggle();
       RedLEDOff();
       led_timer += 100;
-      UARTPrintfSafe("%X,%03X,%+06.2f,%+06.2f,%+06.2f",
-        VisionReliability(),
-        NavMode() | (FlightCtrlState() << 4),
-        KalmanPosition()[0],
-        KalmanPosition()[1],
-        KalmanPosition()[2]
-        );
-      // UARTPrintfSafe("%+06.2f,%+06.2f,%+06.2f", GyroVector()[0], GyroVector()[1], GyroVector()[2]);
+      if (RCSwitch() == 0)
+      {
+        // UARTPrintfSafe("%X,%03X,%+06.2f,%+06.2f,%+06.2f",
+        //   VisionReliability(),
+        //   NavMode() | (FlightCtrlState() << 4),
+        //   KalmanPosition()[0],
+        //   KalmanPosition()[1],
+        //   KalmanPosition()[2]
+        //   );
+        // UARTPrintfSafe("%+06.2f,%+06.2f,%+06.2f", GyroVector()[0], GyroVector()[1], GyroVector()[2]);
+      }
     }
   }
 }

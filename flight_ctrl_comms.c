@@ -231,10 +231,7 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
           from_fc_tail_ = from_fc_head_;
           from_fc_head_ = !from_fc_tail_;
           FilterPressureAltitude();
-          if (RCSwitch() == 2)
-            LogFlightControlData();
-          else
-            SetFlightCtrlInterrupt();
+          SetFlightCtrlInterrupt();
         }
         goto RESET;
       }
@@ -278,6 +275,7 @@ void PrepareFlightCtrlDataExchange(void)
   float heading_error = KalmanHeading() - HeadingFromQuaternion(quat);
   WrapToPlusMinusPi(heading_error);
   float quat_c_z = 0.5 * 0.025 * heading_error;
+  if (RCSwitch() == 2) quat_c_z = 0.0;
 
   to_fc_ptr->version = 1;
   to_fc_ptr->position[0] = KalmanPosition()[0];

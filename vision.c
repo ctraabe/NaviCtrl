@@ -25,18 +25,7 @@
 static volatile uint8_t rx_buffer_[VISION_RX_BUFFER_LENGTH];
 static volatile size_t rx_buffer_head_ = 0;
 
-static struct FromVision {
-  uint16_t latency;  // Latency (ms)
-  uint32_t capture_time;
-  uint16_t reliability;
-  float velocity[3];  // (mm/frame)
-  float quaternion[3];  // [q_x, q_y, q_z]
-  float angular_velocity[3];  // (rad/frame)
-  float position[3];  // (mm)
-  uint16_t latency_ranging;  // (ms)
-  float nearest_point_parameters[3];  // Distance and two angles, TBD
-  float marking_point_parameters[3];  // Distance and two angles, TBD
-} __attribute__((packed)) from_vision_;
+static struct FromVision from_vision_;
 
 // static float inertial_velocity_[3];
 static float quaternion_[4];
@@ -55,6 +44,12 @@ static void ReceiveVisionData(void);
 // =============================================================================
 // Accessors:
 
+const struct FromVision * FromVision(void)
+{
+  return &from_vision_;
+}
+
+// -----------------------------------------------------------------------------
 const float * VisionAngularVelocityVector(void)
 {
   return &from_vision_.angular_velocity[0];

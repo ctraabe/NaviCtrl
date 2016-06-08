@@ -10,6 +10,7 @@
 #include <stdio.h>
 
 #include "91x_lib.h"
+#include "crc16.h"
 #include "ff.h"  // from libfatfs
 #include "flight_ctrl_comms.h"
 #include "lsm303dl.h"
@@ -17,6 +18,7 @@
 #include "spi_slave.h"
 #include "uart.h"
 #include "union_types.h"
+#include "vision.h"
 // TODO: remove
 #include "led.h"
 
@@ -55,7 +57,7 @@ uint32_t LoggingActive(void)
 
 void OpenLogFile(const char * filename)
 {
-  if (file_status_ == FR_INVALID_DRIVE) return;
+  if (!SDCardFSMounted()) return;
 
   if (filename)
   {
@@ -110,6 +112,20 @@ void LogMagnetometerData(void)
 }
 
 // -----------------------------------------------------------------------------
+void LogVisionData(void)
+{
+  if (SDCardNotPresent() || !file_.fs) return;
+
+  union U16Bytes temp;
+  temp.bytes[0] = 0xCC;
+  temp.bytes[1] = 0xDD;
+  WriteToFIFO((char *)temp.bytes, 2);
+  WriteToFIFO((char *)FromVision(), sizeof(struct FromVision));
+  temp.u16 = CRCCCITT((uint8_t *)FromVision(), sizeof(struct FromVision));
+  WriteToFIFO((char *)temp.bytes, 2);
+}
+
+// -----------------------------------------------------------------------------
 void ProcessLogging(void)
 {
   if (!SDCardFSMounted())
@@ -144,7 +160,11 @@ void ProcessLogging(void)
       file_status_ = f_open(&file_, filename_, FA_WRITE | FA_CREATE_NEW);
     }
 
-    if (file_status_ != FR_OK)
+    if (file_status_ == FR_OK)
+    {
+      UARTPrintf("logging: opened file %s", filename_);
+    }
+    else
     {
       UARTPrintf("logging: f_open returned error code: 0x%02X", file_status_);
       file_status_ = f_close(&file_);
@@ -193,7 +213,14 @@ void ProcessLogging(void)
   {
     // GreenLEDOn();
     file_status_ = f_close(&file_);
-    UARTPrintf("logging: f_close returned error code: 0x%02X", file_status_);
+    if (file_status_ == FR_OK)
+    {
+      UARTPrintf("logging: closed file %s", filename_);
+    }
+    else
+    {
+      UARTPrintf("logging: f_close returned error code: 0x%02X", file_status_);
+    }
     // GreenLEDOff();
     RedLEDOff();
   }

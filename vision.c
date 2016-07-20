@@ -23,10 +23,8 @@
 static volatile uint8_t rx_buffer_[VISION_RX_BUFFER_LENGTH];
 static volatile size_t rx_buffer_head_ = 0;
 
-static float position_[3] = { 0.0 }, quaternion_[4] = { 1.0, 0.0, 0.0, 0.0 };
-static float body_velocity_[3] = { 0.0 }, inertial_velocity_[3] = { 0.0 };
-static float dt_ = 0.0 , heading_ = 0.0;
-static uint16_t status_ = 0;
+static float quaternion_[4] = { 1.0, 0.0, 0.0, 0.0 };
+static float heading_ = 0.0;
 // TODO: remove (this is only here for logging)
 static struct FromVision from_vision_;
 
@@ -42,18 +40,6 @@ static void ReceiveVisionData(void);
 // =============================================================================
 // Accessors:
 
-const float * VisionBodyVelocityVector(void)
-{
-  return &body_velocity_[0];
-}
-
-// -----------------------------------------------------------------------------
-float VisionDT(void)
-{
-  return dt_;
-}
-
-// -----------------------------------------------------------------------------
 float VisionHeading(void)
 {
   return heading_;
@@ -62,13 +48,13 @@ float VisionHeading(void)
 // -----------------------------------------------------------------------------
 float VisionPosition(enum WorldAxes axis)
 {
-  return position_[axis];
+  return from_vision_.position[axis];
 }
 
 // -----------------------------------------------------------------------------
 const float * VisionPositionVector(void)
 {
-  return &position_[0];
+  return &from_vision_.position[0];
 }
 
 // -----------------------------------------------------------------------------
@@ -80,13 +66,13 @@ const float * VisionQuaternionVector(void)
 // -----------------------------------------------------------------------------
 uint16_t VisionStatus(void)
 {
-  return status_;
+  return from_vision_.status;
 }
 
 // -----------------------------------------------------------------------------
-const float * VisionVelocityVector(void)
+uint32_t VisionTimestamp(void)
 {
-  return &inertial_velocity_[0];
+  return from_vision_.timestamp;
 }
 
 // TODO: remove (this is only here for logging)
@@ -207,7 +193,6 @@ static uint32_t ProcessIncomingVisionByte(uint8_t byte)
         {
           ProcessVisionData((struct FromVision *)payload_buffer);
           // TODO: remove (this is only here for logging)
-          memcpy(&from_vision_, payload_buffer, PAYLOAD_LENGTH);
           new_data = 1;
         }
         goto RESET;
@@ -227,11 +212,7 @@ static uint32_t ProcessIncomingVisionByte(uint8_t byte)
 // -----------------------------------------------------------------------------
 static void ProcessVisionData(struct FromVision * from_vision)
 {
-  static float position_pv[3] = { 0.0 };
-  // Copy the position.
-  position_[0] = from_vision->position[0];
-  position_[1] = from_vision->position[1];
-  position_[2] = from_vision->position[2];
+  memcpy(&from_vision_, from_vision, PAYLOAD_LENGTH);
 
   // Compute full quaternion.
   quaternion_[1] = from_vision->quaternion[0];
@@ -242,19 +223,6 @@ static void ProcessVisionData(struct FromVision * from_vision)
 
   // Compute heading.
   heading_ = HeadingFromQuaternion(quaternion_);
-
-  // Take the derivative of position.
-  float dt_inv = 1.0e6 / (float)from_vision->dt;  // seconds
-  inertial_velocity_[0] = (from_vision->position[0] - position_pv[0]) * dt_inv;
-  inertial_velocity_[1] = (from_vision->position[1] - position_pv[1]) * dt_inv;
-  inertial_velocity_[2] = (from_vision->position[2] - position_pv[2]) * dt_inv;
-
-  // Rotate velocity to the body axis.
-  QuaternionInverseRotateVector(quaternion_, inertial_velocity_,
-    body_velocity_);
-
-  status_ = from_vision->status;
-  dt_ = 1e-6 * (float)from_vision->dt;
 }
 
 // -----------------------------------------------------------------------------

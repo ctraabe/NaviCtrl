@@ -8,7 +8,7 @@
 
 
 struct FromVision {
-  uint32_t dt;  // microseconds
+  uint32_t timestamp;  // microseconds
   float position[3];  // meters
   float quaternion[3];
   uint16_t status;
@@ -18,12 +18,6 @@ struct FromVision {
 // =============================================================================
 // Accessors:
 
-const float * VisionBodyVelocityVector(void);
-
-// -----------------------------------------------------------------------------
-float VisionDT(void);
-
-// -----------------------------------------------------------------------------
 float VisionHeading(void);
 
 // -----------------------------------------------------------------------------
@@ -39,7 +33,7 @@ const float * VisionQuaternionVector(void);
 uint16_t VisionStatus(void);
 
 // -----------------------------------------------------------------------------
-const float * VisionVelocityVector(void);
+uint32_t VisionTimestamp(void);
 
 // -----------------------------------------------------------------------------
 const struct FromVision * FromVision(void);

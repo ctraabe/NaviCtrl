@@ -58,19 +58,23 @@ void KalmanTimeUpdate(void)
 // -----------------------------------------------------------------------------
 void KalmanVisionUpdate(void)
 {
-  static float dt = 1e6, position_pv[3] = { 0.0 };
-  dt += (VisionDT() > 0.0) ? VisionDT() : 1e-2;
+  static uint32_t last_timestamp = 0;
+  static float position_pv[3] = { 0.0 };
   float k = p_ / (p_ + R_VISION_DERIVATIVE);
 
   if (VisionStatus() == 1)
   {
+    uint32_t timestamp = VisionTimestamp();
+    float dt = (float)(timestamp - last_timestamp) * 1e-6;
+    if (dt < 1e-2) dt = 1e-2;
+
     Vector3AddToSelf(Vector3ScaleSelf(velocity_, 1.0 - k),
       Vector3ScaleSelf(Vector3SubtractSelfFrom(position_pv,
       VisionPositionVector()), k / dt));
 
-    // Update estimate error covariance, dt, and past value.
+    // Update estimate error covariance, last_timestamp, and past value.
     p_ = (1.0 - k) * p_;
-    dt = 0.0;
+    last_timestamp = timestamp;
     Vector3Copy(VisionPositionVector(), position_pv);
   }
 }

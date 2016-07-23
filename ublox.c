@@ -101,6 +101,7 @@ void UBloxInit(void)
   gpio_init.GPIO_Direction = GPIO_PinOutput;
   gpio_init.GPIO_Pin = GPIO_Pin_7;
   gpio_init.GPIO_Type = GPIO_Type_PushPull;
+  gpio_init.GPIO_IPInputConnected = GPIO_IPInputConnected_Disable;
   gpio_init.GPIO_Alternate = GPIO_OutputAlt3;  // UART0 Tx
   GPIO_Init(GPIO6, &gpio_init);
 

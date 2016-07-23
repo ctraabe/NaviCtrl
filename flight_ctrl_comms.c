@@ -206,9 +206,7 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
           from_fc_tail_ = from_fc_head_;
           from_fc_head_ = !from_fc_tail_;
           SetFlightCtrlInterrupt();
-#ifdef LOG_FLT_CTRL_DEBUG_TO_SD
-          LogFlightControlData();
-#endif
+          SetNewDataCallback(LogFlightControlData);
         }
         goto RESET;
       }

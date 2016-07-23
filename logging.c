@@ -15,11 +15,13 @@
 #include "lsm303dl.h"
 #include "sd_card.h"
 #include "spi_slave.h"
+#include "tr_serial_protocol.h"
 #include "uart.h"
 #include "union_types.h"
 // TODO: remove
 #include "crc16.h"
 #include "led.h"
+#include "ublox.h"
 #include "vision.h"
 
 
@@ -132,6 +134,73 @@ void LogMagnetometerData(void)
   WriteToFIFO((char *)MagnetometerVector(), 2*3);
   temp.u16 = CRCCCITT((uint8_t *)MagnetometerVector(), 2*3);
   WriteToFIFO((char *)temp.bytes, 2);
+}
+
+// -----------------------------------------------------------------------------
+void LogTRData(void)
+{
+  if (SDCardNotPresent() || !file_.fs) return;
+
+  struct TRPacket {
+    uint16_t ir;
+    uint16_t sonar;
+  } tr_packet;
+
+  uint16_t header = 0x0101;
+  WriteToFIFO((char *)&header, 2);
+  tr_packet.ir = TRIR();
+  tr_packet.sonar = TRSonar();
+  WriteToFIFO((char *)&tr_packet, sizeof(struct TRPacket));
+  uint16_t crc = CRCCCITT((uint8_t *)&tr_packet, sizeof(struct TRPacket));
+  WriteToFIFO((char *)&crc, 2);
+}
+
+// -----------------------------------------------------------------------------
+void LogUBXPosLLH(void)
+{
+  if (SDCardNotPresent() || !file_.fs) return;
+
+  uint16_t header = 0x1212;
+  WriteToFIFO((char *)&header, 2);
+  WriteToFIFO((char *)UBXPosLLH(), sizeof(struct UBXPosLLH));
+  uint16_t crc = CRCCCITT((uint8_t *)UBXPosLLH(), sizeof(struct UBXPosLLH));
+  WriteToFIFO((char *)&crc, 2);
+}
+
+// -----------------------------------------------------------------------------
+void LogUBXVelNED(void)
+{
+  if (SDCardNotPresent() || !file_.fs) return;
+
+  uint16_t header = 0x2323;
+  WriteToFIFO((char *)&header, 2);
+  WriteToFIFO((char *)UBXVelNED(), sizeof(struct UBXVelNED));
+  uint16_t crc = CRCCCITT((uint8_t *)UBXVelNED(), sizeof(struct UBXVelNED));
+  WriteToFIFO((char *)&crc, 2);
+}
+
+// -----------------------------------------------------------------------------
+void LogUBXSol(void)
+{
+  if (SDCardNotPresent() || !file_.fs) return;
+
+  uint16_t header = 0x3434;
+  WriteToFIFO((char *)&header, 2);
+  WriteToFIFO((char *)UBXSol(), sizeof(struct UBXSol));
+  uint16_t crc = CRCCCITT((uint8_t *)UBXSol(), sizeof(struct UBXSol));
+  WriteToFIFO((char *)&crc, 2);
+}
+
+// -----------------------------------------------------------------------------
+void LogUBXTimeUTC(void)
+{
+  if (SDCardNotPresent() || !file_.fs) return;
+
+  uint16_t header = 0x4545;
+  WriteToFIFO((char *)&header, 2);
+  WriteToFIFO((char *)UBXTimeUTC(), sizeof(struct UBXTimeUTC));
+  uint16_t crc = CRCCCITT((uint8_t *)UBXTimeUTC(), sizeof(struct UBXTimeUTC));
+  WriteToFIFO((char *)&crc, 2);
 }
 
 // -----------------------------------------------------------------------------

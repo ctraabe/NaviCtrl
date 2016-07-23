@@ -14,13 +14,14 @@
 #include "spi_slave.h"
 #include "timing.h"
 #include "uart.h"
+#include "uart2.h"
 #ifndef VISION
   #include "ublox.h"
 #else
   #include "vision.h"
 #endif
 // TODO: remove
-#include "attitude.h"
+#include "tr_serial_protocol.h"
 
 
 // =============================================================================
@@ -150,6 +151,7 @@ int main(void)
   TimingInit();
   LEDInit();
   UARTInit();
+  UART2Init();
   I2CInit();
   SPISlaveInit();
 
@@ -180,66 +182,41 @@ int main(void)
 
   // Main loop.
   uint32_t led_timer = GetTimestamp();
+  uint32_t tr_flag = 0;
   for (;;)
   {
     if (flight_ctrl_interrupt_)
     {
       flight_ctrl_interrupt_ = 0;
-/*
-      static uint8_t flight_ctrl_state_pv = 0x00;
-      if ((FlightCtrlState() ^ flight_ctrl_state_pv)
-        & FC_STATE_BIT_MOTORS_RUNNING) ResetKalman();
-*/
+
       LSM303DLReadMag();
-      if (ProcessIncomingVision()) SetNewDataCallback(LogVisionData);
-/*
-      // Prepare volatile IMU data for the Kalman filter.
-      float gyro[3] = { Gyro(X_BODY_AXIS), Gyro(Y_BODY_AXIS), Gyro(Z_BODY_AXIS)
-        };
-      float accelerometer[3] = {
-        Accelerometer(X_BODY_AXIS) * GRAVITY_ACCELERATION,
-        Accelerometer(Y_BODY_AXIS) * GRAVITY_ACCELERATION,
-        Accelerometer(Z_BODY_AXIS) * GRAVITY_ACCELERATION };
-      KalmanTimeUpdate(gyro, accelerometer);
-      KalmanAccelerometerUpdate(accelerometer);
 #ifndef VISION
-      ProcessIncomingUBlox();
 #else
-      if (ProcessIncomingVision() && VisionReliability())
-      {
-        KalmanVisionUpdate(VisionBodyVelocityVector());
-      }
+      if (ProcessIncomingVision()) SetNewDataCallback(LogVisionData);
 #endif
 
-      UpdateNavigation();
-
-      PrepareFlightCtrlDataExchange();
-
-*/
       if (flight_ctrl_interrupt_)
       {
         overrun_counter_++;
       }
-
-      // flight_ctrl_state_pv = FlightCtrlState();
     }
 
     ProcessIncomingUART();
+    ProcessIncomingUART2();
 
-#ifdef LOG_FLT_CTRL_DEBUG_TO_SD
     ProcessLogging();
-#endif
 
     if (TimestampInPast(led_timer))
     {
+      // ProcessIncomingUBlox();
       GreenLEDToggle();
+
       led_timer += 100;
-      // UARTPrintfSafe("%X,%03X,%+.2f,%+.2f,%+.2f",
-      //   VisionReliability(),
-      //   NavMode() | (FlightCtrlState() << 4),
-      //   KalmanPosition()[0],
-      //   KalmanPosition()[1],
-      //   KalmanPosition()[2]);
+      if (tr_flag)
+        UART2TxByte('B');
+      else
+        UART2TxByte('P');
+      tr_flag = !tr_flag;
     }
   }
 }

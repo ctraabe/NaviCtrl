@@ -16,6 +16,7 @@
 // VIC1 Priorities (higher priority than VIC1):
 #define IRQ_PRIORITY_UART0 3  // VIC1.0: UART to UBlox
 #define IRQ_PRIORITY_UART1 4  // VIC1.2: UART to "Debug" port
+#define IRQ_PRIORITY_UART2 7  // VIC1.3: UART2
 #define IRQ_PRIORITY_I2C1 2  // VIC1.4: I2C to magnetometer and EEPROM
 #define IRQ_PRIORITY_SSP0 0  // VIC1.5: SPI to SPI port
 #define IRQ_PRIORITY_SSP1 1  // VIC1.6: SPI to SD Card

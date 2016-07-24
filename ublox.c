@@ -166,7 +166,6 @@ void UBloxInit(void)
       0x00, 0x00, 0x00, 0xc9, 0xea };
     UBloxTxBuffer(tx_buffer, 48);
   }
-/*
   {  // Request NAV-POSLLH message to be output every measurement cycle.
     const uint8_t tx_buffer[11] = { 0xb5, 0x62, 0x06, 0x01, 0x03, 0x00, 0x01,
       0x02, 0x01, 0x0e, 0x47 };
@@ -182,7 +181,6 @@ void UBloxInit(void)
       0x06, 0x01, 0x12, 0x4f };
     UBloxTxBuffer(tx_buffer, 11);
   }
-*/
   {  // Request Time-UTC message to be output every 5 measurement cycles.
     const uint8_t tx_buffer[11] = { 0xb5, 0x62, 0x06, 0x01, 0x03, 0x00, 0x01,
       0x21, 0x05, 0x31, 0x89 };
@@ -228,7 +226,7 @@ static void CopyUBloxMessage(uint8_t id)
   {
     case UBX_ID_POS_LLH:
       memcpy(&ubx_pos_llh_, &data_buffer_[0], sizeof(struct UBXPosLLH));
-      // SetNewDataCallback(LogUBXPosLLH);
+      SetNewDataCallback(LogUBXPosLLH);
       break;
     case UBX_ID_VEL_NED:
       memcpy(&ubx_vel_ned_, &data_buffer_[0], sizeof(struct UBXVelNED));
@@ -240,7 +238,7 @@ static void CopyUBloxMessage(uint8_t id)
       break;
     case UBX_ID_TIME_UTC:
       memcpy(&ubx_time_utc_, &data_buffer_[0], sizeof(struct UBXTimeUTC));
-      SetNewDataCallback(LogUBXTimeUTC);
+      // SetNewDataCallback(LogUBXTimeUTC);
       break;
   }
 }

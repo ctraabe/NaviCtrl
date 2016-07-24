@@ -162,8 +162,10 @@ void LogUBXPosLLH(void)
 
   uint16_t header = 0x1212;
   WriteToFIFO((char *)&header, 2);
-  WriteToFIFO((char *)UBXPosLLH(), sizeof(struct UBXPosLLH));
-  uint16_t crc = CRCCCITT((uint8_t *)UBXPosLLH(), sizeof(struct UBXPosLLH));
+  // WriteToFIFO((char *)UBXPosLLH(), sizeof(struct UBXPosLLH));
+  // uint16_t crc = CRCCCITT((uint8_t *)UBXPosLLH(), sizeof(struct UBXPosLLH));
+  WriteToFIFO((char *)UBXPosLLH(), sizeof(uint32_t));
+  uint16_t crc = CRCCCITT((uint8_t *)UBXPosLLH(), sizeof(uint32_t));
   WriteToFIFO((char *)&crc, 2);
 }
 
@@ -198,10 +200,8 @@ void LogUBXTimeUTC(void)
 
   uint16_t header = 0x4545;
   WriteToFIFO((char *)&header, 2);
-  // WriteToFIFO((char *)UBXTimeUTC(), sizeof(struct UBXTimeUTC));
-  // uint16_t crc = CRCCCITT((uint8_t *)UBXTimeUTC(), sizeof(struct UBXTimeUTC));
-  WriteToFIFO((char *)UBXTimeUTC(), sizeof(uint32_t));
-  uint16_t crc = CRCCCITT((uint8_t *)UBXTimeUTC(), sizeof(uint32_t));
+  WriteToFIFO((char *)UBXTimeUTC(), sizeof(struct UBXTimeUTC));
+  uint16_t crc = CRCCCITT((uint8_t *)UBXTimeUTC(), sizeof(struct UBXTimeUTC));
   WriteToFIFO((char *)&crc, 2);
 }
 

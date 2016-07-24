@@ -1,6 +1,7 @@
 #include "tr_serial_protocol.h"
 
 #include "logging.h"
+#include "main.h"
 #include "union_types.h"
 
 
@@ -133,5 +134,5 @@ static void DecodeRx(uint8_t crc, uint8_t * data_buffer)
   sonar_ = temp.u16;
   crc_ = crc;
 
-  LogTRData();
+  SetNewDataCallback(LogTRData);
 }

@@ -144,7 +144,7 @@ void LogTRData(void)
   struct TRPacket {
     uint16_t ir;
     uint16_t sonar;
-  } tr_packet;
+  } __attribute__((packed)) tr_packet;
 
   uint16_t header = 0x0101;
   WriteToFIFO((char *)&header, 2);

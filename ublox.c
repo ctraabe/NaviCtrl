@@ -107,11 +107,6 @@ void UBloxInit(void)
 
   UART0Init(UBLOX_INITIAL_BAUD);
 
-  // Enable UART Rx interrupt.
-  UART_ITConfig(UART0, UART_IT_Receive, ENABLE);
-  VIC_Config(UART0_ITLine, VIC_IRQ, IRQ_PRIORITY_UART0);
-  VIC_ITCmd(UART0_ITLine, ENABLE);
-
   {
     // Set the port to UART UBX @ 57600.
     const uint8_t tx_buffer[28] = { 0xb5, 0x62, 0x06, 0x00, 0x14, 0x00, 0x01,
@@ -122,6 +117,11 @@ void UBloxInit(void)
 
   Wait(150);
   UART0Init(UBLOX_OPERATING_BAUD);
+
+  // Enable UART Rx interrupt.
+  UART_ITConfig(UART0, UART_IT_Receive, ENABLE);
+  VIC_Config(UART0_ITLine, VIC_IRQ, IRQ_PRIORITY_UART0);
+  VIC_ITCmd(UART0_ITLine, ENABLE);
 
   {  // Configure USB for UBX input with no output.
     const uint8_t tx_buffer[28] = { 0xb5, 0x62, 0x06, 0x00, 0x14, 0x00, 0x03,

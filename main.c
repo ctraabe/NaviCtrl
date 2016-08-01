@@ -182,6 +182,9 @@ int main(void)
 
   // Main loop.
   uint32_t led_timer = GetTimestamp();
+#ifndef VISION
+  uint32_t gps_timer = GetTimestamp();
+#endif
   uint32_t tr_flag = 0;
   for (;;)
   {
@@ -190,8 +193,7 @@ int main(void)
       flight_ctrl_interrupt_ = 0;
 
       LSM303DLReadMag();
-#ifndef VISION
-#else
+#ifdef VISION
       if (ProcessIncomingVision()) SetNewDataCallback(LogVisionData);
 #endif
 
@@ -201,17 +203,24 @@ int main(void)
       }
     }
 
-    ProcessIncomingUART();
     ProcessIncomingUART2();
 
     ProcessLogging();
 
+#ifndef VISION
+    if (TimestampInPast(gps_timer))
+    {
+      ProcessIncomingUBlox();
+      gps_timer += 1;  // 1000 Hz
+    }
+#endif
+
     if (TimestampInPast(led_timer))
     {
-      // ProcessIncomingUBlox();
       GreenLEDToggle();
+      ProcessIncomingUART();
 
-      led_timer += 100;
+      led_timer += 100;  // 10 Hz
       if (tr_flag)
         UART2TxByte('B');
       else

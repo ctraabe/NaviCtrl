@@ -93,30 +93,30 @@ void LSM303DLReadMag(void)
 
 static void DataReceivedCallback(void)
 {
-  magnetometer_[0] = (int16_t)(((uint16_t)magnetometer_raw_[0] << 8)
+  magnetometer_[1] = (int16_t)(((uint16_t)magnetometer_raw_[0] << 8)
     | magnetometer_raw_[1]);
   if (lsm303dl_model_ == LSM303DL_MODEL_H)
   {
-    magnetometer_[1] = (int16_t)(((uint16_t)magnetometer_raw_[2] << 8)
+    magnetometer_[0] = (int16_t)(((uint16_t)magnetometer_raw_[2] << 8)
       | magnetometer_raw_[3]);
-    magnetometer_[2] = (int16_t)(((uint16_t)magnetometer_raw_[4] << 8)
+    magnetometer_[2] = -(int16_t)(((uint16_t)magnetometer_raw_[4] << 8)
       | magnetometer_raw_[5]);
   }
   else
   {
-    magnetometer_[2] = (int16_t)(((uint16_t)magnetometer_raw_[2] << 8)
+    magnetometer_[2] = -(int16_t)(((uint16_t)magnetometer_raw_[2] << 8)
       | magnetometer_raw_[3]);
-    magnetometer_[1] = (int16_t)(((uint16_t)magnetometer_raw_[4] << 8)
+    magnetometer_[0] = (int16_t)(((uint16_t)magnetometer_raw_[4] << 8)
       | magnetometer_raw_[5]);
   }
 
   // The following arranges the data to correspond to the standard body axis.
-  magnetic_vector_[0] = (float)(magnetometer_[1] - MagnetometerBiasVector()[1])
-    / MagnetometerScaleVector()[1];
-  magnetic_vector_[1] = (float)(magnetometer_[0] - MagnetometerBiasVector()[0])
+  magnetic_vector_[0] = (float)(magnetometer_[0] - MagnetometerBiasVector()[0])
     / MagnetometerScaleVector()[0];
-  magnetic_vector_[2] = -(float)(magnetometer_[2] - MagnetometerBiasVector()[2])
+  magnetic_vector_[1] = (float)(magnetometer_[1] - MagnetometerBiasVector()[1])
+    / MagnetometerScaleVector()[1];
+  magnetic_vector_[2] = (float)(magnetometer_[2] - MagnetometerBiasVector()[2])
     / MagnetometerScaleVector()[2];
 
-  // LogMagnetometerData();
+  // SetNewDataCallback(LogMagnetometerData);
 }

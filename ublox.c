@@ -12,6 +12,8 @@
 
 #include "91x_lib.h"
 #include "irq_priority.h"
+#include "logging.h"
+#include "main.h"
 #include "timing.h"
 
 
@@ -99,15 +101,11 @@ void UBloxInit(void)
   gpio_init.GPIO_Direction = GPIO_PinOutput;
   gpio_init.GPIO_Pin = GPIO_Pin_7;
   gpio_init.GPIO_Type = GPIO_Type_PushPull;
+  gpio_init.GPIO_IPInputConnected = GPIO_IPInputConnected_Disable;
   gpio_init.GPIO_Alternate = GPIO_OutputAlt3;  // UART0 Tx
   GPIO_Init(GPIO6, &gpio_init);
 
   UART0Init(UBLOX_INITIAL_BAUD);
-
-  // Enable UART Rx interrupt.
-  UART_ITConfig(UART0, UART_IT_Receive, ENABLE);
-  VIC_Config(UART0_ITLine, VIC_IRQ, IRQ_PRIORITY_UART0);
-  VIC_ITCmd(UART0_ITLine, ENABLE);
 
   {
     // Set the port to UART UBX @ 57600.
@@ -119,6 +117,11 @@ void UBloxInit(void)
 
   Wait(150);
   UART0Init(UBLOX_OPERATING_BAUD);
+
+  // Enable UART Rx interrupt.
+  UART_ITConfig(UART0, UART_IT_Receive, ENABLE);
+  VIC_Config(UART0_ITLine, VIC_IRQ, IRQ_PRIORITY_UART0);
+  VIC_ITCmd(UART0_ITLine, ENABLE);
 
   {  // Configure USB for UBX input with no output.
     const uint8_t tx_buffer[28] = { 0xb5, 0x62, 0x06, 0x00, 0x14, 0x00, 0x03,
@@ -173,13 +176,11 @@ void UBloxInit(void)
       0x12, 0x01, 0x1e, 0x67 };
     UBloxTxBuffer(tx_buffer, 11);
   }
-/*
   {  // Request NAV-SOL message to be output every measurement cycle.
     const uint8_t tx_buffer[11] = { 0xb5, 0x62, 0x06, 0x01, 0x03, 0x00, 0x01,
       0x06, 0x01, 0x12, 0x4f };
     UBloxTxBuffer(tx_buffer, 11);
   }
-*/
   {  // Request Time-UTC message to be output every 5 measurement cycles.
     const uint8_t tx_buffer[11] = { 0xb5, 0x62, 0x06, 0x01, 0x03, 0x00, 0x01,
       0x21, 0x05, 0x31, 0x89 };
@@ -225,15 +226,19 @@ static void CopyUBloxMessage(uint8_t id)
   {
     case UBX_ID_POS_LLH:
       memcpy(&ubx_pos_llh_, &data_buffer_[0], sizeof(struct UBXPosLLH));
+      // SetNewDataCallback(LogUBXPosLLH);
       break;
     case UBX_ID_VEL_NED:
       memcpy(&ubx_vel_ned_, &data_buffer_[0], sizeof(struct UBXVelNED));
+      // SetNewDataCallback(LogUBXVelNED);
       break;
     case UBX_ID_SOL:
       memcpy(&ubx_sol_, &data_buffer_[0], sizeof(struct UBXSol));
+      // SetNewDataCallback(LogUBXSol);
       break;
     case UBX_ID_TIME_UTC:
       memcpy(&ubx_time_utc_, &data_buffer_[0], sizeof(struct UBXTimeUTC));
+      // SetNewDataCallback(LogUBXTimeUTC);
       break;
   }
 }

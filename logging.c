@@ -124,15 +124,15 @@ void LogFromFlightCtrlData(void)
 // -----------------------------------------------------------------------------
 void LogMagnetometerData(void)
 {
-  if (!logging_active_) return;
+  if (SDCardNotPresent() || !file_.fs) return;
 
-  const int kMaxChars = 4 + 3 * 6 + 2 * 1 + 2;
-  char ascii[kMaxChars];
-
-  size_t length = snprintf(ascii, kMaxChars, "mag,%i,%i,%i\r\n",
-    MagnetometerVector()[0], MagnetometerVector()[1],
-    MagnetometerVector()[2]);
-  WriteToFIFO(ascii, length);
+  union U16Bytes temp;
+  temp.bytes[0] = 0xAA;
+  temp.bytes[1] = 0xBB;
+  WriteToFIFO((char *)temp.bytes, 2);
+  WriteToFIFO((char *)MagnetometerVector(), 2*3);
+  temp.u16 = CRCCCITT((uint8_t *)MagnetometerVector(), 2*3);
+  WriteToFIFO((char *)temp.bytes, 2);
 }
 
 // -----------------------------------------------------------------------------

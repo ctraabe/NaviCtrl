@@ -29,6 +29,7 @@
 #include "sd_card.h"
 #include "spi_slave.h"
 #include "uart.h"
+#include "uart2.h"
 #ifndef VISION
   #include "ublox.h"
 #else
@@ -88,7 +89,16 @@ void UART1_IRQHandler(void)
   IDISABLE;
   VIC1->VAR = 0xFF;
 }
-void UART2_IRQHandler(void) { VIC1->VAR = 0xFF; }
+void UART2_IRQHandler(void)
+{
+  DAISY_VIC();
+  IENABLE;
+
+  UART2Handler();
+
+  IDISABLE;
+  VIC1->VAR = 0xFF;
+}
 void I2C0_IRQHandler(void) { VIC1->VAR = 0xFF; }
 void I2C1_IRQHandler(void)
 {

@@ -14,6 +14,7 @@
 #include "spi_slave.h"
 #include "timing.h"
 #include "uart.h"
+#include "uart2.h"
 #ifndef VISION
   #include "ublox.h"
 #else
@@ -140,6 +141,7 @@ int main(void)
   TimingInit();
   LEDInit();
   UARTInit();
+  UART2Init();
   I2CInit();
   SPISlaveInit();
 

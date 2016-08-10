@@ -9,6 +9,7 @@
 #include "crc16.h"
 #include "irq_priority.h"
 #include "quaternion.h"
+#include "timing.h"
 #include "union_types.h"
 
 
@@ -17,6 +18,7 @@
 
 #define VISION_UART_BAUD (115200)
 #define VISION_RX_BUFFER_LENGTH (1 << 7)  // 2^7 = 128
+#define VISION_FRESHNESS_LIMIT (100)  // millisends
 
 #define VISION_START_BYTE (0xFE)
 
@@ -25,6 +27,8 @@ static volatile size_t rx_buffer_head_ = 0;
 
 static float quaternion_[4] = { 1.0, 0.0, 0.0, 0.0 };
 static float heading_ = 0.0;
+static uint32_t last_reception_timestamp_ = 0;
+static enum VisionErrorBits vision_error_bits_ = VISION_ERROR_BIT_STALE;
 // TODO: remove (this is only here for logging)
 static struct FromVision from_vision_;
 
@@ -152,6 +156,18 @@ uint32_t ProcessIncomingVision(void)
   return new_data;
 }
 
+// -----------------------------------------------------------------------------
+void CheckVisionFreshness(void)
+{
+  // Only check freshness if the data is not yet stale because the timestamp
+  // might rollover, giving a false freshness.
+  if ((~vision_error_bits_ & VISION_ERROR_BIT_STALE) &&
+    (MillisSinceTimestamp(last_reception_timestamp_) > VISION_FRESHNESS_LIMIT))
+  {
+    vision_error_bits_ |= VISION_ERROR_BIT_STALE;
+    from_vision_.status = 0;
+  }
+}
 
 // =============================================================================
 // Private functions:
@@ -194,6 +210,8 @@ static uint32_t ProcessIncomingVisionByte(uint8_t byte)
           ProcessVisionData((struct FromVision *)payload_buffer);
           // TODO: remove (this is only here for logging)
           new_data = 1;
+          last_reception_timestamp_ = GetTimestamp();
+          vision_error_bits_ &= ~VISION_ERROR_BIT_STALE;
         }
         goto RESET;
       }

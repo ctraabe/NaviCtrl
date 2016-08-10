@@ -10,18 +10,18 @@
 #include <stdio.h>
 
 #include "91x_lib.h"
-#include "ff.h"  // FatFs
+#include "crc16.h"
+#include "ff.h"  // from libfatfs
 #include "flight_ctrl_comms.h"
+#include "kalman_filter.h"
 #include "lsm303dl.h"
 #include "sd_card.h"
 #include "spi_slave.h"
 #include "uart.h"
 #include "union_types.h"
-// TODO: remove
-#include "crc16.h"
-#include "kalman_filter.h"
-#include "led.h"
 #include "vision.h"
+// TODO: remove
+#include "led.h"
 
 
 // =============================================================================
@@ -30,7 +30,6 @@
 #define LOG_FIFO_LENGTH (512)
 #define MAX_FILENAME_LENGTH (80)
 
-static FATFS fat_fs_ = { 0 };
 static FIL file_ = { 0 };
 static FRESULT file_status_ = FR_INVALID_DRIVE;
 static char filename_[MAX_FILENAME_LENGTH];
@@ -57,31 +56,9 @@ uint32_t LoggingActive(void)
 // =============================================================================
 // Public functions:
 
-void LoggingInit(void)
-{
-  SDCardInit();
-  if (SDCardNotPresent())
-    UARTPrintf("logging: SD card not present");
-  else
-    MountLoggingFS();
-}
-
-// -----------------------------------------------------------------------------
-void MountLoggingFS(void)
-{
-  file_status_ = f_mount(&fat_fs_, "", 1);
-}
-
-// -----------------------------------------------------------------------------
-void UnmountLoggingFS(void)
-{
-  file_status_ = f_mount(NULL, "", 0);
-}
-
-// -----------------------------------------------------------------------------
 void OpenLogFile(const char * filename)
 {
-  if (file_status_ == FR_INVALID_DRIVE) return;
+  if (!SDCardFSMounted()) return;
 
   if (filename)
   {
@@ -178,7 +155,7 @@ void LogVisionData(void)
 // -----------------------------------------------------------------------------
 void ProcessLogging(void)
 {
-  if (SDCardNotPresent())
+  if (!SDCardFSMounted())
   {
     logging_active_ = 0;
     return;
@@ -210,7 +187,11 @@ void ProcessLogging(void)
       file_status_ = f_open(&file_, filename_, FA_WRITE | FA_CREATE_NEW);
     }
 
-    if (file_status_ != FR_OK)
+    if (file_status_ == FR_OK)
+    {
+      UARTPrintf("logging: opened file %s", filename_);
+    }
+    else
     {
       UARTPrintf("logging: f_open returned error code: 0x%02X", file_status_);
       file_status_ = f_close(&file_);
@@ -259,7 +240,14 @@ void ProcessLogging(void)
   {
     // GreenLEDOn();
     file_status_ = f_close(&file_);
-    UARTPrintf("logging: f_close returned error code: 0x%02X", file_status_);
+    if (file_status_ == FR_OK)
+    {
+      UARTPrintf("logging: closed file %s", filename_);
+    }
+    else
+    {
+      UARTPrintf("logging: f_close returned error code: 0x%02X", file_status_);
+    }
     // GreenLEDOff();
     RedLEDOff();
   }
@@ -268,7 +256,7 @@ void ProcessLogging(void)
 // -----------------------------------------------------------------------------
 void LogWrite(char * buffer, uint32_t length)
 {
-  if (SDCardNotPresent() || !file_.fs) return;
+  if (!SDCardFSMounted()) return;
   UINT n_bytes_written;
   file_status_ = f_write(&file_, buffer, length, &n_bytes_written);
 }

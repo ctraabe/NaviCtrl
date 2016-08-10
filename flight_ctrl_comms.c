@@ -29,8 +29,8 @@ enum NavModeBits {
   NAV_BIT_RESERVED_0 = 1<<3,
   NAV_BIT_ROUTE_0    = 1<<4,
   NAV_BIT_ROUTE_1    = 1<<5,
-  NAV_BIT_RESERVED_1 = 1<<6,
-  NAV_BIT_RESERVED_2 = 1<<7,
+  NAV_BIT_SWITCH_0   = 1<<6,
+  NAV_BIT_SWITCH_1   = 1<<7,
 };
 
 static volatile struct FromFlightCtrl from_fc_[2] = { { 0 } };
@@ -99,6 +99,12 @@ const volatile float * Quat(void)
 float PressureAltitude(void)
 {
   return from_fc_[from_fc_tail_].pressure_altitude;
+}
+
+// -----------------------------------------------------------------------------
+uint32_t RCSwitch(void)
+{
+  return (uint32_t)(from_fc_[from_fc_tail_].nav_mode_request >> 6) & 0x03;
 }
 
 // -----------------------------------------------------------------------------

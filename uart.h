@@ -30,7 +30,7 @@ void ProcessIncomingUART(void);
 
 // -----------------------------------------------------------------------------
 // This function returns the address of the shared Tx buffer (tx_buffer_) if it
-// is available of zero if not.
+// is available or zero (NULL) if not.
 uint8_t * RequestUARTTxBuffer(void);
 
 // -----------------------------------------------------------------------------

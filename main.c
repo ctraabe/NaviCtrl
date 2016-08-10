@@ -157,7 +157,7 @@ int main(void)
   LSM303DLInit();
   FlightCtrlCommsInit();
   SDCardInit();
-  LoggingInit();
+  NavigationInit();
 
   ExternalButtonInit();
 

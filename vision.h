@@ -14,6 +14,10 @@ struct FromVision {
   uint16_t status;
 } __attribute__((packed));
 
+enum VisionErrorBits {
+  VISION_ERROR_BIT_STALE = 1<<0,
+};
+
 
 // =============================================================================
 // Accessors:
@@ -48,6 +52,9 @@ void VisionInit(void);
 // This function processes bytes that have been read into the Rx ring buffer
 // (rx_buffer_) by the Rx interrupt handler.
 uint32_t ProcessIncomingVision(void);
+
+// -----------------------------------------------------------------------------
+void CheckVisionFreshness(void);
 
 // -----------------------------------------------------------------------------
 void VisionUARTHandler(void);

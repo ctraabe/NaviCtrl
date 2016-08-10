@@ -12,6 +12,13 @@ enum NavMode {
   NAV_MODE_HOME = 0x03,
 };
 
+enum NavError {
+  NAV_ERROR_NONE = 0,
+  NAV_ERROR_SD_ROUTE_NUMBER,
+  NAV_ERROR_SD_WAYPOINT_COUNT,
+  NAV_ERROR_SD_DATA_ROWS,
+};
+
 
 // =============================================================================
 // Accessors:
@@ -37,6 +44,9 @@ float TransitSpeed(void);
 // =============================================================================
 // Public functions:
 
+void NavigationInit(void);
+
+// -----------------------------------------------------------------------------
 void UpdateNavigation(void);
 
 

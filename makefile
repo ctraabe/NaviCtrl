@@ -28,7 +28,7 @@ CFLAGS    = -c -g $(LDFLAGS)
 CCFLAGS   = -std=gnu11 -Wstrict-prototypes
 CPPFLAGS  = -std=c++11 -fno-exceptions
 LSTFLAGS  = -Wa,-adhlns=$(addprefix $(BUILD_PATH)/,$(addsuffix .lst, $<))
-LDFLAGS   = -Ofast -pedantic -Wall -Wextra -Werror -Wundef -ffreestanding \
+LDFLAGS   = -Ofast -pedantic -Wall -Wextra -Wundef -ffreestanding \
             -Wl,--relax -Tstr911fam.ld
 ALLFLAGS  = -mcpu=$(MCU) -I. $(addprefix -I, $(LIBRARY_INC)) \
             -DVISION

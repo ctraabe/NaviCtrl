@@ -268,7 +268,7 @@ void PrepareFlightCtrlDataExchange(void)
   WrapToPlusMinusPi(heading_error);
   float quat_c_z = 0.5 * 0.025 * heading_error;
 
-  to_fc_ptr->version = 1;
+  to_fc_ptr->version = VisionTimestamp();
   to_fc_ptr->position[0] = VisionPosition(N_WORLD_AXIS);
   to_fc_ptr->position[1] = VisionPosition(E_WORLD_AXIS);
   to_fc_ptr->position[2] = VisionPosition(D_WORLD_AXIS);

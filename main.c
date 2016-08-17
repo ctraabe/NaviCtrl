@@ -212,6 +212,7 @@ int main(void)
 
     if (TimestampInPast(led_timer))
     {
+      RedLEDOff();
       GreenLEDToggle();
       led_timer += 100;
       // UARTPrintfSafe("%0.2f,%0.2f,%0.2f,%0.2f",

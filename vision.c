@@ -11,12 +11,15 @@
 #include "quaternion.h"
 #include "timing.h"
 #include "union_types.h"
+//TODO: remove
+#include "led.h"
+#include "uart.h"
 
 
 // =============================================================================
 // Private data:
 
-#define VISION_UART_BAUD (115200)
+#define VISION_UART_BAUD (57600)
 #define VISION_RX_BUFFER_LENGTH (1 << 7)  // 2^7 = 128
 #define VISION_FRESHNESS_LIMIT (100)  // millisends
 
@@ -31,6 +34,7 @@ static uint32_t last_reception_timestamp_ = 0;
 static enum VisionErrorBits vision_error_bits_ = VISION_ERROR_BIT_STALE;
 // TODO: remove (this is only here for logging)
 static struct FromVision from_vision_;
+static float position[3] = { 0 };
 
 
 // =============================================================================
@@ -52,13 +56,13 @@ float VisionHeading(void)
 // -----------------------------------------------------------------------------
 float VisionPosition(enum WorldAxes axis)
 {
-  return from_vision_.position[axis];
+  return 0.0;  // from_vision_.position[axis];
 }
 
 // -----------------------------------------------------------------------------
 const float * VisionPositionVector(void)
 {
-  return &from_vision_.position[0];
+  return &position[0];
 }
 
 // -----------------------------------------------------------------------------
@@ -70,13 +74,13 @@ const float * VisionQuaternionVector(void)
 // -----------------------------------------------------------------------------
 uint16_t VisionStatus(void)
 {
-  return from_vision_.status;
+  return 0;
 }
 
 // -----------------------------------------------------------------------------
 uint32_t VisionTimestamp(void)
 {
-  return from_vision_.timestamp;
+  return from_vision_.timestamp[0];  // from_vision_.timestamp;
 }
 
 // TODO: remove (this is only here for logging)
@@ -166,7 +170,7 @@ void CheckVisionFreshness(void)
     (MillisSinceTimestamp(last_reception_timestamp_) > VISION_FRESHNESS_LIMIT))
   {
     vision_error_bits_ |= VISION_ERROR_BIT_STALE;
-    from_vision_.status = 0;
+    // from_vision_.status = 0;
   }
 }
 
@@ -233,15 +237,18 @@ static void ProcessVisionData(struct FromVision * from_vision)
 {
   memcpy(&from_vision_, from_vision, PAYLOAD_LENGTH);
 
-  // Compute full quaternion.
-  quaternion_[1] = from_vision->quaternion[0];
-  quaternion_[2] = from_vision->quaternion[1];
-  quaternion_[3] = from_vision->quaternion[2];
-  quaternion_[0] = sqrt(1.0 - quaternion_[1] * quaternion_[1] - quaternion_[2]
-    * quaternion_[2] - quaternion_[3] * quaternion_[3]);
+  RedLEDOn();
+  UARTPrintfSafe("%d", (uint16_t)(from_vision->timestamp[0] - from_vision->timestamp[1]));
 
-  // Compute heading.
-  heading_ = HeadingFromQuaternion(quaternion_);
+  // // Compute full quaternion.
+  // quaternion_[1] = from_vision->quaternion[0];
+  // quaternion_[2] = from_vision->quaternion[1];
+  // quaternion_[3] = from_vision->quaternion[2];
+  // quaternion_[0] = sqrt(1.0 - quaternion_[1] * quaternion_[1] - quaternion_[2]
+  //   * quaternion_[2] - quaternion_[3] * quaternion_[3]);
+
+  // // Compute heading.
+  // heading_ = HeadingFromQuaternion(quaternion_);
 }
 
 // -----------------------------------------------------------------------------

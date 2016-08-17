@@ -80,6 +80,11 @@ void ProcessIncomingUART2(void)
   static size_t rx_fifo_tail = 0;
   // static enum UART2RxMode mode = UART2_RX_MODE_IDLE;
 
+  // Make sure nothing is remaining in the UART0 hardware receive FIFO.
+  VIC_ITCmd(UART2_ITLine, DISABLE);
+  ReceiveUARTData();
+  VIC_ITCmd(UART2_ITLine, ENABLE);
+
   // Process each byte.
   while (rx_fifo_tail != rx_fifo_head_)
   {

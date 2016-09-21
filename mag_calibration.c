@@ -1,27 +1,48 @@
 #include "mag_calibration.h"
 
+#include <math.h>
+#include <stddef.h>
+
 #include "lsm303dl.h"
+#include "matrix.h"
 
 
 // =============================================================================
 // Private data:
 
 #define N_CALIBRATION_SAMPLES (100)  // 12 bytes per sample
+#define OPTIMAL_NEAREST_NEIGHBOR (0.35)  // Optimal distribution for 100 points
+
+static float mag_gain_[3] = { 0.0 };
+static float mag_bias_[3] = { 0.0 };
 
 static struct MagSample {
   int16_t sample[3];
   uint16_t nearest_neighbor_index;  // 2 bytes for memory alignment (important)
   uint32_t nearest_neighbor_distace;
 } __attribute__((packed)) mag_samples_[N_CALIBRATION_SAMPLES];
+static size_t worst_sample_index_;
 
 
 // =============================================================================
 // Private function declarations:
 static uint32_t NormSquared(const int16_t * v1, const int16_t * v2);
+static float Square(float a);
 
 
 // =============================================================================
 // Accessors:
+
+const float * MagBiasVector(void)
+{
+  return mag_bias_;
+}
+
+// -----------------------------------------------------------------------------
+const float * MagGainVector(void)
+{
+  return mag_gain_;
+}
 
 
 // =============================================================================
@@ -30,13 +51,21 @@ static uint32_t NormSquared(const int16_t * v1, const int16_t * v2);
 void MagCalibrationInit(void)
 {
   // TODO: consider allocating and freeing memory for calibration samples.
+  for (size_t i = 0; i < N_CALIBRATION_SAMPLES; i++)
+  {
+    mag_samples_[i].sample[0] = MagnetometerVector()[0];
+    mag_samples_[i].sample[1] = MagnetometerVector()[1];
+    mag_samples_[i].sample[2] = MagnetometerVector()[2];
+    mag_samples_[i].nearest_neighbor_index = i + 1;
+    mag_samples_[i].nearest_neighbor_distace = 0;
+  }
+  mag_samples_[N_CALIBRATION_SAMPLES-1].nearest_neighbor_index = 0;
+  worst_sample_index_ = 0;
 }
 
 // -----------------------------------------------------------------------------
 void MagCalibrationAddSample(void)
 {
-  static size_t worst_sample_index_ = 0;
-
   const int16_t * const new_sample = MagnetometerVector();
   size_t nearest_neighbor_index = 0;
   uint32_t new_sample_distances_[N_CALIBRATION_SAMPLES];
@@ -117,8 +146,42 @@ void MagCalibrationAddSample(void)
 }
 
 // -----------------------------------------------------------------------------
-void MagCalibratinCopmute(void)
+void MagCalibratinoCopmute(void)
 {
+  float num[6*1] = { 0.0 }, den[6*6];
+  {
+    float D_t[6*N_CALIBRATION_SAMPLES];
+    for (size_t i = 0; i < N_CALIBRATION_SAMPLES; i++)
+    {
+      D_t[3*N_CALIBRATION_SAMPLES+i] = (float)mag_samples_[i].sample[0];
+      D_t[4*N_CALIBRATION_SAMPLES+i] = (float)mag_samples_[i].sample[1];
+      D_t[5*N_CALIBRATION_SAMPLES+i] = (float)mag_samples_[i].sample[2];
+      D_t[0*N_CALIBRATION_SAMPLES+i] = Square(D_t[3*N_CALIBRATION_SAMPLES+i]);
+      D_t[1*N_CALIBRATION_SAMPLES+i] = Square(D_t[4*N_CALIBRATION_SAMPLES+i]);
+      D_t[2*N_CALIBRATION_SAMPLES+i] = Square(D_t[5*N_CALIBRATION_SAMPLES+i]);
+      num[0] += D_t[0*N_CALIBRATION_SAMPLES+i];
+      num[1] += D_t[1*N_CALIBRATION_SAMPLES+i];
+      num[2] += D_t[2*N_CALIBRATION_SAMPLES+i];
+      num[3] += D_t[3*N_CALIBRATION_SAMPLES+i];
+      num[4] += D_t[4*N_CALIBRATION_SAMPLES+i];
+      num[5] += D_t[5*N_CALIBRATION_SAMPLES+i];
+    }
+    MatrixMultiplyByTranspose(D_t, D_t, 6, N_CALIBRATION_SAMPLES, 6, den);
+  }
+
+  float den_inv[6*6], u[6*1];
+  MatrixInverse(den, 6, den_inv);
+  MatrixMultiply(den_inv, num, 6, 6, 1, u);
+
+  float temp = 1.0 + 0.25 * (u[3] * u[3] / u[0] + u[4] * u[4] / u[1] + u[5]
+    * u[5] / u[2]);
+
+  mag_gain_[0] = sqrt(temp / u[0]);
+  mag_gain_[1] = sqrt(temp / u[1]);
+  mag_gain_[2] = sqrt(temp / u[2]);
+  mag_bias_[0] = -0.5 * u[3] / u[0];
+  mag_bias_[1] = -0.5 * u[4] / u[1];
+  mag_bias_[2] = -0.5 * u[5] / u[2];
 }
 
 
@@ -134,4 +197,10 @@ static uint32_t NormSquared(const int16_t * v1, const int16_t * v2)
     result += temp * temp;
   }
   return result;
+}
+
+// -----------------------------------------------------------------------------
+static float Square(float a)
+{
+  return a * a;
 }

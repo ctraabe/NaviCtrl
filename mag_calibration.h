@@ -2,12 +2,17 @@
 #define MAG_CALIBRATION_H_
 
 
-#include <stddef.h>
+// =============================================================================
+// Accessors:
+
+const float * MagBiasVector(void);
+
+// -----------------------------------------------------------------------------
+const float * MagGainVector(void);
 
 
 // =============================================================================
 // Public functions:
-
 
 void MagCalibrationInit(void);
 
@@ -15,7 +20,7 @@ void MagCalibrationInit(void);
 void MagCalibrationAddSample(void);
 
 // -----------------------------------------------------------------------------
-void MagCalibratinCopmute(void);
+void MagCalibrationCopmute(void);
 
 
 #endif  // MAG_CALIBRATION_H_

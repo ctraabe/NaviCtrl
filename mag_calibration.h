@@ -2,6 +2,9 @@
 #define MAG_CALIBRATION_H_
 
 
+#include <inttypes.h>
+
+
 // =============================================================================
 // Accessors:
 
@@ -14,10 +17,10 @@ const float * MagGainVector(void);
 // =============================================================================
 // Public functions:
 
-void MagCalibrationInit(void);
+void MagCalibrationInit(const int16_t * const new_sample);
 
 // -----------------------------------------------------------------------------
-void MagCalibrationAddSample(void);
+void MagCalibrationAddSample(const int16_t * const new_sample);
 
 // -----------------------------------------------------------------------------
 void MagCalibrationCopmute(void);

@@ -3,7 +3,6 @@
 #include <math.h>
 #include <stddef.h>
 
-#include "lsm303dl.h"
 #include "matrix.h"
 
 
@@ -48,14 +47,14 @@ const float * MagGainVector(void)
 // =============================================================================
 // Public functions:
 
-void MagCalibrationInit(void)
+void MagCalibrationInit(const int16_t * const new_sample)
 {
   // TODO: consider allocating and freeing memory for calibration samples.
   for (size_t i = 0; i < N_CALIBRATION_SAMPLES; i++)
   {
-    mag_samples_[i].sample[0] = MagnetometerVector()[0];
-    mag_samples_[i].sample[1] = MagnetometerVector()[1];
-    mag_samples_[i].sample[2] = MagnetometerVector()[2];
+    mag_samples_[i].sample[0] = new_sample[0];
+    mag_samples_[i].sample[1] = new_sample[1];
+    mag_samples_[i].sample[2] = new_sample[2];
     mag_samples_[i].nearest_neighbor_index = i + 1;
     mag_samples_[i].nearest_neighbor_distace = 0;
   }
@@ -64,11 +63,10 @@ void MagCalibrationInit(void)
 }
 
 // -----------------------------------------------------------------------------
-void MagCalibrationAddSample(void)
+void MagCalibrationAddSample(const int16_t * const new_sample)
 {
-  const int16_t * const new_sample = MagnetometerVector();
   size_t nearest_neighbor_index = 0;
-  uint32_t new_sample_distances_[N_CALIBRATION_SAMPLES];
+  uint32_t new_sample_distances[N_CALIBRATION_SAMPLES];
   uint32_t nearest_neighbor_distace = 0xFFFFFFFF;  // Max value
 
   // Search for the nearest neighbor to the new sample.
@@ -80,13 +78,16 @@ void MagCalibrationAddSample(void)
     // Search for the nearest neighbor to the new sample. Also save the
     // distances in the process, to be used if the new sample is better than the
     // worst sample.
-    new_sample_distances_[i] = NormSquared(new_sample, mag_samples_[i].sample);
-    if (new_sample_distances_[i] < nearest_neighbor_distace)
+    new_sample_distances[i] = NormSquared(new_sample, mag_samples_[i].sample);
+    if (new_sample_distances[i] < nearest_neighbor_distace)
+    {
       nearest_neighbor_index = i;
+      nearest_neighbor_distace = new_sample_distances[i];
+    }
   }
 
   // Check if new sample is better than the existing worst sample.
-  if (new_sample_distances_[nearest_neighbor_index]
+  if (nearest_neighbor_distace
     > mag_samples_[worst_sample_index_].nearest_neighbor_distace)
   {
     // Replace the worst sample with the new sample.
@@ -96,7 +97,7 @@ void MagCalibrationAddSample(void)
     mag_samples_[worst_sample_index_].nearest_neighbor_index
       = nearest_neighbor_index;
     mag_samples_[worst_sample_index_].nearest_neighbor_distace
-      = new_sample_distances_[nearest_neighbor_index];
+      = new_sample_distances[nearest_neighbor_index];
 
     // Review the nearest neighbors for the rest of the existing samples.
     size_t new_sample_index = worst_sample_index_;
@@ -110,7 +111,7 @@ void MagCalibrationAddSample(void)
       if (mag_samples_[i].nearest_neighbor_index == new_sample_index)
       {
         // First assume that the new sample is the nearest neighbor.
-        mag_samples_[i].nearest_neighbor_distace = new_sample_distances_[i];
+        mag_samples_[i].nearest_neighbor_distace = new_sample_distances[i];
 
         // Search the other samples for a closer neighbor.
         for (size_t j = 0; j < N_CALIBRATION_SAMPLES; j++)
@@ -128,11 +129,11 @@ void MagCalibrationAddSample(void)
         }
       }
       // Check if the new sample is nearer than the current nearest neighbor.
-      else if (new_sample_distances_[i]
+      else if (new_sample_distances[i]
         < mag_samples_[i].nearest_neighbor_distace)
       {
         mag_samples_[i].nearest_neighbor_index = new_sample_index;
-        mag_samples_[i].nearest_neighbor_distace = new_sample_distances_[i];
+        mag_samples_[i].nearest_neighbor_distace = new_sample_distances[i];
       }
 
       // Check for the worst existing sample.
@@ -146,7 +147,7 @@ void MagCalibrationAddSample(void)
 }
 
 // -----------------------------------------------------------------------------
-void MagCalibratinoCopmute(void)
+void MagCalibrationCopmute(void)
 {
   float num[6*1] = { 0.0 }, den[6*6];
   {

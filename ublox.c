@@ -33,6 +33,8 @@
 #define UBX_ID_SOL (0x06)
 #define UBX_ID_TIME_UTC (0x21)
 
+#define UBX_FRESHNESS_LIMIT (1000)  // millisends
+
 static volatile uint8_t rx_buffer_[UBLOX_RX_BUFFER_LENGTH];
 static volatile size_t rx_buffer_head_ = 0;
 static uint8_t data_buffer_[UBLOX_DATA_BUFFER_LENGTH];
@@ -41,6 +43,9 @@ static struct UBXPosLLH ubx_pos_llh_;
 static struct UBXVelNED ubx_vel_ned_;
 static struct UBXSol ubx_sol_;
 static struct UBXTimeUTC ubx_time_utc_;
+
+static enum UBXErrorBits ubx_error_bits_ = UBX_ERROR_BIT_STALE;
+static uint32_t last_reception_timestamp_ = 0;
 
 
 // =============================================================================
@@ -76,6 +81,12 @@ const struct UBXSol * UBXSol(void)
 const struct UBXTimeUTC * UBXTimeUTC(void)
 {
   return &ubx_time_utc_;
+}
+
+// -----------------------------------------------------------------------------
+uint32_t UBXDataStale(void)
+{
+  return ubx_error_bits_ & UBX_ERROR_BIT_STALE;
 }
 
 
@@ -208,6 +219,18 @@ void ProcessIncomingUBlox(void)
   }
 }
 
+// -----------------------------------------------------------------------------
+void CheckUBXFreshness(void)
+{
+  // Only check freshness if the data is not yet stale because the timestamp
+  // might rollover, giving a false freshness.
+  if ((~ubx_error_bits_ & UBX_ERROR_BIT_STALE) &&
+    (MillisSinceTimestamp(last_reception_timestamp_) > UBX_FRESHNESS_LIMIT))
+  {
+    ubx_error_bits_ |= UBX_ERROR_BIT_STALE;
+  }
+}
+
 
 // =============================================================================
 // Private functions:
@@ -241,6 +264,9 @@ static void CopyUBloxMessage(uint8_t id)
       // SetNewDataCallback(LogUBXTimeUTC);
       break;
   }
+
+  last_reception_timestamp_ = GetTimestamp();
+  ubx_error_bits_ &= ~UBX_ERROR_BIT_STALE;
 }
 
 // -----------------------------------------------------------------------------

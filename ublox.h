@@ -64,6 +64,10 @@ struct UBXTimeUTC
   uint8_t valid;
 } __attribute__((packed));
 
+enum UBXErrorBits {
+  UBX_ERROR_BIT_STALE = 1<<0,
+};
+
 
 // =============================================================================
 // Accessors:
@@ -78,6 +82,9 @@ const struct UBXSol * UBXSol(void);
 
 // -----------------------------------------------------------------------------
 const struct UBXTimeUTC * UBXTimeUTC(void);
+
+// -----------------------------------------------------------------------------
+uint32_t UBXDataStale(void);
 
 
 // =============================================================================
@@ -94,6 +101,9 @@ void ProcessIncomingUBlox(void);
 
 // -----------------------------------------------------------------------------
 void UBloxUARTHandler(void);
+
+// -----------------------------------------------------------------------------
+void CheckUBXFreshness(void);
 
 
 #endif  // UBLOX_H_

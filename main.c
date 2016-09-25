@@ -9,6 +9,7 @@
 #include "led.h"
 #include "logging.h"
 #include "lsm303dl.h"
+#include "mag_calibration.h"
 #include "navigation.h"
 #include "sd_card.h"
 #include "spi_slave.h"
@@ -35,6 +36,7 @@ static volatile size_t callback_buffer_head_ = 0;
 static size_t callback_buffer_tail_ = 0;
 static volatile uint32_t flight_ctrl_interrupt_ = 0;
 static uint32_t overrun_counter_ = 0;
+static uint32_t mag_calibration_ = 0;
 
 
 // =============================================================================
@@ -52,7 +54,7 @@ void FiftyHzInterruptHandler(void)
 
   uint16_t button = GPIO_ReadBit(GPIO3, GPIO_Pin_1);
   static uint16_t button_pv = 0;
-  if (button && (button_pv == 0x7FFF)) {}
+  if (button && (button_pv == 0x7FFF)) mag_calibration_ = !mag_calibration_;
   button_pv = (button_pv << 1) | button;
 }
 
@@ -135,6 +137,27 @@ static void ExternalButtonInit(void)
 }
 
 //------------------------------------------------------------------------------
+static uint32_t MagCalibration(void)
+{
+  static uint32_t mag_calibration_pv = 0;
+
+  if (mag_calibration_)
+  {
+    if (mag_calibration_pv) MagCalibrationInit(MagnetometerVector());
+    LSM303DLReadMag();
+    I2CWaitUntilCompletion(100);
+    MagCalibrationAddSample(MagnetometerVector());
+  }
+  else if (mag_calibration_pv)
+  {
+    MagCalibrationCopmute();
+  }
+
+  mag_calibration_pv = mag_calibration_;
+  return mag_calibration_;
+}
+
+//------------------------------------------------------------------------------
 int main(void)
 {
   VICConfig();
@@ -173,6 +196,8 @@ int main(void)
   uint32_t led_timer = GetTimestamp();
   for (;;)
   {
+    if (MagCalibration()) continue;
+
 #ifndef VISION
     ProcessIncomingUBlox();
 #else

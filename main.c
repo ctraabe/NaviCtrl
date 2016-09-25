@@ -5,7 +5,6 @@
 #include "flight_ctrl_comms.h"
 #include "i2c.h"
 #include "irq_priority.h"
-#include "kalman_filter.h"
 #include "led.h"
 #include "logging.h"
 #include "lsm303dl.h"
@@ -19,6 +18,7 @@
 #ifndef VISION
   #include "ublox.h"
 #else
+  #include "kalman_filter.h"
   #include "vision.h"
 #endif
 // TODO: remove
@@ -204,7 +204,7 @@ int main(void)
     if (ProcessIncomingVision())
     {
       KalmanVisionUpdate();
-#ifdef LOG_FLT_CTRL_DEBUG_TO_SD
+#ifdef LOG_DEBUG_TO_SD
       SetNewDataCallback(LogVisionData);
       SetNewDataCallback(LogKalmanData);
 #endif
@@ -217,7 +217,9 @@ int main(void)
 
       LSM303DLReadMag();
 
+#ifdef VISION
       KalmanTimeUpdate();
+#endif
 
       UpdateNavigation();
 
@@ -231,7 +233,7 @@ int main(void)
 
     ProcessIncomingUART();
 
-#ifdef LOG_FLT_CTRL_DEBUG_TO_SD
+#ifdef LOG_DEBUG_TO_SD
     ProcessLogging();
 #endif
 

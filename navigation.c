@@ -2,7 +2,9 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 
+#include "attitude.h"
 #include "custom_math.h"
 #include "ff.h"  // from libfatfs
 #include "flight_ctrl_comms.h"
@@ -10,7 +12,9 @@
 #include "timing.h"
 #include "uart.h"
 #include "vector.h"
-#ifdef VISION
+#ifndef VISION
+  #include "ublox.h"
+#else
   #include "vision.h"
 #endif
 
@@ -20,6 +24,10 @@
 
 #define N_ROUTES (3)
 #define MAX_WAYPOINTS (32)
+
+#define R_EARTH (6378137.0)  // meters
+// TODO: correct this for WGS84 model
+#define UBX_LATITUDE_TO_METERS (1.0e-7 * M_PI / 180.0 * R_EARTH)
 
 struct Waypoint {
   float target_position[3];
@@ -41,15 +49,36 @@ static uint32_t n_waypoints_[N_ROUTES] = { 0, 0, 0 };
 static struct Waypoint waypoints_[N_ROUTES][MAX_WAYPOINTS] = { 0 };
 static enum NavMode mode_ = NAV_MODE_OFF;
 static enum NavError nav_error_ = NAV_ERROR_NONE;
-static float target_position_[3] = { 0.0 }, delta_postion_[3] = { 0.0 };
-static float delta_heading_ = 0.0;
+
+static float current_position_[3] = { 0.0 }, delta_postion_[3] = { 0.0 },
+  target_position_[3] = { 0.0 };
+static float current_heading_ = 0.0, delta_heading_ = 0.0,
+  target_heading_ = 0.0;
+
 static const struct Waypoint * current_waypoint_ = &waypoints_[ROUTE_1][0];
 static const struct Waypoint * final_waypoint_ = &waypoints_[ROUTE_1][0];
+
+#ifndef VISION
+  static uint32_t gps_home_[3];
+  static float ubx_longitude_to_meters_;
+#endif
 
 
 // =============================================================================
 // Accessors:
 
+float CurrentHeading(void)
+{
+  return current_heading_;
+}
+
+// -----------------------------------------------------------------------------
+float CurrentPosition(enum WorldAxes axis)
+{
+  return current_position_[axis];
+}
+
+// -----------------------------------------------------------------------------
 float HeadingRate(void)
 {
   return current_waypoint_->heading_rate;
@@ -70,7 +99,7 @@ enum NavMode NavMode(void)
 // -----------------------------------------------------------------------------
 float TargetHeading(void)
 {
-  return current_waypoint_->target_heading;
+  return target_heading_;
 }
 
 // -----------------------------------------------------------------------------
@@ -233,7 +262,17 @@ void UpdateNavigation(void)
   static float radius_squared = 1.0;
   static uint32_t next_waypoint_time = 0, waypoint_reached = 0;  // , baro_reset = 0;
 
-  const float * current_position = VisionPositionVector();
+#ifndef VISION
+  current_position_[0] = (float)(UBXPosLLH()->longitude - gps_home_[0])
+    * ubx_longitude_to_meters_;
+  current_position_[1] = (float)(UBXPosLLH()->latitude - gps_home_[1])
+    * UBX_LATITUDE_TO_METERS;
+  current_position_[2] = (float)(UBXPosLLH()->height_above_ellipsoid
+    - gps_home_[2]) * -1.0e-3;
+#else
+  Vector3Copy(VisionPositionVector(), current_position_);
+#endif
+  current_heading_ = HeadingFromQuaternion((float *)Quat());
 
   if (RequestedNavMode() != mode_)
   {
@@ -245,6 +284,7 @@ void UpdateNavigation(void)
         current_waypoint_ = &waypoints_[route][0];
         final_waypoint_ = &waypoints_[route][n_waypoints_[route]-1];
         Vector3Copy(current_waypoint_->target_position, target_position_);
+        target_heading_ = current_waypoint_->target_heading;
         radius_squared = current_waypoint_->radius * current_waypoint_->radius;
         mode_ = NAV_MODE_AUTO;
       }
@@ -260,13 +300,13 @@ void UpdateNavigation(void)
 
     if (mode_ == NAV_MODE_HOLD)
     {
-      Vector3Copy(current_position, target_position_);
+      Vector3Copy(current_position_, target_position_);
+      target_heading_ = current_heading_;
     }
   }
 
-  Vector3Subtract(current_position, target_position_, delta_postion_);
-  delta_heading_ = WrapToPlusMinusPi(VisionHeading()
-    - current_waypoint_->target_heading);
+  Vector3Subtract(current_position_, target_position_, delta_postion_);
+  delta_heading_ = WrapToPlusMinusPi(current_heading_ - target_heading_);
 
   if ((RequestedNavMode() == NAV_MODE_AUTO))
   {
@@ -284,7 +324,19 @@ void UpdateNavigation(void)
       waypoint_reached = 0;
       current_waypoint_++;
       Vector3Copy(current_waypoint_->target_position, target_position_);
+      target_heading_ = current_waypoint_->target_heading;
       radius_squared = current_waypoint_->radius * current_waypoint_->radius;
     }
   }
 }
+
+#ifndef VISION
+// -----------------------------------------------------------------------------
+void SetGPSHome(void)
+{
+  memcpy(gps_home_, &UBXPosLLH()->longitude, sizeof(gps_home_));
+
+  ubx_longitude_to_meters_ = UBX_LATITUDE_TO_METERS * cos((float)gps_home_[1]
+    * 1.0e-7 * M_PI / 180.0);
+}
+#endif

@@ -13,13 +13,17 @@
 #include "crc16.h"
 #include "ff.h"  // from libfatfs
 #include "flight_ctrl_comms.h"
-#include "kalman_filter.h"
 #include "lsm303dl.h"
 #include "sd_card.h"
 #include "spi_slave.h"
 #include "uart.h"
 #include "union_types.h"
-#include "vision.h"
+#ifndef VISION
+  #include "ublox.h"
+#else
+  #include "kalman_filter.h"
+  #include "vision.h"
+#endif
 // TODO: remove
 #include "led.h"
 
@@ -125,6 +129,7 @@ void LogToFlightCtrlData(const struct ToFlightCtrl * data)
 }
 
 // -----------------------------------------------------------------------------
+#ifdef VISION
 void LogKalmanData(void)
 {
   if (SDCardNotPresent() || !file_.fs) return;
@@ -151,6 +156,7 @@ void LogVisionData(void)
   temp.u16 = CRCCCITT((uint8_t *)FromVision(), sizeof(struct FromVision));
   WriteToFIFO((char *)temp.bytes, 2);
 }
+#endif
 
 // -----------------------------------------------------------------------------
 void ProcessLogging(void)

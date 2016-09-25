@@ -4,12 +4,18 @@
 #include "crc16.h"
 #include "heading.h"
 #include "irq_priority.h"
-#include "kalman_filter.h"
 #include "main.h"
 #include "spi_slave.h"
 #include "timing.h"
 #include "union_types.h"
-#include "vision.h"
+#ifndef VISION
+  #include "lsm303dl.h"
+  #include "quaternion.h"
+  #include "ublox.h"
+#else
+  #include "kalman_filter.h"
+  #include "vision.h"
+#endif
 // TODO: remove
 #include "attitude.h"
 #include "custom_math.h"
@@ -232,7 +238,7 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
           from_fc_head_ = !from_fc_tail_;
           FilterPressureAltitude();
           SetFlightCtrlInterrupt();
-#ifdef LOG_FLT_CTRL_DEBUG_TO_SD
+#ifdef LOG_DEBUG_TO_SD
           // LogFromFlightCtrlData();
 #endif
         }
@@ -251,30 +257,44 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
 // -----------------------------------------------------------------------------
 void PrepareFlightCtrlDataExchange(void)
 {
-  // _Static_assert(sizeof(struct ToFlightCtrl) < SPI_TX_BUFFER_LENGTH,
-  //   "ToFC is too large for the SPI TX buffer");
+  _Static_assert(sizeof(struct ToFlightCtrl) < SPI_TX_BUFFER_LENGTH,
+    "ToFC is too large for the SPI TX buffer");
 
   struct ToFlightCtrl * to_fc_ptr = (struct ToFlightCtrl *)RequestSPITxBuffer();
   if (!to_fc_ptr) return;
 
-  // Copy volatile data
-  volatile float * quat_v = from_fc_[from_fc_tail_].quaternion;
-  float quat[4] = { quat_v[0], quat_v[1], quat_v[2], quat_v[3] };
+  // TODO: put this somewhere else
+  // Form a heading correction
   float heading_error;
+#ifndef VISION
+  float mag_earth[3];
+  QuaternionRotateVector((float *)Quat(), MagneticVector(), mag_earth);
+  // TODO: dedeclinate
+  // TODO: do some sanity checking on the magnetic scale, etc.
+  heading_error = -atan2(mag_earth[1], mag_earth[0]);
+#else
   if (VisionStatus() != 1)
     heading_error = 0;
   else
-    heading_error = VisionHeading() - HeadingFromQuaternion(quat);
+    heading_error = VisionHeading() - CurrentHeading();
+#endif
   WrapToPlusMinusPi(heading_error);
+  // TODO: put these magic numbers in a #define
   float quat_c_z = 0.5 * 0.025 * heading_error;
 
   to_fc_ptr->version = 1;
-  to_fc_ptr->position[0] = VisionPosition(N_WORLD_AXIS);
-  to_fc_ptr->position[1] = VisionPosition(E_WORLD_AXIS);
-  to_fc_ptr->position[2] = VisionPosition(D_WORLD_AXIS);
+  to_fc_ptr->position[0] = CurrentPosition(N_WORLD_AXIS);
+  to_fc_ptr->position[1] = CurrentPosition(E_WORLD_AXIS);
+  to_fc_ptr->position[2] = CurrentPosition(D_WORLD_AXIS);
+#ifndef VISION
+  to_fc_ptr->velocity[0] = (float)UBXVelNED()->velocity_north * 1.0e-2;
+  to_fc_ptr->velocity[1] = (float)UBXVelNED()->velocity_east * 1.0e-2;
+  to_fc_ptr->velocity[2] = (float)UBXVelNED()->velocity_down * 1.0e-2;
+#else
   to_fc_ptr->velocity[0] = KalmanVelocity(N_WORLD_AXIS);
   to_fc_ptr->velocity[1] = KalmanVelocity(E_WORLD_AXIS);
   to_fc_ptr->velocity[2] = KalmanVelocity(D_WORLD_AXIS);
+#endif
   to_fc_ptr->heading_correction_quat_0 = sqrt(1.0 - quat_c_z * quat_c_z);
   to_fc_ptr->heading_correction_quat_z = quat_c_z;
   to_fc_ptr->target_position[0] = TargetPosition(N_WORLD_AXIS);
@@ -284,15 +304,17 @@ void PrepareFlightCtrlDataExchange(void)
   to_fc_ptr->target_heading = TargetHeading();
   to_fc_ptr->heading_rate = HeadingRate();
   to_fc_ptr->nav_mode = (uint8_t)NavMode();
-#ifdef VISION
+#ifndef VISION
+  to_fc_ptr->status = 1;
+#else
   to_fc_ptr->status = (uint8_t)VisionStatus();
 #endif
 
   to_fc_ptr->crc = CRCCCITT((uint8_t *)to_fc_ptr, sizeof(struct ToFlightCtrl)
     - 2);
 
-#ifdef LOG_FLT_CTRL_DEBUG_TO_SD
-  LogToFlightCtrlData(to_fc_ptr);
+#ifdef LOG_DEBUG_TO_SD
+  // LogToFlightCtrlData(to_fc_ptr);
 #endif
 
   SPITxBuffer(sizeof(struct ToFlightCtrl));

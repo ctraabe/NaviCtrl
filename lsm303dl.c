@@ -118,5 +118,7 @@ static void DataReceivedCallback(void)
   magnetic_vector_[2] = (float)(magnetometer_[2] - MagnetometerBiasVector()[2])
     / MagnetometerScaleVector()[2];
 
+#ifdef LOG_DEBUG_TO_SD
   // SetNewDataCallback(LogMagnetometerData);
+#endif
 }

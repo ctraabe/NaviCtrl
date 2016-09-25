@@ -17,7 +17,7 @@ struct FromFlightCtrl {
   float gyro[3];
   float quaternion[4];
   float pressure_altitude;
-#ifdef LOG_FLT_CTRL_DEBUG_TO_SD
+#ifdef LOG_DEBUG_TO_SD
   // int16_t sbus_pitch;
   // int16_t sbus_roll;
   // int16_t sbus_yaw;

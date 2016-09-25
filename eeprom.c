@@ -1,5 +1,7 @@
 #include "eeprom.h"
 
+#include <string.h>
+
 #include "i2c.h"
 #include "timing.h"
 #include "uart.h"
@@ -9,7 +11,7 @@
 // =============================================================================
 // Private function declarations:
 
-void WriteToEEPROM(uint8_t * data_ptr, size_t data_length);
+void WriteToEEPROM(const void * data_ptr, size_t data_length);
 
 
 // =============================================================================
@@ -18,12 +20,14 @@ void WriteToEEPROM(uint8_t * data_ptr, size_t data_length);
 #define EEPROM_I2C_ADDRESS (0xA0)
 #define EEPROM_SIZE (65536L)  // 64 kB
 #define EEPROM_MEMORY_START_ADDRESS (0x1000)
-#define EEPROM_VERSION (1)
+#define EEPROM_VERSION (2)
 
+// Note: this structure is unpadded (memory aligned)
 struct {
-  uint16_t version;
-  int16_t magnetometer_bias[3];
+  uint32_t version;
   float magnetometer_scale[3];
+  int16_t magnetometer_bias[3];
+  uint32_t magnetometer_calibrated;
 } eeprom_;
 
 
@@ -36,30 +40,45 @@ const int16_t * MagnetometerBiasVector(void)
 }
 
 // -----------------------------------------------------------------------------
+uint32_t MagnetometerCalibrated(void)
+{
+  return eeprom_.magnetometer_calibrated;
+}
+
+// -----------------------------------------------------------------------------
 const float * MagnetometerScaleVector(void)
 {
   return eeprom_.magnetometer_scale;
 }
 
 // -----------------------------------------------------------------------------
-void WriteMagnatometerBiasToEEPROM(uint8_t bias[3])
+void WriteMagnatometerBiasToEEPROM(int16_t bias[3])
 {
   eeprom_.magnetometer_bias[0] = bias[0];
   eeprom_.magnetometer_bias[1] = bias[1];
   eeprom_.magnetometer_bias[2] = bias[2];
 
-  WriteToEEPROM((uint8_t *)&eeprom_.magnetometer_bias[0],
+  WriteToEEPROM(&eeprom_.magnetometer_bias[0],
     sizeof(eeprom_.magnetometer_bias));
 }
 
 // -----------------------------------------------------------------------------
-void WriteMagnatometerScaleToEEPROM(uint8_t scale[3])
+void WriteMagnatometerCalibratedToEEPROM(uint32_t calibrated_flag)
+{
+  eeprom_.magnetometer_calibrated = calibrated_flag;
+
+  WriteToEEPROM(&eeprom_.magnetometer_calibrated,
+    sizeof(eeprom_.magnetometer_calibrated));
+}
+
+// -----------------------------------------------------------------------------
+void WriteMagnatometerScaleToEEPROM(float scale[3])
 {
   eeprom_.magnetometer_scale[0] = scale[0];
   eeprom_.magnetometer_scale[1] = scale[1];
   eeprom_.magnetometer_scale[2] = scale[2];
 
-  WriteToEEPROM((uint8_t *)&eeprom_.magnetometer_scale[0],
+  WriteToEEPROM(&eeprom_.magnetometer_scale[0],
     sizeof(eeprom_.magnetometer_scale));
 }
 
@@ -90,10 +109,13 @@ void ReadEEPROM(void)
     return;
   }
 
+  // If the versions mismatch, clear the EEPROM and reset the version number.
   if (eeprom_.version != EEPROM_VERSION)
   {
     UARTPrintf("eeprom: data in EEPROM is incompatible with this FW version");
-    // TODO: erase the EEPROM or something
+    memset(&eeprom_, 0, sizeof(eeprom_));
+    eeprom_.version = EEPROM_VERSION;
+    WriteToEEPROM(&eeprom_, sizeof(eeprom_));
   }
 }
 
@@ -101,7 +123,7 @@ void ReadEEPROM(void)
 // =============================================================================
 // Private functions:
 
-void WriteToEEPROM(uint8_t * data_ptr, size_t data_length)
+void WriteToEEPROM(const void * data_ptr, size_t data_length)
 {
   #define EEPROM_PAGE_LENGTH (32)
   if (data_length == 0) return;
@@ -129,9 +151,10 @@ void WriteToEEPROM(uint8_t * data_ptr, size_t data_length)
     *(tx_ptr++) = eeprom_address.bytes[0];
 
     // Fill up the transmit buffer.
+    uint8_t * byte_ptr = (uint8_t *)data_ptr;
     while (page_length-- && data_length)
     {
-      *(tx_ptr++) = *(data_ptr++);
+      *(tx_ptr++) = *(byte_ptr++);
       data_length--;
     }
 

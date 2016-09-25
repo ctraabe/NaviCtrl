@@ -17,13 +17,19 @@
 const int16_t * MagnetometerBiasVector(void);
 
 // -----------------------------------------------------------------------------
+uint32_t MagnetometerCalibrated(void);
+
+// -----------------------------------------------------------------------------
 const float * MagnetometerScaleVector(void);
 
 // -----------------------------------------------------------------------------
-void WriteMagnatometerBiasToEEPROM(uint8_t bias[3]);
+void WriteMagnatometerBiasToEEPROM(int16_t bias[3]);
 
 // -----------------------------------------------------------------------------
-void WriteMagnatometerScaleToEEPROM(uint8_t scale[3]);
+void WriteMagnatometerCalibratedToEEPROM(uint32_t calibrated_flag);
+
+// -----------------------------------------------------------------------------
+void WriteMagnatometerScaleToEEPROM(float scale[3]);
 
 
 // =============================================================================

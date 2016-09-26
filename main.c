@@ -139,18 +139,32 @@ static void ExternalButtonInit(void)
 //------------------------------------------------------------------------------
 static uint32_t MagCalibration(void)
 {
-  static uint32_t mag_calibration_pv = 0;
+  static uint32_t mag_calibration_pv = 0, mag_calibration_timer = 0;
 
   if (mag_calibration_)
   {
-    if (mag_calibration_pv) MagCalibrationInit(MagnetometerVector());
+    if (mag_calibration_pv)
+    {
+      MagCalibrationInit(MagnetometerVector());
+      mag_calibration_timer = GetTimestampMillisFromNow(20);
+    }
+
+    // Take a sample every 20 ms.
+    while (!TimestampInPast(mag_calibration_timer)) continue;
+    mag_calibration_timer += 20;
+
     LSM303DLReadMag();
-    I2CWaitUntilCompletion(100);
+    I2CWaitUntilCompletion(10);
     MagCalibrationAddSample(MagnetometerVector());
   }
   else if (mag_calibration_pv)
   {
-    MagCalibrationCopmute();
+    int16_t bias[3];
+    float unitizer[3];
+    MagCalibrationCompute(unitizer, bias);
+    WriteMagnetometerUnitizerToEEPROM(unitizer);
+    WriteMagnetometerBiasToEEPROM(bias);
+    WriteMagnetometerCalibratedToEEPROM(1);
   }
 
   mag_calibration_pv = mag_calibration_;

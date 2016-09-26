@@ -6,15 +6,6 @@
 
 
 // =============================================================================
-// Accessors:
-
-const float * MagBiasVector(void);
-
-// -----------------------------------------------------------------------------
-const float * MagGainVector(void);
-
-
-// =============================================================================
 // Public functions:
 
 void MagCalibrationInit(const int16_t * const new_sample);
@@ -23,7 +14,7 @@ void MagCalibrationInit(const int16_t * const new_sample);
 void MagCalibrationAddSample(const int16_t * const new_sample);
 
 // -----------------------------------------------------------------------------
-void MagCalibrationCopmute(void);
+void MagCalibrationCompute(float unitizer[3], int16_t bias[3]);
 
 
 #endif  // MAG_CALIBRATION_H_

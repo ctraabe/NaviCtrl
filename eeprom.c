@@ -25,7 +25,7 @@ void WriteToEEPROM(const void * data_ptr, size_t data_length);
 // Note: this structure is unpadded (memory aligned)
 struct {
   uint32_t version;
-  float magnetometer_scale[3];
+  float magnetometer_unitizer[3];
   int16_t magnetometer_bias[3];
   uint32_t magnetometer_calibrated;
 } eeprom_;
@@ -46,13 +46,13 @@ uint32_t MagnetometerCalibrated(void)
 }
 
 // -----------------------------------------------------------------------------
-const float * MagnetometerScaleVector(void)
+const float * MagnetometerUnitizerVector(void)
 {
-  return eeprom_.magnetometer_scale;
+  return eeprom_.magnetometer_unitizer;
 }
 
 // -----------------------------------------------------------------------------
-void WriteMagnatometerBiasToEEPROM(int16_t bias[3])
+void WriteMagnetometerBiasToEEPROM(int16_t bias[3])
 {
   eeprom_.magnetometer_bias[0] = bias[0];
   eeprom_.magnetometer_bias[1] = bias[1];
@@ -63,7 +63,7 @@ void WriteMagnatometerBiasToEEPROM(int16_t bias[3])
 }
 
 // -----------------------------------------------------------------------------
-void WriteMagnatometerCalibratedToEEPROM(uint32_t calibrated_flag)
+void WriteMagnetometerCalibratedToEEPROM(uint32_t calibrated_flag)
 {
   eeprom_.magnetometer_calibrated = calibrated_flag;
 
@@ -72,14 +72,14 @@ void WriteMagnatometerCalibratedToEEPROM(uint32_t calibrated_flag)
 }
 
 // -----------------------------------------------------------------------------
-void WriteMagnatometerScaleToEEPROM(float scale[3])
+void WriteMagnetometerUnitizerToEEPROM(float unitizer[3])
 {
-  eeprom_.magnetometer_scale[0] = scale[0];
-  eeprom_.magnetometer_scale[1] = scale[1];
-  eeprom_.magnetometer_scale[2] = scale[2];
+  eeprom_.magnetometer_unitizer[0] = unitizer[0];
+  eeprom_.magnetometer_unitizer[1] = unitizer[1];
+  eeprom_.magnetometer_unitizer[2] = unitizer[2];
 
-  WriteToEEPROM(&eeprom_.magnetometer_scale[0],
-    sizeof(eeprom_.magnetometer_scale));
+  WriteToEEPROM(&eeprom_.magnetometer_unitizer[0],
+    sizeof(eeprom_.magnetometer_unitizer));
 }
 
 

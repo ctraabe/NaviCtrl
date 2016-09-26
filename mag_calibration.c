@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stddef.h>
 
+#include "custom_math.h"
 #include "matrix.h"
 
 
@@ -11,9 +12,6 @@
 
 #define N_CALIBRATION_SAMPLES (100)  // 12 bytes per sample
 #define OPTIMAL_NEAREST_NEIGHBOR (0.35)  // Optimal distribution for 100 points
-
-static float mag_gain_[3] = { 0.0 };
-static float mag_bias_[3] = { 0.0 };
 
 static struct MagSample {
   int16_t sample[3];
@@ -27,21 +25,6 @@ static size_t worst_sample_index_;
 // Private function declarations:
 static uint32_t NormSquared(const int16_t * v1, const int16_t * v2);
 static float Square(float a);
-
-
-// =============================================================================
-// Accessors:
-
-const float * MagBiasVector(void)
-{
-  return mag_bias_;
-}
-
-// -----------------------------------------------------------------------------
-const float * MagGainVector(void)
-{
-  return mag_gain_;
-}
 
 
 // =============================================================================
@@ -147,7 +130,7 @@ void MagCalibrationAddSample(const int16_t * const new_sample)
 }
 
 // -----------------------------------------------------------------------------
-void MagCalibrationCopmute(void)
+void MagCalibrationCompute(float unitizer[3], int16_t bias[3])
 {
   float num[6*1] = { 0.0 }, den[6*6];
   {
@@ -177,12 +160,12 @@ void MagCalibrationCopmute(void)
   float temp = 1.0 + 0.25 * (u[3] * u[3] / u[0] + u[4] * u[4] / u[1] + u[5]
     * u[5] / u[2]);
 
-  mag_gain_[0] = sqrt(temp / u[0]);
-  mag_gain_[1] = sqrt(temp / u[1]);
-  mag_gain_[2] = sqrt(temp / u[2]);
-  mag_bias_[0] = -0.5 * u[3] / u[0];
-  mag_bias_[1] = -0.5 * u[4] / u[1];
-  mag_bias_[2] = -0.5 * u[5] / u[2];
+  unitizer[0] = sqrt(temp / u[0]);
+  unitizer[1] = sqrt(temp / u[1]);
+  unitizer[2] = sqrt(temp / u[2]);
+  bias[0] = (int16_t)round(-2.0 * u[0] / u[3]);
+  bias[1] = (int16_t)round(-2.0 * u[1] / u[4]);
+  bias[2] = (int16_t)round(-2.0 * u[2] / u[5]);
 }
 
 

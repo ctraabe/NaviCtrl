@@ -112,11 +112,11 @@ static void DataReceivedCallback(void)
 
   // The following arranges the data to correspond to the standard body axis.
   magnetic_vector_[0] = (float)(magnetometer_[0] - MagnetometerBiasVector()[0])
-    / MagnetometerScaleVector()[0];
+    * MagnetometerUnitizerVector()[0];
   magnetic_vector_[1] = (float)(magnetometer_[1] - MagnetometerBiasVector()[1])
-    / MagnetometerScaleVector()[1];
+    * MagnetometerUnitizerVector()[1];
   magnetic_vector_[2] = (float)(magnetometer_[2] - MagnetometerBiasVector()[2])
-    / MagnetometerScaleVector()[2];
+    * MagnetometerUnitizerVector()[2];
 
 #ifdef LOG_DEBUG_TO_SD
   // SetNewDataCallback(LogMagnetometerData);

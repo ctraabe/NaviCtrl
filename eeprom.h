@@ -20,16 +20,16 @@ const int16_t * MagnetometerBiasVector(void);
 uint32_t MagnetometerCalibrated(void);
 
 // -----------------------------------------------------------------------------
-const float * MagnetometerScaleVector(void);
+const float * MagnetometerUnitizerVector(void);
 
 // -----------------------------------------------------------------------------
-void WriteMagnatometerBiasToEEPROM(int16_t bias[3]);
+void WriteMagnetometerBiasToEEPROM(int16_t bias[3]);
 
 // -----------------------------------------------------------------------------
-void WriteMagnatometerCalibratedToEEPROM(uint32_t calibrated_flag);
+void WriteMagnetometerCalibratedToEEPROM(uint32_t calibrated_flag);
 
 // -----------------------------------------------------------------------------
-void WriteMagnatometerScaleToEEPROM(float scale[3]);
+void WriteMagnetometerUnitizerToEEPROM(float unitizer[3]);
 
 
 // =============================================================================

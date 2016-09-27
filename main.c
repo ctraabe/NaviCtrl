@@ -21,8 +21,6 @@
   #include "kalman_filter.h"
   #include "vision.h"
 #endif
-// TODO: remove
-#include "attitude.h"
 
 
 // =============================================================================
@@ -137,16 +135,17 @@ static void ExternalButtonInit(void)
 }
 
 //------------------------------------------------------------------------------
-static uint32_t MagCalibration(void)
+static uint32_t MagCalibration(uint32_t mag_calibration)
 {
   static uint32_t mag_calibration_pv = 0, mag_calibration_timer = 0;
 
-  if (mag_calibration_)
+  if (mag_calibration)
   {
-    if (mag_calibration_pv)
+    if (!mag_calibration_pv)
     {
       MagCalibrationInit(MagnetometerVector());
       mag_calibration_timer = GetTimestampMillisFromNow(20);
+      UARTPrintf("Calibration start");
     }
 
     // Take a sample every 20 ms.
@@ -165,10 +164,12 @@ static uint32_t MagCalibration(void)
     WriteMagnetometerUnitizerToEEPROM(unitizer);
     WriteMagnetometerBiasToEEPROM(bias);
     WriteMagnetometerCalibratedToEEPROM(1);
+    UARTPrintf("unitizer: %f, %f, %f", unitizer[0], unitizer[1], unitizer[2]);
+    UARTPrintf("bias: %i, %i, %i", bias[0], bias[1], bias[2]);
   }
 
-  mag_calibration_pv = mag_calibration_;
-  return mag_calibration_;
+  mag_calibration_pv = mag_calibration;
+  return mag_calibration;
 }
 
 //------------------------------------------------------------------------------
@@ -210,7 +211,7 @@ int main(void)
   uint32_t led_timer = GetTimestamp();
   for (;;)
   {
-    if (MagCalibration()) continue;
+    if (MagCalibration(mag_calibration_)) continue;
 
 #ifndef VISION
     ProcessIncomingUBlox();

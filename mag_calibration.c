@@ -157,15 +157,15 @@ void MagCalibrationCompute(float unitizer[3], int16_t bias[3])
   MatrixInverse(den, 6, den_inv);
   MatrixMultiply(den_inv, num, 6, 6, 1, u);
 
-  float temp = 1.0 + 0.25 * (u[3] * u[3] / u[0] + u[4] * u[4] / u[1] + u[5]
-    * u[5] / u[2]);
+  float temp = 1.0 / (1.0 + 0.25 * (u[3] * u[3] / u[0] + u[4] * u[4] / u[1]
+    + u[5] * u[5] / u[2]));
 
-  unitizer[0] = sqrt(temp / u[0]);
-  unitizer[1] = sqrt(temp / u[1]);
-  unitizer[2] = sqrt(temp / u[2]);
-  bias[0] = (int16_t)round(-2.0 * u[0] / u[3]);
-  bias[1] = (int16_t)round(-2.0 * u[1] / u[4]);
-  bias[2] = (int16_t)round(-2.0 * u[2] / u[5]);
+  unitizer[0] = sqrt(u[0] * temp);
+  unitizer[1] = sqrt(u[1] * temp);
+  unitizer[2] = sqrt(u[2] * temp);
+  bias[0] = (int16_t)round(-0.5 * u[3] / u[0]);
+  bias[1] = (int16_t)round(-0.5 * u[4] / u[1]);
+  bias[2] = (int16_t)round(-0.5 * u[5] / u[2]);
 }
 
 

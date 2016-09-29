@@ -295,9 +295,9 @@ static void ProcessIncomingUBloxByte(uint8_t byte)
       break;
     case 4:  // Payload length (lower byte)
       if (byte > UBLOX_DATA_BUFFER_LENGTH) goto RESET;
+      payload_length = byte;
       data_buffer_ptr = &data_buffer_[0];
     case 5:  // Payload length (upper byte should always be zero)
-      if (byte != 0) goto RESET;
       UpdateChecksum(byte, &checksum_a, &checksum_b);
       break;
     default:  // Payload or checksum

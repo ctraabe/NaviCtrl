@@ -59,7 +59,7 @@ static const struct Waypoint * current_waypoint_ = &waypoints_[ROUTE_1][0];
 static const struct Waypoint * final_waypoint_ = &waypoints_[ROUTE_1][0];
 
 #ifndef VISION
-  static uint32_t gps_home_[3];
+  static int32_t gps_home_[3];
   static float ubx_longitude_to_meters_;
 #endif
 
@@ -263,9 +263,9 @@ void UpdateNavigation(void)
   static uint32_t next_waypoint_time = 0, waypoint_reached = 0;  // , baro_reset = 0;
 
 #ifndef VISION
-  current_position_[0] = (float)(UBXPosLLH()->longitude - gps_home_[0])
+  current_position_[1] = (float)(UBXPosLLH()->longitude - gps_home_[0])
     * ubx_longitude_to_meters_;
-  current_position_[1] = (float)(UBXPosLLH()->latitude - gps_home_[1])
+  current_position_[0] = (float)(UBXPosLLH()->latitude - gps_home_[1])
     * UBX_LATITUDE_TO_METERS;
   current_position_[2] = (float)(UBXPosLLH()->height_above_ellipsoid
     - gps_home_[2]) * -1.0e-3;

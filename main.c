@@ -52,7 +52,8 @@ void FiftyHzInterruptHandler(void)
 
   uint16_t button = GPIO_ReadBit(GPIO3, GPIO_Pin_1);
   static uint16_t button_pv = 0;
-  if (button && (button_pv == 0x7FFF)) mag_calibration_ = !mag_calibration_;
+  // if (button && (button_pv == 0x7FFF)) mag_calibration_ = !mag_calibration_;
+  if (button && (button_pv == 0x7FFF)) SetGPSHome();
   button_pv = (button_pv << 1) | button;
 }
 
@@ -264,22 +265,32 @@ int main(void)
       GreenLEDToggle();
       led_timer += 100;
 
+      // UARTPrintf("%0.2f,%0.2f,%0.2f",
+      //   MagneticVector()[0],
+      //   MagneticVector()[1],
+      //   MagneticVector()[2]);
+
+      // UARTPrintf("%i,%i,%i",
+      //   MagnetometerVector()[0],
+      //   MagnetometerVector()[1],
+      //   MagnetometerVector()[2]);
+
+      // UARTPrintf("%i,%i,%i",
+      //   MagnetometerBiasVector()[0],
+      //   MagnetometerBiasVector()[1],
+      //   MagnetometerBiasVector()[2]);
+
+      // UARTPrintf("%f", CurrentHeading());
+
+      UARTPrintf("%f,%f,%f",
+        (float)(UBXPosLLH()->longitude * 1e-7),
+        (float)(UBXPosLLH()->latitude * 1e-7),
+        (float)(UBXPosLLH()->height_above_ellipsoid * 1e-3));
+
       UARTPrintf("%0.2f,%0.2f,%0.2f",
-        MagneticVector()[0],
-        MagneticVector()[1],
-        MagneticVector()[2]);
-
-      UARTPrintf("%i,%i,%i",
-        MagnetometerVector()[0],
-        MagnetometerVector()[1],
-        MagnetometerVector()[2]);
-
-      UARTPrintf("%i,%i,%i",
-        MagnetometerBiasVector()[0],
-        MagnetometerBiasVector()[1],
-        MagnetometerBiasVector()[2]);
-
-      UARTPrintf("%f", CurrentHeading());
+        CurrentPosition(0),
+        CurrentPosition(1),
+        CurrentPosition(2));
     }
   }
 }

@@ -199,6 +199,13 @@ int main(void)
 
   ExternalButtonInit();
 
+  {
+    int16_t bias[3] = { -35, -160, 10 };
+    float unitizer[3] = { 1.0, 1.0, 1.0 };
+    WriteMagnetometerUnitizerToEEPROM(unitizer);
+    WriteMagnetometerBiasToEEPROM(bias);
+  }
+
   // Enable the "new data" interrupt.
   VIC_Config(EXTIT0_ITLine, VIC_IRQ, IRQ_PRIORITY_NEW_DATA);
   VIC_ITCmd(EXTIT0_ITLine, ENABLE);
@@ -256,12 +263,23 @@ int main(void)
     {
       GreenLEDToggle();
       led_timer += 100;
-      // UARTPrintfSafe("%0.2f,%0.2f,%0.2f,%0.2f",
-      //   g_from_vision.position[N_WORLD_AXIS],
-      //   g_from_vision.position[E_WORLD_AXIS],
-      //   g_from_vision.position[D_WORLD_AXIS],
-      //   VisionHeading()
-      //   );
+
+      UARTPrintf("%0.2f,%0.2f,%0.2f",
+        MagneticVector()[0],
+        MagneticVector()[1],
+        MagneticVector()[2]);
+
+      UARTPrintf("%i,%i,%i",
+        MagnetometerVector()[0],
+        MagnetometerVector()[1],
+        MagnetometerVector()[2]);
+
+      UARTPrintf("%i,%i,%i",
+        MagnetometerBiasVector()[0],
+        MagnetometerBiasVector()[1],
+        MagnetometerBiasVector()[2]);
+
+      UARTPrintf("%f", CurrentHeading());
     }
   }
 }

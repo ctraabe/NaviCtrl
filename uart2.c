@@ -1,7 +1,5 @@
 #include "uart2.h"
 
-#include <stddef.h>
-
 #include "91x_lib.h"
 #include "irq_priority.h"
 
@@ -13,13 +11,17 @@
 
 static volatile uint8_t rx_fifo_[UART2_RX_FIFO_LENGTH];
 static volatile size_t rx_fifo_head_ = 0, tx_bytes_remaining_ = 0;
+static const uint8_t * volatile tx_ptr_ = 0;
 // static uint8_t data_buffer_[UART2_DATA_BUFFER_LENGTH];
+static uint8_t tx_buffer_[UART2_TX_BUFFER_LENGTH];
+static uint8_t tx_overflow_counter_ = 0;
 
 
 // =============================================================================
 // Private function declarations:
 
 static inline void ReceiveUARTData(void);
+static inline void SendUARTData(void);
 
 
 // =============================================================================
@@ -91,6 +93,38 @@ void ProcessIncomingUART2(void)
 }
 
 // -----------------------------------------------------------------------------
+// This function returns the address of the shared Tx buffer (tx_buffer_) if it
+// is available or zero (NULL) if not.
+uint8_t * RequestUART2TxBuffer(void)
+{
+  if (tx_bytes_remaining_ != 0)
+  {
+    tx_overflow_counter_++;
+    return 0;
+  }
+  return tx_buffer_;
+}
+
+// -----------------------------------------------------------------------------
+// This function initiates the transmission of the data in the Tx buffer.
+void UART2TxBuffer(size_t tx_length)
+{
+  if (tx_bytes_remaining_ != 0 || tx_length == 0
+    || tx_length > UART2_TX_BUFFER_LENGTH) return;
+
+  tx_ptr_ = &tx_buffer_[0];
+  tx_bytes_remaining_ = tx_length;
+
+  // Fill up the UART2 hardware transmit FIFO.
+  VIC_ITCmd(UART2_ITLine, DISABLE);
+  SendUARTData();
+  VIC_ITCmd(UART2_ITLine, ENABLE);
+
+  // Enable the transmit FIFO almost empty interrupt.
+  if (tx_bytes_remaining_) UART_ITConfig(UART2, UART_IT_Transmit, ENABLE);
+}
+
+// -----------------------------------------------------------------------------
 // This function immediately transmits a byte and blocks computation until
 // transmission is commenced.
 void UART2TxByte(uint8_t byte)
@@ -117,4 +151,16 @@ static inline void ReceiveUARTData(void)
     rx_fifo_head_ = (rx_fifo_head_ + 1) % UART2_RX_FIFO_LENGTH;
     rx_fifo_[rx_fifo_head_] = UART_ReceiveData(UART2);
   }
+}
+
+// -----------------------------------------------------------------------------
+static inline void SendUARTData(void)
+{
+  while (tx_bytes_remaining_ != 0
+    && !UART_GetFlagStatus(UART2, UART_FLAG_TxFIFOFull))
+  {
+    UART_SendData(UART2, *(tx_ptr_++));
+    --tx_bytes_remaining_;
+  }
+  if (tx_bytes_remaining_ == 0) UART_ITConfig(UART2, UART_IT_Transmit, DISABLE);
 }

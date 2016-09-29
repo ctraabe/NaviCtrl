@@ -22,7 +22,7 @@
 // data buffer is not large enough. The return value indicates whether or not
 // more bytes are expected. If so, subsequent bytes should also be passed to
 // this function.
-enum UARTRxMode UTSerialRx(uint8_t byte, uint8_t * data_buffer)
+enum UART2RxMode UTSerialRx(uint8_t byte, uint8_t * data_buffer)
 {
   static uint8_t * rx_ptr = 0;
   static uint8_t bytes_processed = 0, length = 0;
@@ -30,7 +30,7 @@ enum UARTRxMode UTSerialRx(uint8_t byte, uint8_t * data_buffer)
 
   if (bytes_processed == 0)  // First byte is payload length
   {
-    if ((UT_HEADER_LENGTH + byte) > UART_DATA_BUFFER_LENGTH) goto RESET;
+    if ((UT_HEADER_LENGTH + byte) > UART2_DATA_BUFFER_LENGTH) goto RESET;
     length = byte;
     rx_ptr = data_buffer;
     crc.u16 = 0xFFFF;
@@ -50,11 +50,11 @@ enum UARTRxMode UTSerialRx(uint8_t byte, uint8_t * data_buffer)
     goto RESET;
   }
   bytes_processed++;
-  return UART_RX_MODE_UT_ONGOING;
+  return UART2_RX_MODE_UT_ONGOING;
 
   RESET:
   bytes_processed = 0;
-  return UART_RX_MODE_IDLE;
+  return UART2_RX_MODE_IDLE;
 }
 
 // -----------------------------------------------------------------------------
@@ -64,9 +64,9 @@ enum UARTRxMode UTSerialRx(uint8_t byte, uint8_t * data_buffer)
 // set to zero.
 void UTSerialTx(uint8_t id, const uint8_t * source, size_t length)
 {
-  if ((length + 1 + UT_HEADER_LENGTH + 2) > UART_TX_BUFFER_LENGTH) return;
+  if ((length + 1 + UT_HEADER_LENGTH + 2) > UART2_TX_BUFFER_LENGTH) return;
 
-  uint8_t * tx_buffer = RequestUARTTxBuffer();
+  uint8_t * tx_buffer = RequestUART2TxBuffer();
   if (!tx_buffer) return;
   uint8_t * tx_ptr = tx_buffer;
 
@@ -87,5 +87,5 @@ void UTSerialTx(uint8_t id, const uint8_t * source, size_t length)
   *tx_ptr++ = crc.bytes[0];
   *tx_ptr = crc.bytes[1];
 
-  UARTTxBuffer(length + UT_HEADER_LENGTH + 2);
+  UART2TxBuffer(length + UT_HEADER_LENGTH + 2);
 }

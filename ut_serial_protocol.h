@@ -4,7 +4,7 @@
 
 #include <inttypes.h>
 
-#include "uart.h"
+#include "uart2.h"
 
 
 #define UT_START_CHARACTER ('S')
@@ -21,7 +21,7 @@ enum UTSerialID {
 // message encoded in the UTokyo protocol. The return value indicates whether or
 // not more bytes are expected. If so, subsequent bytes should also be passed to
 // this function.
-enum UARTRxMode UTSerialRx(uint8_t byte, uint8_t * data_buffer);
+enum UART2RxMode UTSerialRx(uint8_t byte, uint8_t * data_buffer);
 
 // -----------------------------------------------------------------------------
 // This function encodes data into a message using the UTokyo protocol. The

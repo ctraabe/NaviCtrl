@@ -106,6 +106,10 @@ float * MatrixInverse(const float * A, size_t size, float * result)
         float temp = A_copy[k * size + j];
         A_copy[k * size + j] = A_copy[i_pivot * size + j];
         A_copy[i_pivot * size + j] = temp;
+
+        temp = result[k * size + j];
+        result[k * size + j] = result[i_pivot * size + j];
+        result[i_pivot * size + j] = temp;
       }
     }
 

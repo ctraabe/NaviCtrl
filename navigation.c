@@ -269,6 +269,11 @@ void UpdateNavigation(void)
     * UBX_LATITUDE_TO_METERS;
   current_position_[2] = (float)(UBXPosLLH()->height_above_ellipsoid
     - gps_home_[2]) * -1.0e-3;
+
+  static uint32_t state_pv = 0;
+  if ((FlightCtrlState() ^ state_pv) & FC_STATE_BIT_INITIALIZATION_TOGGLE)
+    SetGPSHome();
+  state_pv = FlightCtrlState();
 #else
   Vector3Copy(VisionPositionVector(), current_position_);
 #endif

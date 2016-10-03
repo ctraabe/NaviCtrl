@@ -52,8 +52,13 @@ void FiftyHzInterruptHandler(void)
 
   uint16_t button = GPIO_ReadBit(GPIO3, GPIO_Pin_1);
   static uint16_t button_pv = 0;
-  // if (button && (button_pv == 0x7FFF)) mag_calibration_ = !mag_calibration_;
-  if (button && (button_pv == 0x7FFF)) SetGPSHome();
+
+  // Start and stop magnetometer calibration.
+  if (button && (button_pv == 0x7FFF)) mag_calibration_ = !mag_calibration_;
+
+  // Reset GPS home position.
+  // if (button && (button_pv == 0x7FFF)) SetGPSHome();
+
   button_pv = (button_pv << 1) | button;
 }
 
@@ -200,13 +205,6 @@ int main(void)
 
   ExternalButtonInit();
 
-  {
-    int16_t bias[3] = { -35, -160, 10 };
-    float unitizer[3] = { 1.0, 1.0, 1.0 };
-    WriteMagnetometerUnitizerToEEPROM(unitizer);
-    WriteMagnetometerBiasToEEPROM(bias);
-  }
-
   // Enable the "new data" interrupt.
   VIC_Config(EXTIT0_ITLine, VIC_IRQ, IRQ_PRIORITY_NEW_DATA);
   VIC_ITCmd(EXTIT0_ITLine, ENABLE);
@@ -263,7 +261,9 @@ int main(void)
     if (TimestampInPast(led_timer))
     {
       GreenLEDToggle();
-      led_timer += 100;
+      while (TimestampInPast(led_timer)) led_timer += 100;
+
+      // Debug output for GPS and magnetomter. Remove after testing is completed
 
       // UARTPrintf("%0.2f,%0.2f,%0.2f",
       //   MagneticVector()[0],
@@ -282,15 +282,15 @@ int main(void)
 
       // UARTPrintf("%f", CurrentHeading());
 
-      UARTPrintf("%f,%f,%f",
-        (float)(UBXPosLLH()->longitude * 1e-7),
-        (float)(UBXPosLLH()->latitude * 1e-7),
-        (float)(UBXPosLLH()->height_above_ellipsoid * 1e-3));
+      // UARTPrintf("%f,%f,%f",
+      //   (float)(UBXPosLLH()->longitude * 1e-7),
+      //   (float)(UBXPosLLH()->latitude * 1e-7),
+      //   (float)(UBXPosLLH()->height_above_ellipsoid * 1e-3));
 
-      UARTPrintf("%0.2f,%0.2f,%0.2f",
-        CurrentPosition(0),
-        CurrentPosition(1),
-        CurrentPosition(2));
+      // UARTPrintf("%0.2f,%0.2f,%0.2f",
+      //   CurrentPosition(0),
+      //   CurrentPosition(1),
+      //   CurrentPosition(2));
     }
   }
 }

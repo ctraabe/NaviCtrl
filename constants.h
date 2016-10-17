@@ -17,5 +17,11 @@ enum WorldAxes {
   D_WORLD_AXIS = 2,  // Down
 };
 
+enum GeoAxes {
+  LONGITUDE = 0,  // Longitude
+  LATITUDE = 1,  // Latitude
+  HEIGHT = 2,  // Height
+};
+
 
 #endif  // CONSTANTS_H_

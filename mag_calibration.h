@@ -10,11 +10,8 @@
 
 void MagCalibrationInit(const int16_t * const new_sample);
 
-// -----------------------------------------------------------------------------
-void MagCalibrationAddSample(const int16_t * const new_sample);
-
-// -----------------------------------------------------------------------------
-void MagCalibrationCompute(float unitizer[3], int16_t bias[3]);
+//------------------------------------------------------------------------------
+uint32_t MagCalibration(uint32_t mag_calibration);
 
 
 #endif  // MAG_CALIBRATION_H_

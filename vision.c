@@ -7,6 +7,7 @@
 #include "91x_lib.h"
 #include "attitude.h"
 #include "crc16.h"
+#include "flight_ctrl_comms.h"
 #include "irq_priority.h"
 #include "quaternion.h"
 #include "timing.h"
@@ -241,6 +242,9 @@ static void ProcessVisionData(struct FromVision * from_vision)
 
   // Compute heading.
   heading_ = HeadingFromQuaternion(quaternion_);
+
+  UpdatePositionToFlightCtrl();
+  UpdateHeadingCorrectionToFlightCtrl();
 }
 
 // -----------------------------------------------------------------------------

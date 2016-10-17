@@ -32,7 +32,6 @@
 static volatile Callback callback_buffer_[4] = { 0 };
 static volatile size_t callback_buffer_head_ = 0;
 static size_t callback_buffer_tail_ = 0;
-static volatile uint32_t flight_ctrl_interrupt_ = 0;
 static uint32_t overrun_counter_ = 0;
 static uint32_t mag_calibration_ = 0;
 
@@ -63,14 +62,15 @@ void FiftyHzInterruptHandler(void)
 }
 
 //------------------------------------------------------------------------------
-// This function responds to the interrupt triggered when the FlightCtrl pulls
-// down the interrupt line. It signals that new IMU data will be coming soon, so
-// the NaviCtrl should prepare by updating the GPS and magnetometer data. This
-// is a low-priority interrupt, so some computation can be safely added here.
+// This function responds to the interrupt triggered when an external device
+// pulls down the interrupt line (pin 5 on the FlightCtrl header). This is a
+// low-priority interrupt, so some computation can be safely added here.
 void FlightCtrlInterruptHandler(void)
 {
   WIU_ClearITPendingBit(WIU_Line16);
   VIC_SWITCmd(EXTIT2_ITLine, DISABLE);
+
+  PrepareFlightCtrlDataExchange();
 }
 
 //------------------------------------------------------------------------------
@@ -97,13 +97,6 @@ void SetNewDataCallback(Callback callback)
   callback_buffer_head_ = (callback_buffer_head_ + 1) % MAX_CALLBACKS;
   callback_buffer_[callback_buffer_head_] = callback;
   VIC_SWITCmd(EXTIT0_ITLine, ENABLE);
-}
-
-// -----------------------------------------------------------------------------
-// This puts a callback into the callback ring buffer.
-void SetFlightCtrlInterrupt(void)
-{
-  flight_ctrl_interrupt_ = 1;
 }
 
 
@@ -138,44 +131,6 @@ static void ExternalButtonInit(void)
   gpio_init.GPIO_IPInputConnected = GPIO_IPInputConnected_Disable;
   gpio_init.GPIO_Alternate = GPIO_InputAlt1;
   GPIO_Init(GPIO3, &gpio_init);
-}
-
-//------------------------------------------------------------------------------
-static uint32_t MagCalibration(uint32_t mag_calibration)
-{
-  static uint32_t mag_calibration_pv = 0, mag_calibration_timer = 0;
-
-  if (mag_calibration)
-  {
-    if (!mag_calibration_pv)
-    {
-      MagCalibrationInit(MagnetometerVector());
-      mag_calibration_timer = GetTimestampMillisFromNow(20);
-      UARTPrintf("Calibration start");
-    }
-
-    // Take a sample every 20 ms.
-    while (!TimestampInPast(mag_calibration_timer)) continue;
-    mag_calibration_timer += 20;
-
-    LSM303DLReadMag();
-    I2CWaitUntilCompletion(10);
-    MagCalibrationAddSample(MagnetometerVector());
-  }
-  else if (mag_calibration_pv)
-  {
-    int16_t bias[3];
-    float unitizer[3];
-    MagCalibrationCompute(unitizer, bias);
-    WriteMagnetometerUnitizerToEEPROM(unitizer);
-    WriteMagnetometerBiasToEEPROM(bias);
-    WriteMagnetometerCalibratedToEEPROM(1);
-    UARTPrintf("unitizer: %f, %f, %f", unitizer[0], unitizer[1], unitizer[2]);
-    UARTPrintf("bias: %i, %i, %i", bias[0], bias[1], bias[2]);
-  }
-
-  mag_calibration_pv = mag_calibration;
-  return mag_calibration;
 }
 
 //------------------------------------------------------------------------------
@@ -217,8 +172,13 @@ int main(void)
   uint32_t led_timer = GetTimestamp();
   for (;;)
   {
+    // Check for new data from the magnetometer.
+    ProcessIncomingLSM303DL();
+
+    // Skip the rest of the main loop if mag calibration is ongoing.
     if (MagCalibration(mag_calibration_)) continue;
 
+    // Check for new data on the upper serial connection (GPS or vision).
 #ifndef VISION
     ProcessIncomingUBlox();
 #else
@@ -232,11 +192,10 @@ int main(void)
     }
 #endif
 
-    if (flight_ctrl_interrupt_)
+    // Check for new data from the FlightCtrl.
+    if (NewDataFromFlightCtrl())
     {
-      flight_ctrl_interrupt_ = 0;
-
-      LSM303DLReadMag();
+      ClearNewDataFromFlightCtrlFlag();
 
 #ifdef VISION
       KalmanTimeUpdate();
@@ -246,21 +205,31 @@ int main(void)
 
       PrepareFlightCtrlDataExchange();
 
-      if (flight_ctrl_interrupt_)
+      RequestLSM303DL();
+
+      // Check if new data has come while processing the data. This indicates
+      // that processing did not complete fast enough.
+      if (NewDataFromFlightCtrl())
       {
         overrun_counter_++;
       }
     }
 
+    // Normally the magnetometer is read every time new data comes from the
+    // FlightCtrl. The following statement is a backup that ensures the
+    // magnetometer is updated even if there is no connection to the FlightCtrl.
+    if (MillisSinceTimestamp(LSM303DLLastUpdateTimestamp()) > 20)
+      RequestLSM303DL();
+
+    // Check for incoming data on the "update & debug" UART port.
     ProcessIncomingUART();
 
-#ifdef LOG_DEBUG_TO_SD
     ProcessLogging();
-#endif
 
     if (TimestampInPast(led_timer))
     {
       GreenLEDToggle();
+
       while (TimestampInPast(led_timer)) led_timer += 100;
 
       // Debug output for GPS and magnetomter. Remove after testing is completed

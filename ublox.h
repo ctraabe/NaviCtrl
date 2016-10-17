@@ -64,6 +64,13 @@ struct UBXTimeUTC
   uint8_t valid;
 } __attribute__((packed));
 
+enum UBXNewDataBits {
+  UBX_NEW_DATA_BIT_POS_LLH  = 1<<0,
+  UBX_NEW_DATA_BIT_VEL_NED  = 1<<1,
+  UBX_NEW_DATA_BIT_SOL      = 1<<2,
+  UBX_NEW_DATA_BIT_TIME_UTC = 1<<3,
+};
+
 enum UBXErrorBits {
   UBX_ERROR_BIT_STALE = 1<<0,
 };
@@ -72,6 +79,10 @@ enum UBXErrorBits {
 // =============================================================================
 // Accessors:
 
+
+uint32_t UBXNewDataBits(void);
+
+// -----------------------------------------------------------------------------
 const struct UBXPosLLH * UBXPosLLH(void);
 
 // -----------------------------------------------------------------------------
@@ -93,11 +104,14 @@ uint32_t UBXDataStale(void);
 void UBloxInit(void);
 
 // -----------------------------------------------------------------------------
+void ClearUBXNewDataBit(enum UBXNewDataBits new_data_bit);
+
+// -----------------------------------------------------------------------------
 // This function processes bytes that have been read into the Rx ring buffer
 // (rx_buffer_) by the Rx interrupt handler. Each byte is passed to the
 // appropriate Rx handler, which may place it into the temporary data buffer
 // (data_buffer_).
-void ProcessIncomingUBlox(void);
+uint32_t ProcessIncomingUBlox(void);
 
 // -----------------------------------------------------------------------------
 void UBloxUARTHandler(void);

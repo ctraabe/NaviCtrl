@@ -8,10 +8,22 @@
 // =============================================================================
 // Accessors:
 
-const int16_t * MagnetometerVector(void);
+
+uint32_t LSM303DLDataWaiting(void);
+
+// -----------------------------------------------------------------------------
+uint32_t LSM303DLLastUpdateTimestamp(void);
 
 // -----------------------------------------------------------------------------
 const float * MagneticVector(void);
+
+// -----------------------------------------------------------------------------
+const int16_t * MagnetometerVector(void);
+
+#ifndef VISION
+// -----------------------------------------------------------------------------
+float UBXLongitudeToMeters(void);
+#endif
 
 
 // =============================================================================
@@ -20,7 +32,10 @@ const float * MagneticVector(void);
 void LSM303DLInit(void);
 
 // -----------------------------------------------------------------------------
-void LSM303DLReadMag(void);
+uint32_t ProcessIncomingLSM303DL(void);
+
+// -----------------------------------------------------------------------------
+void RequestLSM303DL(void);
 
 
 #endif  // LSM303DL_H_

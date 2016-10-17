@@ -16,16 +16,19 @@
   #include "kalman_filter.h"
   #include "vision.h"
 #endif
+#ifdef LOG_DEBUG_TO_SD
+  #include "logging.h"
+#endif
 // TODO: remove
 #include "attitude.h"
 #include "custom_math.h"
-#include "logging.h"
 #include <math.h>
 
 
 // =============================================================================
 // Private data:
 
+#define NAV_COMMS_VERSION (1)
 #define SPI_FC_START_BYTE (0xAA)
 
 enum NavModeBits {
@@ -39,16 +42,30 @@ enum NavModeBits {
   NAV_BIT_SWITCH_1   = 1<<7,
 };
 
-static volatile struct FromFlightCtrl from_fc_[2] = { { 0 } };
-static volatile union U16Bytes crc_[2];
-static volatile size_t from_fc_head_ = 1, from_fc_tail_ = 0;
-static volatile float filtered_pressure_altitude_ = 0.0;
+enum ToFlightCtrlPendingUpdateBits {
+  PENDING_UPDATE_BIT_HEADING_CORRECTION = 1<<0,
+  PENDING_UPDATE_BIT_NAVIGATION         = 1<<1,
+  PENDING_UPDATE_BIT_POSITION           = 1<<2,
+  PENDING_UPDATE_BIT_VELOCITY           = 1<<3,
+};
+
+static volatile uint32_t comms_ongoing_ = 0;
+
+static struct ToFlightCtrl to_fc_ = { .version = NAV_COMMS_VERSION };
+static struct ToFlightCtrl to_fc_buffer_ = { 0 };
+static struct FromFlightCtrl from_fc_[2] = { { 0 } };
+static union U16Bytes crc_[2];
+static size_t from_fc_head_ = 1, from_fc_tail_ = 0;
+static float filtered_pressure_altitude_ = 0.0;
+static uint32_t new_data_ = 0, pending_update_bits_ = 0;
 
 
 // =============================================================================
 // Private function declarations:
 
+static void CopyPendingToFlightControlData(void);
 static void FilterPressureAltitude(void);
+static void UpdateCRCToFlightCtrl(void);
 
 
 // =============================================================================
@@ -60,7 +77,7 @@ float Accelerometer(enum BodyAxes axis)
 }
 
 // -----------------------------------------------------------------------------
-const volatile float * AccelerometerVector(void)
+const float * AccelerometerVector(void)
 {
   return from_fc_[from_fc_tail_].accelerometer;
 }
@@ -69,6 +86,12 @@ const volatile float * AccelerometerVector(void)
 float FilteredPressureAltitude(void)
 {
   return filtered_pressure_altitude_;
+}
+
+// -----------------------------------------------------------------------------
+uint32_t FlightCtrlCommsOngoing(void)
+{
+  return comms_ongoing_;
 }
 
 // -----------------------------------------------------------------------------
@@ -90,15 +113,29 @@ float Gyro(enum BodyAxes axis)
 }
 
 // -----------------------------------------------------------------------------
-const volatile float * GyroVector(void)
+const float * GyroVector(void)
 {
   return from_fc_[from_fc_tail_].gyro;
 }
 
 // -----------------------------------------------------------------------------
-const volatile float * Quat(void)
+uint32_t NewDataFromFlightCtrl(void)
+{
+  return new_data_;
+}
+
+// -----------------------------------------------------------------------------
+const float * Quat(void)
 {
   return from_fc_[from_fc_tail_].quaternion;
+}
+
+// -----------------------------------------------------------------------------
+// TODO: consider making a separate "position" program unit to handle current
+// position estimates
+const float * PositionVector(void)
+{
+  return to_fc_.position;
 }
 
 // -----------------------------------------------------------------------------
@@ -126,7 +163,7 @@ uint32_t RequestedNavRoute(void)
 }
 
 // -----------------------------------------------------------------------------
-const volatile struct FromFlightCtrl * FromFlightCtrl(void)
+const struct FromFlightCtrl * FromFlightCtrl(void)
 {
   return &from_fc_[from_fc_tail_];
 }
@@ -141,6 +178,12 @@ uint16_t FromFlightCtrlCRC(void)
 // =============================================================================
 // Public functions:
 
+void ClearNewDataFromFlightCtrlFlag(void)
+{
+  new_data_ = 0;
+}
+
+// -----------------------------------------------------------------------------
 void FlightCtrlCommsInit(void)
 {
   SCU_APBPeriphClockConfig(__GPIO6 ,ENABLE);
@@ -214,6 +257,7 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
       if (byte != SPI_FC_START_BYTE) goto RESET;
       from_fc_ptr = (uint8_t *)&from_fc_[from_fc_head_];
       crc_[from_fc_head_].u16 = 0xFFFF;
+      comms_ongoing_ = 1;
       break;
     case 1:  // Payload length
       if (byte != sizeof(struct FromFlightCtrl)) goto RESET;
@@ -236,8 +280,20 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
           // Swap data buffers.
           from_fc_tail_ = from_fc_head_;
           from_fc_head_ = !from_fc_tail_;
+
+          // TODO: this shouldn't depend on successful reception, but also
+          // shouldn't be done prematurely. How can we tell when the
+          // transmission is over? Slave select?
+          CopyPendingToFlightControlData();
+
+          // TODO: do this stuff somewhere else
           FilterPressureAltitude();
-          SetFlightCtrlInterrupt();
+#ifndef VISION
+          to_fc_.position[D_WORLD_AXIS] = -FilteredPressureAltitude();
+#endif
+
+          new_data_ = 1;
+
 #ifdef LOG_DEBUG_TO_SD
           // LogFromFlightCtrlData();
 #endif
@@ -252,18 +308,29 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
 
   RESET:
   bytes_processed = 0;
+  comms_ongoing_ = 0;
 }
 
 // -----------------------------------------------------------------------------
 void PrepareFlightCtrlDataExchange(void)
 {
-  _Static_assert(sizeof(struct ToFlightCtrl) < SPI_TX_BUFFER_LENGTH,
-    "ToFC is too large for the SPI TX buffer");
+  SetFlightCtrlCommsOngoingFlag();
+#ifdef LOG_DEBUG_TO_SD
+  // LogToFlightCtrlData(to_fc_ptr);
+#endif
+  SPITxBuffer((uint8_t *)&to_fc_, sizeof(to_fc_));
+  NotifyFlightCtrl();  // Request SPI communication.
+}
 
-  struct ToFlightCtrl * to_fc_ptr = (struct ToFlightCtrl *)RequestSPITxBuffer();
-  if (!to_fc_ptr) return;
+// -----------------------------------------------------------------------------
+void SetFlightCtrlCommsOngoingFlag(void)
+{
+  comms_ongoing_ = 1;
+}
 
-  // TODO: put this somewhere else
+// -----------------------------------------------------------------------------
+void UpdateHeadingCorrectionToFlightCtrl(void)
+{
   // Form a heading correction
   float heading_error;
 #ifndef VISION
@@ -282,53 +349,154 @@ void PrepareFlightCtrlDataExchange(void)
   // TODO: put these magic numbers in a #define
   float quat_c_z = 0.5 * 0.025 * heading_error;
 
-  to_fc_ptr->version = 1;
-  to_fc_ptr->position[0] = CurrentPosition(N_WORLD_AXIS);
-  to_fc_ptr->position[1] = CurrentPosition(E_WORLD_AXIS);
-  to_fc_ptr->position[2] = CurrentPosition(D_WORLD_AXIS);
+  struct ToFlightCtrl * to_fc = &to_fc_;
+  if (comms_ongoing_)
+  {
+    to_fc = &to_fc_buffer_;
+    pending_update_bits_ |= PENDING_UPDATE_BIT_HEADING_CORRECTION;
+  }
+
+  to_fc->heading_correction_quat_0 = sqrt(1.0 - quat_c_z * quat_c_z);
+  to_fc->heading_correction_quat_z = quat_c_z;
+
+  if (to_fc == &to_fc_) UpdateCRCToFlightCtrl();
+}
+
+// -----------------------------------------------------------------------------
+void UpdateNavigationToFlightCtrl(void)
+{
+  struct ToFlightCtrl * to_fc = &to_fc_;
+  if (comms_ongoing_)
+  {
+    to_fc = &to_fc_buffer_;
+    pending_update_bits_ |= PENDING_UPDATE_BIT_NAVIGATION;
+  }
+
+  to_fc->nav_mode = (uint8_t)NavMode();
+  to_fc->target_position[0] = TargetPosition(N_WORLD_AXIS);
+  to_fc->target_position[1] = TargetPosition(E_WORLD_AXIS);
+  to_fc->target_position[2] = TargetPosition(D_WORLD_AXIS);
+  to_fc->transit_speed = TransitSpeed();
+  to_fc->target_heading = TargetHeading();
+  to_fc->heading_rate = HeadingRate();
+
+  if (to_fc == &to_fc_) UpdateCRCToFlightCtrl();
+}
+
+// -----------------------------------------------------------------------------
+void UpdatePositionToFlightCtrl(void)
+{
+  float current_position[3];
+  uint8_t status;
 #ifndef VISION
-  to_fc_ptr->velocity[0] = (float)UBXVelNED()->velocity_north * 1.0e-2;
-  to_fc_ptr->velocity[1] = (float)UBXVelNED()->velocity_east * 1.0e-2;
-  to_fc_ptr->velocity[2] = (float)UBXVelNED()->velocity_down * 1.0e-2;
+  current_position[N_WORLD_AXIS] = (float)(UBXPosLLH()->latitude
+    - GPSHome(LATITUDE)) * UBX_LATITUDE_TO_METERS;
+  current_position[E_WORLD_AXIS] = (float)(UBXPosLLH()->longitude
+    - GPSHome(LONGITUDE)) * UBXLongitudeToMeters();
+  current_position[2] = -FilteredPressureAltitude();
+  status = UBXPosLLH()->horizontal_accuracy < 5000;  // mm
 #else
-  to_fc_ptr->velocity[0] = KalmanVelocity(N_WORLD_AXIS);
-  to_fc_ptr->velocity[1] = KalmanVelocity(E_WORLD_AXIS);
-  to_fc_ptr->velocity[2] = KalmanVelocity(D_WORLD_AXIS);
+  current_position[N_WORLD_AXIS] = VisionPosition(N_WORLD_AXIS);
+  current_position[E_WORLD_AXIS] = VisionPosition(E_WORLD_AXIS);
+  current_position[D_WORLD_AXIS] = VisionPosition(D_WORLD_AXIS);
+  status = (uint8_t)VisionStatus();
 #endif
-  to_fc_ptr->heading_correction_quat_0 = sqrt(1.0 - quat_c_z * quat_c_z);
-  to_fc_ptr->heading_correction_quat_z = quat_c_z;
-  to_fc_ptr->target_position[0] = TargetPosition(N_WORLD_AXIS);
-  to_fc_ptr->target_position[1] = TargetPosition(E_WORLD_AXIS);
-  to_fc_ptr->target_position[2] = TargetPosition(D_WORLD_AXIS);
-  to_fc_ptr->transit_speed = TransitSpeed();
-  to_fc_ptr->target_heading = TargetHeading();
-  to_fc_ptr->heading_rate = HeadingRate();
-  to_fc_ptr->nav_mode = (uint8_t)NavMode();
+
+  struct ToFlightCtrl * to_fc = &to_fc_;
+  if (comms_ongoing_)
+  {
+    to_fc = &to_fc_buffer_;
+    pending_update_bits_ |= PENDING_UPDATE_BIT_POSITION;
+  }
+
+  to_fc->position[N_WORLD_AXIS] = current_position[N_WORLD_AXIS];
+  to_fc->position[E_WORLD_AXIS] = current_position[E_WORLD_AXIS];
+  to_fc->position[D_WORLD_AXIS] = current_position[D_WORLD_AXIS];
+  to_fc->status = status;
+
+  if (to_fc == &to_fc_) UpdateCRCToFlightCtrl();
+}
+
+// -----------------------------------------------------------------------------
+void UpdateVelocityToFlightCtrl(void)
+{
+  float velocity[3];
 #ifndef VISION
-  to_fc_ptr->status = 1;
+  velocity[N_WORLD_AXIS] = (float)UBXVelNED()->velocity_north * 1.0e-2;
+  velocity[E_WORLD_AXIS] = (float)UBXVelNED()->velocity_east * 1.0e-2;
+  velocity[D_WORLD_AXIS] = (float)UBXVelNED()->velocity_down * 1.0e-2;
 #else
-  to_fc_ptr->status = (uint8_t)VisionStatus();
+  velocity[N_WORLD_AXIS] = KalmanVelocity(N_WORLD_AXIS);
+  velocity[E_WORLD_AXIS] = KalmanVelocity(E_WORLD_AXIS);
+  velocity[D_WORLD_AXIS] = KalmanVelocity(D_WORLD_AXIS);
 #endif
 
-  to_fc_ptr->crc = CRCCCITT((uint8_t *)to_fc_ptr, sizeof(struct ToFlightCtrl)
-    - 2);
+  struct ToFlightCtrl * to_fc = &to_fc_;
+  if (comms_ongoing_)
+  {
+    to_fc = &to_fc_buffer_;
+    pending_update_bits_ |= PENDING_UPDATE_BIT_VELOCITY;
+  }
 
-#ifdef LOG_DEBUG_TO_SD
-  // LogToFlightCtrlData(to_fc_ptr);
-#endif
+  to_fc->velocity[N_WORLD_AXIS] = velocity[N_WORLD_AXIS];
+  to_fc->velocity[E_WORLD_AXIS] = velocity[E_WORLD_AXIS];
+  to_fc->velocity[D_WORLD_AXIS] = velocity[D_WORLD_AXIS];
 
-  SPITxBuffer(sizeof(struct ToFlightCtrl));
-  // NotifyFlightCtrl();  // Request SPI communication.
+  if (to_fc == &to_fc_) UpdateCRCToFlightCtrl();
 }
 
 
 // =============================================================================
 // Private functions:
 
+static void CopyPendingToFlightControlData(void)
+{
+  if (pending_update_bits_ & PENDING_UPDATE_BIT_HEADING_CORRECTION)
+  {
+    to_fc_.heading_correction_quat_0 = to_fc_buffer_.heading_correction_quat_0;
+    to_fc_.heading_correction_quat_z = to_fc_buffer_.heading_correction_quat_z;
+  }
+
+  if (pending_update_bits_ & PENDING_UPDATE_BIT_NAVIGATION)
+  {
+    to_fc_.nav_mode = to_fc_buffer_.nav_mode;
+    to_fc_.target_position[0] = to_fc_buffer_.target_position[0];
+    to_fc_.target_position[1] = to_fc_buffer_.target_position[1];
+    to_fc_.target_position[2] = to_fc_buffer_.target_position[2];
+    to_fc_.transit_speed = to_fc_buffer_.transit_speed;
+    to_fc_.target_heading = to_fc_buffer_.target_heading;
+    to_fc_.heading_rate = to_fc_buffer_.heading_rate;
+  }
+
+  if (pending_update_bits_ & PENDING_UPDATE_BIT_POSITION)
+  {
+    to_fc_.position[N_WORLD_AXIS] = to_fc_buffer_.position[N_WORLD_AXIS];
+    to_fc_.position[E_WORLD_AXIS] = to_fc_buffer_.position[E_WORLD_AXIS];
+    to_fc_.position[D_WORLD_AXIS] = to_fc_buffer_.position[D_WORLD_AXIS];
+  }
+
+  if (pending_update_bits_ & PENDING_UPDATE_BIT_VELOCITY)
+  {
+    to_fc_.velocity[N_WORLD_AXIS] = to_fc_buffer_.velocity[N_WORLD_AXIS];
+    to_fc_.velocity[E_WORLD_AXIS] = to_fc_buffer_.velocity[E_WORLD_AXIS];
+    to_fc_.velocity[D_WORLD_AXIS] = to_fc_buffer_.velocity[D_WORLD_AXIS];
+  }
+
+  if (pending_update_bits_) UpdateCRCToFlightCtrl();
+  pending_update_bits_ = 0;
+}
+
+// -----------------------------------------------------------------------------
 static void FilterPressureAltitude(void)
 {
   static float delay = 0.0;
   float temp = 0.0121236750338117 * from_fc_[from_fc_tail_].pressure_altitude;
   filtered_pressure_altitude_ = temp + (1 + 0.975752649932377) * delay;
   delay = temp + 0.975752649932377 * delay;
+}
+
+// -----------------------------------------------------------------------------
+static void UpdateCRCToFlightCtrl(void)
+{
+  to_fc_.crc = CRCCCITT((uint8_t *)&to_fc_, sizeof(struct ToFlightCtrl) - 2);
 }

@@ -2,8 +2,14 @@
 #define NAVIGATION_H_
 
 
+#include <inttypes.h>
+
 #include "constants.h"
 
+
+// TODO: correct this for WGS84 model
+#define R_EARTH (6378137.0)  // meters
+#define UBX_LATITUDE_TO_METERS (1.0e-7 * M_PI / 180.0 * R_EARTH)
 
 enum NavMode {
   NAV_MODE_OFF = 0,
@@ -27,6 +33,9 @@ float CurrentHeading(void);
 
 // -----------------------------------------------------------------------------
 float CurrentPosition(enum WorldAxes axis);
+
+// -----------------------------------------------------------------------------
+int32_t GPSHome(enum GeoAxes axis);
 
 // -----------------------------------------------------------------------------
 float HeadingRate(void);

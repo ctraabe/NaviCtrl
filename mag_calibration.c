@@ -4,7 +4,11 @@
 #include <stddef.h>
 
 #include "custom_math.h"
+#include "eeprom.h"
+#include "lsm303dl.h"
 #include "matrix.h"
+#include "timing.h"
+#include "uart.h"
 
 
 // =============================================================================
@@ -23,8 +27,10 @@ static size_t worst_sample_index_;
 
 // =============================================================================
 // Private function declarations:
+static void MagCalibrationAddSample(const int16_t * const new_sample);
+static void MagCalibrationCompute(float unitizer[3], int16_t bias[3]);
 static uint32_t NormSquared(const int16_t * v1, const int16_t * v2);
-static float Square(float a);
+static inline float Square(float a);
 
 
 // =============================================================================
@@ -45,8 +51,56 @@ void MagCalibrationInit(const int16_t * const new_sample)
   worst_sample_index_ = 0;
 }
 
-// -----------------------------------------------------------------------------
-void MagCalibrationAddSample(const int16_t * const new_sample)
+//------------------------------------------------------------------------------
+uint32_t MagCalibration(uint32_t mag_calibration)
+{
+  static uint32_t mag_calibration_latch = 0, mag_calibration_timer = 0;
+
+  if (mag_calibration)
+  {
+    if (mag_calibration_latch)
+    {
+      MagCalibrationAddSample(MagnetometerVector());
+    }
+    else
+    {
+      UARTPrintf("Calibration start");
+      MagCalibrationInit(MagnetometerVector());
+      mag_calibration_timer = GetTimestampMillisFromNow(20);
+      mag_calibration_latch = 1;
+    }
+
+    // Request the next sample.
+    RequestLSM303DL();
+
+    // Take a sample every 20 ms.
+    while (!TimestampInPast(mag_calibration_timer)) continue;
+    mag_calibration_timer += 20;
+  }
+  else if (mag_calibration_latch)
+  {
+    int16_t bias[3];
+    float unitizer[3];
+    MagCalibrationCompute(unitizer, bias);
+    WriteMagnetometerUnitizerToEEPROM(unitizer);
+
+    WriteMagnetometerBiasToEEPROM(bias);
+    WriteMagnetometerCalibratedToEEPROM(1);
+
+    UARTPrintf("unitizer: %f, %f, %f", unitizer[0], unitizer[1], unitizer[2]);
+    UARTPrintf("bias: %i, %i, %i", bias[0], bias[1], bias[2]);
+
+    mag_calibration_latch = 0;
+  }
+
+  return mag_calibration;
+}
+
+
+// =============================================================================
+// Private functions:
+
+static void MagCalibrationAddSample(const int16_t * const new_sample)
 {
   size_t nearest_neighbor_index = 0;
   uint32_t new_sample_distances[N_CALIBRATION_SAMPLES];
@@ -130,7 +184,7 @@ void MagCalibrationAddSample(const int16_t * const new_sample)
 }
 
 // -----------------------------------------------------------------------------
-void MagCalibrationCompute(float unitizer[3], int16_t bias[3])
+static void MagCalibrationCompute(float unitizer[3], int16_t bias[3])
 {
   float num[6*1] = { 0.0 }, den[6*6];
   {
@@ -168,10 +222,7 @@ void MagCalibrationCompute(float unitizer[3], int16_t bias[3])
   bias[2] = (int16_t)round(-0.5 * u[5] / u[2]);
 }
 
-
-// =============================================================================
-// Private functions:
-
+// -----------------------------------------------------------------------------
 static uint32_t NormSquared(const int16_t * v1, const int16_t * v2)
 {
   uint32_t result = 0;
@@ -184,7 +235,7 @@ static uint32_t NormSquared(const int16_t * v1, const int16_t * v2)
 }
 
 // -----------------------------------------------------------------------------
-static float Square(float a)
+static inline float Square(float a)
 {
   return a * a;
 }

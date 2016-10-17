@@ -25,10 +25,6 @@
 #define N_ROUTES (3)
 #define MAX_WAYPOINTS (32)
 
-#define R_EARTH (6378137.0)  // meters
-// TODO: correct this for WGS84 model
-#define UBX_LATITUDE_TO_METERS (1.0e-7 * M_PI / 180.0 * R_EARTH)
-
 struct Waypoint {
   float target_position[3];
   float transit_speed;
@@ -50,7 +46,7 @@ static struct Waypoint waypoints_[N_ROUTES][MAX_WAYPOINTS] = { 0 };
 static enum NavMode mode_ = NAV_MODE_OFF;
 static enum NavError nav_error_ = NAV_ERROR_NONE;
 
-static float current_position_[3] = { 0.0 }, delta_postion_[3] = { 0.0 },
+static float delta_postion_[3] = { 0.0 },
   target_position_[3] = { 0.0 };
 static float current_heading_ = 0.0, delta_heading_ = 0.0,
   target_heading_ = 0.0;
@@ -73,9 +69,9 @@ float CurrentHeading(void)
 }
 
 // -----------------------------------------------------------------------------
-float CurrentPosition(enum WorldAxes axis)
+int32_t GPSHome(enum GeoAxes axis)
 {
-  return current_position_[axis];
+  return gps_home_[axis];
 }
 
 // -----------------------------------------------------------------------------
@@ -113,6 +109,14 @@ float TransitSpeed(void)
 {
   return current_waypoint_->transit_speed;
 }
+
+#ifndef VISION
+// -----------------------------------------------------------------------------
+float UBXLongitudeToMeters(void)
+{
+  return ubx_longitude_to_meters_;
+}
+#endif
 
 
 // =============================================================================
@@ -263,19 +267,10 @@ void UpdateNavigation(void)
   static uint32_t next_waypoint_time = 0, waypoint_reached = 0;  // , baro_reset = 0;
 
 #ifndef VISION
-  current_position_[1] = (float)(UBXPosLLH()->longitude - gps_home_[0])
-    * ubx_longitude_to_meters_;
-  current_position_[0] = (float)(UBXPosLLH()->latitude - gps_home_[1])
-    * UBX_LATITUDE_TO_METERS;
-  current_position_[2] = (float)(UBXPosLLH()->height_above_ellipsoid
-    - gps_home_[2]) * -1.0e-3;
-
   static uint32_t state_pv = 0;
   if ((FlightCtrlState() ^ state_pv) & FC_STATE_BIT_INITIALIZATION_TOGGLE)
     SetGPSHome();
   state_pv = FlightCtrlState();
-#else
-  Vector3Copy(VisionPositionVector(), current_position_);
 #endif
   current_heading_ = HeadingFromQuaternion((float *)Quat());
 
@@ -305,12 +300,12 @@ void UpdateNavigation(void)
 
     if (mode_ == NAV_MODE_HOLD)
     {
-      Vector3Copy(current_position_, target_position_);
+      Vector3Copy(PositionVector(), target_position_);
       target_heading_ = current_heading_;
     }
   }
 
-  Vector3Subtract(current_position_, target_position_, delta_postion_);
+  Vector3Subtract(PositionVector(), target_position_, delta_postion_);
   delta_heading_ = WrapToPlusMinusPi(current_heading_ - target_heading_);
 
   if ((RequestedNavMode() == NAV_MODE_AUTO))
@@ -333,6 +328,8 @@ void UpdateNavigation(void)
       radius_squared = current_waypoint_->radius * current_waypoint_->radius;
     }
   }
+
+  UpdateNavigationToFlightCtrl();
 }
 
 #ifndef VISION

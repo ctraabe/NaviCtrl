@@ -53,6 +53,8 @@ void KalmanTimeUpdate(void)
 
   // Update estimate error covariance.
   p_ += Q_ACC_INTEGRAL;
+
+  UpdateVelocityToFlightCtrl();
 }
 
 // -----------------------------------------------------------------------------
@@ -76,5 +78,7 @@ void KalmanVisionUpdate(void)
     p_ = (1.0 - k) * p_;
     last_timestamp = timestamp;
     Vector3Copy(VisionPositionVector(), position_pv);
+
+    UpdateVelocityToFlightCtrl();
   }
 }

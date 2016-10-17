@@ -9,13 +9,12 @@
 // =============================================================================
 // Private data:
 
-#define SPI_RX_BUFFER_LENGTH_POWER_OF_2 (8)  // 2^8 = 256
+#define SPI_RX_BUFFER_LENGTH_POWER_OF_2 (6)  // 2^6 = 64
 #define SPI_RX_BUFFER_LENGTH (1 << SPI_RX_BUFFER_LENGTH_POWER_OF_2)
 
 static volatile uint8_t rx_buffer_[SPI_RX_BUFFER_LENGTH];
 static volatile size_t rx_buffer_head_ = 0, tx_bytes_remaining_ = 0;
 static const uint8_t * volatile tx_ptr_ = 0;
-static uint8_t tx_buffer_[SPI_TX_BUFFER_LENGTH];
 
 
 // =============================================================================
@@ -72,20 +71,10 @@ void ProcessIncomingSPISlave(void)
 }
 
 // -----------------------------------------------------------------------------
-// This function returns the address of the shared Tx buffer (tx_buffer_) if it
-// is available or zero (NULL) if not.
-uint8_t * RequestSPITxBuffer(void)
+void SPITxBuffer(uint8_t * buffer, uint8_t tx_length)
 {
-  if (tx_bytes_remaining_ != 0) return 0;
-  return &tx_buffer_[0];
-}
-
-// -----------------------------------------------------------------------------
-void SPITxBuffer(uint8_t tx_length)
-{
-  if (tx_bytes_remaining_ != 0 || tx_length == 0
-    || tx_length > SPI_TX_BUFFER_LENGTH) return;
-  tx_ptr_ = &tx_buffer_[0];
+  if (tx_bytes_remaining_ != 0 || tx_length == 0) return;
+  tx_ptr_ = buffer;
   tx_bytes_remaining_ = tx_length;
   while (tx_bytes_remaining_ && SSP_GetFlagStatus(SSP0, SSP_FLAG_TxFifoNotFull))
   {
@@ -95,6 +84,8 @@ void SPITxBuffer(uint8_t tx_length)
 }
 
 // -----------------------------------------------------------------------------
+// This interrupt gets triggered after 4 bytes have been received into the
+// hardware SSP FIFO.
 void SPISlaveHandler(void)
 {
   while (SSP_GetFlagStatus(SSP0, SSP_FLAG_RxFifoNotEmpty))

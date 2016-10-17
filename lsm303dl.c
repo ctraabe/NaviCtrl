@@ -2,10 +2,13 @@
 
 #include "91x_lib.h"
 #include "eeprom.h"
+#include "flight_ctrl_comms.h"
 #include "i2c.h"
-#include "logging.h"
 #include "main.h"
-
+#include "timing.h"
+#ifdef LOG_DEBUG_TO_SD
+  #include "logging.h"
+#endif
 
 // =============================================================================
 // Private data:
@@ -33,9 +36,11 @@ static enum LSM303DLModel {
   LSM303DL_MODEL_M,
 } lsm303dl_model_ = LSM303DL_NOT_PRESENT;
 
+static volatile uint32_t unprocessed_data_waiting_ = 0;
+static volatile uint8_t magnetometer_raw_[6] = { 0 };
 static float magnetic_vector_[3] = { 0.0 };
 static int16_t magnetometer_[3] = { 0 };
-static volatile uint8_t magnetometer_raw_[6] = { 0 };
+static uint32_t last_update_timepstamp_ = 0;
 
 
 // =============================================================================
@@ -47,15 +52,27 @@ static void DataReceivedCallback(void);
 // =============================================================================
 // Accessors:
 
-const int16_t * MagnetometerVector(void)
+uint32_t LSM303DLDataWaiting(void)
 {
-  return magnetometer_;
+  return unprocessed_data_waiting_;
+}
+
+// -----------------------------------------------------------------------------
+uint32_t LSM303DLLastUpdateTimestamp(void)
+{
+  return last_update_timepstamp_;
 }
 
 // -----------------------------------------------------------------------------
 const float * MagneticVector(void)
 {
   return magnetic_vector_;
+}
+
+// -----------------------------------------------------------------------------
+const int16_t * MagnetometerVector(void)
+{
+  return magnetometer_;
 }
 
 
@@ -80,19 +97,10 @@ void LSM303DLInit(void)
 }
 
 // -----------------------------------------------------------------------------
-void LSM303DLReadMag(void)
+uint32_t ProcessIncomingLSM303DL(void)
 {
-  I2CRxFromRegisterThenCallback(LSM303DL_ADDRESS_M, LSM303DL_RA_OUT_M
-    | LSM303DL_MULTI_BYTE_READ, magnetometer_raw_, sizeof(magnetometer_raw_),
-    DataReceivedCallback);
-}
+  if (!unprocessed_data_waiting_) return 0;
 
-
-// =============================================================================
-// Private functions:
-
-static void DataReceivedCallback(void)
-{
   magnetometer_[1] = (int16_t)(((uint16_t)magnetometer_raw_[0] << 8)
     | magnetometer_raw_[1]);
   if (lsm303dl_model_ == LSM303DL_MODEL_H)
@@ -118,7 +126,33 @@ static void DataReceivedCallback(void)
   magnetic_vector_[2] = (float)(magnetometer_[2] - MagnetometerBiasVector()[2])
     * MagnetometerUnitizerVector()[2];
 
+  unprocessed_data_waiting_ = 0;
+
+  UpdateHeadingCorrectionToFlightCtrl();
+
 #ifdef LOG_DEBUG_TO_SD
   // SetNewDataCallback(LogMagnetometerData);
 #endif
+
+  return 1;
+}
+
+// -----------------------------------------------------------------------------
+void RequestLSM303DL(void)
+{
+  if (unprocessed_data_waiting_ || !I2CIsIdle()) return;
+
+  I2CRxFromRegisterThenCallback(LSM303DL_ADDRESS_M, LSM303DL_RA_OUT_M
+    | LSM303DL_MULTI_BYTE_READ, magnetometer_raw_, sizeof(magnetometer_raw_),
+    DataReceivedCallback);
+}
+
+
+// =============================================================================
+// Private functions:
+
+static void DataReceivedCallback(void)
+{
+  unprocessed_data_waiting_ = 1;
+  last_update_timepstamp_ = GetTimestamp();
 }

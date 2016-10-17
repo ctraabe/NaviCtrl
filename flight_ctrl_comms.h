@@ -17,24 +17,12 @@ struct FromFlightCtrl {
   float gyro[3];
   float quaternion[4];
   float pressure_altitude;
-#ifdef LOG_DEBUG_TO_SD
-  // int16_t sbus_pitch;
-  // int16_t sbus_roll;
-  // int16_t sbus_yaw;
-  // int16_t sbus_thrust;
-  // uint16_t battery_voltage;
-  // float thrust_command;
-  // float heading_command;
-  // float angular_command[3];
-  // float kalman_p_dot;
-  // float kalman_q_dot;
-  // float vertical_speed;
-  // float vertical_acceleration;
-#endif
 } __attribute__((packed));
 
 struct ToFlightCtrl {
   uint16_t version;
+  uint8_t nav_mode;
+  uint8_t status;
   float position[3];
   float velocity[3];
   float heading_correction_quat_0;
@@ -43,8 +31,6 @@ struct ToFlightCtrl {
   float transit_speed;
   float target_heading;
   float heading_rate;
-  uint8_t nav_mode;
-  uint8_t status;
   uint16_t crc;
 } __attribute__((packed));
 
@@ -63,10 +49,13 @@ enum FlightCtrlStateBits {
 float Accelerometer(enum BodyAxes axis);
 
 // -----------------------------------------------------------------------------
-const volatile float * AccelerometerVector(void);
+const float * AccelerometerVector(void);
 
 // -----------------------------------------------------------------------------
 float FilteredPressureAltitude(void);
+
+// -----------------------------------------------------------------------------
+uint32_t FlightCtrlCommsOngoing(void);
 
 // -----------------------------------------------------------------------------
 uint8_t FlightCtrlState(void);
@@ -78,13 +67,19 @@ uint16_t FlightCtrlTimestamp(void);
 float Gyro(enum BodyAxes axis);
 
 // -----------------------------------------------------------------------------
-const volatile float * GyroVector(void);
+const float * GyroVector(void);
+
+// -----------------------------------------------------------------------------
+uint32_t NewDataFromFlightCtrl(void);
 
 // -----------------------------------------------------------------------------
 float PressureAltitude(void);
 
 // -----------------------------------------------------------------------------
-const volatile float * Quat(void);
+const float * PositionVector(void);
+
+// -----------------------------------------------------------------------------
+const float * Quat(void);
 
 // -----------------------------------------------------------------------------
 uint32_t RCSwitch(void);
@@ -96,7 +91,7 @@ enum NavMode RequestedNavMode(void);
 uint32_t RequestedNavRoute(void);
 
 // -----------------------------------------------------------------------------
-const volatile struct FromFlightCtrl * FromFlightCtrl(void);
+const struct FromFlightCtrl * FromFlightCtrl(void);
 
 // -----------------------------------------------------------------------------
 uint16_t FromFlightCtrlCRC(void);
@@ -105,6 +100,9 @@ uint16_t FromFlightCtrlCRC(void);
 // =============================================================================
 // Public functions:
 
+void ClearNewDataFromFlightCtrlFlag(void);
+
+// -----------------------------------------------------------------------------
 void FlightCtrlCommsInit(void);
 
 // -----------------------------------------------------------------------------
@@ -118,6 +116,21 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte);
 
 // -----------------------------------------------------------------------------
 void PrepareFlightCtrlDataExchange(void);
+
+// -----------------------------------------------------------------------------
+void SetFlightCtrlCommsOngoingFlag(void);
+
+// -----------------------------------------------------------------------------
+void UpdateHeadingCorrectionToFlightCtrl(void);
+
+// -----------------------------------------------------------------------------
+void UpdateNavigationToFlightCtrl(void);
+
+// -----------------------------------------------------------------------------
+void UpdatePositionToFlightCtrl(void);
+
+// -----------------------------------------------------------------------------
+void UpdateVelocityToFlightCtrl(void);
 
 
 #endif  // FLT_CTRL_COMMS_H_

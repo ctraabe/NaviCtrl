@@ -13,6 +13,7 @@
 #include "91x_lib.h"
 #include "irq_priority.h"
 #include "logging.h"
+#include "flight_ctrl_comms.h"
 #include "main.h"
 #include "timing.h"
 
@@ -44,7 +45,8 @@ static struct UBXVelNED ubx_vel_ned_;
 static struct UBXSol ubx_sol_;
 static struct UBXTimeUTC ubx_time_utc_;
 
-static enum UBXErrorBits ubx_error_bits_ = UBX_ERROR_BIT_STALE;
+static enum UBXErrorBits error_bits_ = UBX_ERROR_BIT_STALE;
+static uint32_t new_data_bits_ = 0;
 static uint32_t last_reception_timestamp_ = 0;
 
 
@@ -60,6 +62,12 @@ static void UBloxTxBuffer(const uint8_t * buffer, size_t length);
 // =============================================================================
 // Accessors:
 
+uint32_t UBXNewDataBits(void)
+{
+  return new_data_bits_;
+}
+
+// -----------------------------------------------------------------------------
 const struct UBXPosLLH * UBXPosLLH(void)
 {
   return &ubx_pos_llh_;
@@ -86,7 +94,7 @@ const struct UBXTimeUTC * UBXTimeUTC(void)
 // -----------------------------------------------------------------------------
 uint32_t UBXDataStale(void)
 {
-  return ubx_error_bits_ & UBX_ERROR_BIT_STALE;
+  return error_bits_ & UBX_ERROR_BIT_STALE;
 }
 
 
@@ -200,9 +208,15 @@ void UBloxInit(void)
 }
 
 // -----------------------------------------------------------------------------
+void ClearUBXNewDataBit(enum UBXNewDataBits new_data_bit)
+{
+  new_data_bit &= ~(uint32_t)new_data_bit;
+}
+
+// -----------------------------------------------------------------------------
 // This function processes bytes that have been read into the Rx ring buffer
 // (rx_buffer_) by the Rx interrupt handler.
-void ProcessIncomingUBlox(void)
+uint32_t ProcessIncomingUBlox(void)
 {
   static size_t rx_buffer_tail = 0;
 
@@ -217,6 +231,8 @@ void ProcessIncomingUBlox(void)
     rx_buffer_tail = (rx_buffer_tail + 1) % UBLOX_RX_BUFFER_LENGTH;
     ProcessIncomingUBloxByte(rx_buffer_[rx_buffer_tail]);
   }
+
+  return new_data_bits_;
 }
 
 // -----------------------------------------------------------------------------
@@ -224,10 +240,10 @@ void CheckUBXFreshness(void)
 {
   // Only check freshness if the data is not yet stale because the timestamp
   // might rollover, giving a false freshness.
-  if ((~ubx_error_bits_ & UBX_ERROR_BIT_STALE) &&
+  if ((~error_bits_ & UBX_ERROR_BIT_STALE) &&
     (MillisSinceTimestamp(last_reception_timestamp_) > UBX_FRESHNESS_LIMIT))
   {
-    ubx_error_bits_ |= UBX_ERROR_BIT_STALE;
+    error_bits_ |= UBX_ERROR_BIT_STALE;
   }
 }
 
@@ -245,28 +261,43 @@ static inline void UpdateChecksum(uint8_t byte, uint8_t * checksum_a,
 // -----------------------------------------------------------------------------
 static void CopyUBloxMessage(uint8_t id)
 {
+  // TODO: do this in a more efficient way
   switch (id)
   {
     case UBX_ID_POS_LLH:
       memcpy(&ubx_pos_llh_, &data_buffer_[0], sizeof(struct UBXPosLLH));
+      new_data_bits_ |= UBX_NEW_DATA_BIT_POS_LLH;
+      UpdatePositionToFlightCtrl();
+#ifdef LOG_DEBUG_TO_SD
       // SetNewDataCallback(LogUBXPosLLH);
+#endif
       break;
     case UBX_ID_VEL_NED:
       memcpy(&ubx_vel_ned_, &data_buffer_[0], sizeof(struct UBXVelNED));
+      new_data_bits_ |= UBX_NEW_DATA_BIT_VEL_NED;
+      UpdateVelocityToFlightCtrl();
+#ifdef LOG_DEBUG_TO_SD
       // SetNewDataCallback(LogUBXVelNED);
+#endif
       break;
     case UBX_ID_SOL:
       memcpy(&ubx_sol_, &data_buffer_[0], sizeof(struct UBXSol));
+      new_data_bits_ |= UBX_NEW_DATA_BIT_SOL;
+#ifdef LOG_DEBUG_TO_SD
       // SetNewDataCallback(LogUBXSol);
+#endif
       break;
     case UBX_ID_TIME_UTC:
       memcpy(&ubx_time_utc_, &data_buffer_[0], sizeof(struct UBXTimeUTC));
+      new_data_bits_ |= UBX_NEW_DATA_BIT_TIME_UTC;
+#ifdef LOG_DEBUG_TO_SD
       // SetNewDataCallback(LogUBXTimeUTC);
+#endif
       break;
   }
 
   last_reception_timestamp_ = GetTimestamp();
-  ubx_error_bits_ &= ~UBX_ERROR_BIT_STALE;
+  error_bits_ &= ~UBX_ERROR_BIT_STALE;
 }
 
 // -----------------------------------------------------------------------------

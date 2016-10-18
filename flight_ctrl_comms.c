@@ -333,14 +333,17 @@ void UpdateHeadingCorrectionToFlightCtrl(void)
 {
   // Form a heading correction
   float heading_error;
+  uint32_t status;
 #ifndef VISION
   float mag_earth[3];
   QuaternionRotateVector((float *)Quat(), MagneticVector(), mag_earth);
   // TODO: dedeclinate
   // TODO: do some sanity checking on the magnetic scale, etc.
   heading_error = -atan2(mag_earth[1], mag_earth[0]);
+  status = 1;
 #else
-  if (VisionStatus() != 1)
+  status = VisionStatus();
+  if (status != 1)
     heading_error = 0;
   else
     heading_error = VisionHeading() - CurrentHeading();
@@ -358,6 +361,11 @@ void UpdateHeadingCorrectionToFlightCtrl(void)
 
   to_fc->heading_correction_quat_0 = sqrt(1.0 - quat_c_z * quat_c_z);
   to_fc->heading_correction_quat_z = quat_c_z;
+
+  if (status)
+    to_fc->status |= NAV_STATUS_BIT_HEADING_DATA_OK;
+  else
+    to_fc->status &= ~NAV_STATUS_BIT_HEADING_DATA_OK;
 
   if (to_fc == &to_fc_) UpdateCRCToFlightCtrl();
 }
@@ -387,7 +395,7 @@ void UpdateNavigationToFlightCtrl(void)
 void UpdatePositionToFlightCtrl(void)
 {
   float current_position[3];
-  uint8_t status;
+  uint32_t status;
 #ifndef VISION
   current_position[N_WORLD_AXIS] = (float)(UBXPosLLH()->latitude
     - GPSHome(LATITUDE)) * UBX_LATITUDE_TO_METERS;
@@ -399,7 +407,7 @@ void UpdatePositionToFlightCtrl(void)
   current_position[N_WORLD_AXIS] = VisionPosition(N_WORLD_AXIS);
   current_position[E_WORLD_AXIS] = VisionPosition(E_WORLD_AXIS);
   current_position[D_WORLD_AXIS] = VisionPosition(D_WORLD_AXIS);
-  status = (uint8_t)VisionStatus();
+  status = VisionStatus();
 #endif
 
   struct ToFlightCtrl * to_fc = &to_fc_;
@@ -412,7 +420,11 @@ void UpdatePositionToFlightCtrl(void)
   to_fc->position[N_WORLD_AXIS] = current_position[N_WORLD_AXIS];
   to_fc->position[E_WORLD_AXIS] = current_position[E_WORLD_AXIS];
   to_fc->position[D_WORLD_AXIS] = current_position[D_WORLD_AXIS];
-  to_fc->status = status;
+
+  if (status)
+    to_fc->status |= NAV_STATUS_BIT_POSITION_DATA_OK;
+  else
+    to_fc->status &= ~NAV_STATUS_BIT_POSITION_DATA_OK;
 
   if (to_fc == &to_fc_) UpdateCRCToFlightCtrl();
 }
@@ -421,14 +433,17 @@ void UpdatePositionToFlightCtrl(void)
 void UpdateVelocityToFlightCtrl(void)
 {
   float velocity[3];
+  uint32_t status;
 #ifndef VISION
   velocity[N_WORLD_AXIS] = (float)UBXVelNED()->velocity_north * 1.0e-2;
   velocity[E_WORLD_AXIS] = (float)UBXVelNED()->velocity_east * 1.0e-2;
   velocity[D_WORLD_AXIS] = (float)UBXVelNED()->velocity_down * 1.0e-2;
+  status = UBXVelNED()->speed_accuracy < 100;  // cm/s
 #else
   velocity[N_WORLD_AXIS] = KalmanVelocity(N_WORLD_AXIS);
   velocity[E_WORLD_AXIS] = KalmanVelocity(E_WORLD_AXIS);
   velocity[D_WORLD_AXIS] = KalmanVelocity(D_WORLD_AXIS);
+  status = 0;
 #endif
 
   struct ToFlightCtrl * to_fc = &to_fc_;
@@ -441,6 +456,11 @@ void UpdateVelocityToFlightCtrl(void)
   to_fc->velocity[N_WORLD_AXIS] = velocity[N_WORLD_AXIS];
   to_fc->velocity[E_WORLD_AXIS] = velocity[E_WORLD_AXIS];
   to_fc->velocity[D_WORLD_AXIS] = velocity[D_WORLD_AXIS];
+
+  if (status)
+    to_fc->status |= NAV_STATUS_BIT_VELOCITY_DATA_OK;
+  else
+    to_fc->status &= ~NAV_STATUS_BIT_VELOCITY_DATA_OK;
 
   if (to_fc == &to_fc_) UpdateCRCToFlightCtrl();
 }

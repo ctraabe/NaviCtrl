@@ -42,6 +42,12 @@ enum FlightCtrlStateBits {
   FC_STATE_BIT_INITIALIZATION_TOGGLE = 1<<4,
 };
 
+enum NavStatusBits {
+  NAV_STATUS_BIT_HEADING_DATA_OK  = 1<<0,
+  NAV_STATUS_BIT_POSITION_DATA_OK = 1<<1,
+  NAV_STATUS_BIT_VELOCITY_DATA_OK = 1<<2,
+};
+
 
 // =============================================================================
 // Accessors:

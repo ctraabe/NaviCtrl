@@ -167,11 +167,13 @@ void ProcessLogging(void)
     return;
   }
 
-  if ((FlightCtrlState() & FC_STATE_BIT_MOTORS_RUNNING) && !logging_active_)
-    OpenLogFile(0);
-
-  if (!(FlightCtrlState() & FC_STATE_BIT_MOTORS_RUNNING) && logging_active_)
-    CloseLogFile();
+  if (!FlightCtrlCommsOngoing())
+  {
+    if ((FlightCtrlState() & FC_STATE_BIT_MOTORS_RUNNING) && !logging_active_)
+      OpenLogFile(0);
+    if (!(FlightCtrlState() & FC_STATE_BIT_MOTORS_RUNNING) && logging_active_)
+      CloseLogFile();
+  }
 
   // Open the file if logging is supposed to be active but the file is closed.
   if (logging_active_ && !file_.fs)

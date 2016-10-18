@@ -128,7 +128,7 @@ void NavigationInit(void)
   if (!SDCardFSMounted()) return;
 
   FIL file;
-  char filename[12] = "WP_LIST.CSV", line[128];
+  char filename[12] = "WP_LIST.CSV", line[256];
   if (f_open(&file, filename, FA_READ) != FR_OK)
   {
     UARTPrintf("Failed to open %s", filename);
@@ -205,10 +205,13 @@ void NavigationInit(void)
         // Check that the correct number of data entries were read.
         if (data_index == 9)
         {
-          // Post processing (convert degrees to radians)
+          // Post processing:
+          // Convert degrees to radians.
           waypoint_ptr->target_heading *= M_PI / 180.0;
           waypoint_ptr->heading_rate *= M_PI / 180.0;
           waypoint_ptr->heading_range *= M_PI / 180.0;
+          // Change altitude to positive down.
+          waypoint_ptr->target_position[2] = -waypoint_ptr->target_position[2];
 
           // Safety checks.
           waypoint_ptr->transit_speed = fabs(waypoint_ptr->transit_speed);
@@ -244,7 +247,7 @@ void NavigationInit(void)
         " %03.0f %i", j + 1,
         waypoints_[i][j].target_position[0],
         waypoints_[i][j].target_position[1],
-        waypoints_[i][j].target_position[2],
+        -waypoints_[i][j].target_position[2],
         waypoints_[i][j].transit_speed,
         waypoints_[i][j].radius,
         waypoints_[i][j].target_heading * 180.0 / M_PI,

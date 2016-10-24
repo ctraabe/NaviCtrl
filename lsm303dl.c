@@ -41,6 +41,7 @@ static volatile uint8_t magnetometer_raw_[6] = { 0 };
 static float magnetic_vector_[3] = { 0.0 };
 static int16_t magnetometer_[3] = { 0 };
 static uint32_t last_update_timepstamp_ = 0;
+static uint32_t error_bits_ = LSM303DL_ERROR_BIT_NOT_INITIALIZED;
 
 
 // =============================================================================
@@ -55,6 +56,12 @@ static void DataReceivedCallback(void);
 uint32_t LSM303DLDataWaiting(void)
 {
   return unprocessed_data_waiting_;
+}
+
+// -----------------------------------------------------------------------------
+uint32_t LSM303DLErrorBits(void)
+{
+  return error_bits_;
 }
 
 // -----------------------------------------------------------------------------
@@ -79,7 +86,7 @@ const int16_t * MagnetometerVector(void)
 // =============================================================================
 // Public functions:
 
-void LSM303DLInit(void)
+uint32_t LSM303DLInit(void)
 {
   // Determine the compass model.
   uint8_t rx_buffer = 0;
@@ -94,6 +101,10 @@ void LSM303DLInit(void)
     LSM303DL_MR_M_MD_CONTINUOUS };
   I2CTxToRegister(LSM303DL_ADDRESS_M, LSM303DL_RA_CR_M, tx_buffer, 3);
   I2CWaitUntilCompletion(10);
+
+  error_bits_ &= ~LSM303DL_ERROR_BIT_NOT_INITIALIZED;
+
+  return error_bits_;
 }
 
 // -----------------------------------------------------------------------------
@@ -138,13 +149,22 @@ uint32_t ProcessIncomingLSM303DL(void)
 }
 
 // -----------------------------------------------------------------------------
-void RequestLSM303DL(void)
+uint32_t RequestLSM303DL(void)
 {
-  if (unprocessed_data_waiting_ || !I2CIsIdle()) return;
+  if (unprocessed_data_waiting_) return LSM303DL_ERROR_BIT_DATA_WAITING;
 
-  I2CRxFromRegisterThenCallback(LSM303DL_ADDRESS_M, LSM303DL_RA_OUT_M
+  if (I2CRxFromRegisterThenCallback(LSM303DL_ADDRESS_M, LSM303DL_RA_OUT_M
     | LSM303DL_MULTI_BYTE_READ, magnetometer_raw_, sizeof(magnetometer_raw_),
-    DataReceivedCallback);
+    DataReceivedCallback) == I2C_ERROR_NONE)
+  {
+    error_bits_ &= ~LSM303DL_ERROR_BIT_I2C_BUSY;
+  }
+  else
+  {
+    error_bits_ |= LSM303DL_ERROR_BIT_I2C_BUSY;
+  }
+
+  return error_bits_;
 }
 
 

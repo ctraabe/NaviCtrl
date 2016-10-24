@@ -217,9 +217,16 @@ int main(void)
 
     // Normally the magnetometer is read every time new data comes from the
     // FlightCtrl. The following statement is a backup that ensures the
-    // magnetometer is updated even if there is no connection to the FlightCtrl.
+    // magnetometer is updated even if there is no connection to the FlightCtrl
+    // and also deals with read errors.
     if (MillisSinceTimestamp(LSM303DLLastUpdateTimestamp()) > 20)
-      RequestLSM303DL();
+    {
+      uint32_t lsm303dl_error_bits = RequestLSM303DL();
+      if (lsm303dl_error_bits & LSM303DL_ERROR_BIT_NOT_INITIALIZED)
+        LSM303DLInit();
+      if (lsm303dl_error_bits & LSM303DL_ERROR_BIT_I2C_BUSY)
+        I2CReset();
+    }
 
     // Check for incoming data on the "update & debug" UART port.
     ProcessIncomingUART();

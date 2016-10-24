@@ -5,6 +5,13 @@
 #include <inttypes.h>
 
 
+enum LSM303DLErrorBits {
+  LSM303DL_ERROR_BIT_NOT_INITIALIZED = 1<<0,
+  LSM303DL_ERROR_BIT_I2C_BUSY        = 1<<1,
+  LSM303DL_ERROR_BIT_DATA_WAITING    = 1<<2,
+};
+
+
 // =============================================================================
 // Accessors:
 
@@ -29,13 +36,13 @@ float UBXLongitudeToMeters(void);
 // =============================================================================
 // Public functions:
 
-void LSM303DLInit(void);
+uint32_t LSM303DLInit(void);
 
 // -----------------------------------------------------------------------------
 uint32_t ProcessIncomingLSM303DL(void);
 
 // -----------------------------------------------------------------------------
-void RequestLSM303DL(void);
+uint32_t RequestLSM303DL(void);
 
 
 #endif  // LSM303DL_H_

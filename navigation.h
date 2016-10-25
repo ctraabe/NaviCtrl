@@ -35,9 +35,6 @@ float CurrentHeading(void);
 float CurrentPosition(enum WorldAxes axis);
 
 // -----------------------------------------------------------------------------
-int32_t GPSHome(enum GeoAxes axis);
-
-// -----------------------------------------------------------------------------
 float HeadingRate(void);
 
 // -----------------------------------------------------------------------------
@@ -65,6 +62,9 @@ void NavigationInit(void);
 void UpdateNavigation(void);
 
 #ifndef VISION
+// -----------------------------------------------------------------------------
+int32_t GPSHome(enum GeoAxes axis);
+
 // -----------------------------------------------------------------------------
 void SetGPSHome(void);
 #endif

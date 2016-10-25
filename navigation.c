@@ -69,12 +69,6 @@ float CurrentHeading(void)
 }
 
 // -----------------------------------------------------------------------------
-int32_t GPSHome(enum GeoAxes axis)
-{
-  return gps_home_[axis];
-}
-
-// -----------------------------------------------------------------------------
 float HeadingRate(void)
 {
   return current_waypoint_->heading_rate;
@@ -111,6 +105,12 @@ float TransitSpeed(void)
 }
 
 #ifndef VISION
+// -----------------------------------------------------------------------------
+int32_t GPSHome(enum GeoAxes axis)
+{
+  return gps_home_[axis];
+}
+
 // -----------------------------------------------------------------------------
 float UBXLongitudeToMeters(void)
 {

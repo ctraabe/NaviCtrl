@@ -17,7 +17,7 @@
 // =============================================================================
 // Private data:
 
-#define VISION_UART_BAUD (115200)
+#define VISION_UART_BAUD (57600)
 #define VISION_RX_BUFFER_LENGTH (1 << 7)  // 2^7 = 128
 #define VISION_FRESHNESS_LIMIT (100)  // millisends
 

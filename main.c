@@ -221,10 +221,9 @@ int main(void)
     // and also deals with read errors.
     if (MillisSinceTimestamp(LSM303DLLastUpdateTimestamp()) > 20)
     {
-      uint32_t lsm303dl_error_bits = RequestLSM303DL();
-      if (lsm303dl_error_bits & LSM303DL_ERROR_BIT_NOT_INITIALIZED)
-        LSM303DLInit();
-      if (lsm303dl_error_bits & LSM303DL_ERROR_BIT_I2C_BUSY)
+      if (MillisSinceTimestamp(LSM303DLLastRequestTimestamp()) > 20)
+        RequestLSM303DL();
+      if (LSM303DLErrorBits() & LSM303DL_ERROR_BIT_I2C_BUSY)
         I2CReset();
     }
 

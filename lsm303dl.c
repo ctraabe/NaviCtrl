@@ -40,7 +40,7 @@ static volatile uint32_t unprocessed_data_waiting_ = 0;
 static volatile uint8_t magnetometer_raw_[6] = { 0 };
 static float magnetic_vector_[3] = { 0.0 };
 static int16_t magnetometer_[3] = { 0 };
-static uint32_t last_update_timepstamp_ = 0;
+static uint32_t last_request_timestamp_ = 0, last_update_timepstamp_ = 0;
 static uint32_t error_bits_ = LSM303DL_ERROR_BIT_NOT_INITIALIZED;
 
 
@@ -62,6 +62,12 @@ uint32_t LSM303DLDataWaiting(void)
 uint32_t LSM303DLErrorBits(void)
 {
   return error_bits_;
+}
+
+// -----------------------------------------------------------------------------
+uint32_t LSM303DLLastRequestTimestamp(void)
+{
+  return last_request_timestamp_;
 }
 
 // -----------------------------------------------------------------------------
@@ -163,6 +169,8 @@ uint32_t RequestLSM303DL(void)
   {
     error_bits_ |= LSM303DL_ERROR_BIT_I2C_BUSY;
   }
+
+  last_request_timestamp_ = GetTimestamp();
 
   return error_bits_;
 }

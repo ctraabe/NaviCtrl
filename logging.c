@@ -142,7 +142,59 @@ void LogKalmanData(void)
   temp.u16 = CRCCCITT((uint8_t *)KalmanVelocityVector(), sizeof(float) * 3);
   WriteToFIFO((char *)temp.bytes, 2);
 }
+#endif
+#ifndef VISION
+// -----------------------------------------------------------------------------
+void LogUBXPosLLH(void)
+{
+  if (SDCardNotPresent() || !file_.fs) return;
 
+  uint16_t header = 0x1212;
+  WriteToFIFO((char *)&header, 2);
+  // WriteToFIFO((char *)UBXPosLLH(), sizeof(struct UBXPosLLH));
+  // uint16_t crc = CRCCCITT((uint8_t *)UBXPosLLH(), sizeof(struct UBXPosLLH));
+  WriteToFIFO((char *)UBXPosLLH(), sizeof(uint32_t));
+  uint16_t crc = CRCCCITT((uint8_t *)UBXPosLLH(), sizeof(uint32_t));
+  WriteToFIFO((char *)&crc, 2);
+}
+
+// -----------------------------------------------------------------------------
+void LogUBXVelNED(void)
+{
+  if (SDCardNotPresent() || !file_.fs) return;
+
+  uint16_t header = 0x2323;
+  WriteToFIFO((char *)&header, 2);
+  WriteToFIFO((char *)UBXVelNED(), sizeof(struct UBXVelNED));
+  uint16_t crc = CRCCCITT((uint8_t *)UBXVelNED(), sizeof(struct UBXVelNED));
+  WriteToFIFO((char *)&crc, 2);
+}
+
+// -----------------------------------------------------------------------------
+void LogUBXSol(void)
+{
+  if (SDCardNotPresent() || !file_.fs) return;
+
+  uint16_t header = 0x3434;
+  WriteToFIFO((char *)&header, 2);
+  WriteToFIFO((char *)UBXSol(), sizeof(struct UBXSol));
+  uint16_t crc = CRCCCITT((uint8_t *)UBXSol(), sizeof(struct UBXSol));
+  WriteToFIFO((char *)&crc, 2);
+}
+
+// -----------------------------------------------------------------------------
+void LogUBXTimeUTC(void)
+{
+  if (SDCardNotPresent() || !file_.fs) return;
+
+  uint16_t header = 0x4545;
+  WriteToFIFO((char *)&header, 2);
+  WriteToFIFO((char *)UBXTimeUTC(), sizeof(struct UBXTimeUTC));
+  uint16_t crc = CRCCCITT((uint8_t *)UBXTimeUTC(), sizeof(struct UBXTimeUTC));
+  WriteToFIFO((char *)&crc, 2);
+}
+#endif
+#ifdef VISION
 // -----------------------------------------------------------------------------
 void LogVisionData(void)
 {

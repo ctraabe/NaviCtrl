@@ -10,8 +10,9 @@
 struct FromVision {
   uint32_t timestamp;  // microseconds
   float position[3];  // meters
-  float quaternion[3];
-  uint16_t status;
+  float heading;
+  float sigma[3];
+  uint8_t status;
 } __attribute__((packed));
 
 enum VisionErrorBits {

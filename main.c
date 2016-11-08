@@ -234,6 +234,7 @@ int main(void)
 
     if (TimestampInPast(led_timer))
     {
+      RedLEDOff();
       GreenLEDToggle();
 
       while (TimestampInPast(led_timer)) led_timer += 100;
@@ -262,11 +263,11 @@ int main(void)
       //   (float)(UBXPosLLH()->latitude * 1e-7),
       //   (float)(UBXPosLLH()->height_above_ellipsoid * 1e-3));
 
-      UARTPrintf("%0.2f,%0.2f,%0.2f,%0.2f",
-        PositionVector()[0],
-        PositionVector()[1],
-        PositionVector()[2],
-        CurrentHeading());
+      // UARTPrintf("%0.2f,%0.2f,%0.2f,%0.2f",
+      //   PositionVector()[0],
+      //   PositionVector()[1],
+      //   PositionVector()[2],
+      //   CurrentHeading());
     }
   }
 }

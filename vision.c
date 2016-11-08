@@ -12,6 +12,9 @@
 #include "quaternion.h"
 #include "timing.h"
 #include "union_types.h"
+// TODO: remove
+#include "led.h"
+#include "uart.h"
 
 
 // =============================================================================
@@ -21,7 +24,7 @@
 #define VISION_RX_BUFFER_LENGTH (1 << 7)  // 2^7 = 128
 #define VISION_FRESHNESS_LIMIT (100)  // millisends
 
-#define VISION_START_BYTE (0xFE)
+#define VISION_START_BYTE ('S')
 
 static volatile uint8_t rx_buffer_[VISION_RX_BUFFER_LENGTH];
 static volatile size_t rx_buffer_head_ = 0;
@@ -192,15 +195,16 @@ static uint32_t ProcessIncomingVisionByte(uint8_t byte)
     case 1:  // Payload length
       if (byte != PAYLOAD_LENGTH) goto RESET;
     case 2:  // Message ID
+    case 3:  // Reserved
       crc.u16 = CRCUpdateCCITT(crc.u16, byte);
       break;
     default:  // Payload or checksum
-      if (bytes_processed < (3 + PAYLOAD_LENGTH))  // Payload
+      if (bytes_processed < (4 + PAYLOAD_LENGTH))  // Payload
       {
         *payload_ptr++ = byte;
         crc.u16 = CRCUpdateCCITT(crc.u16, byte);
       }
-      else if (bytes_processed == (3 + PAYLOAD_LENGTH))  // CRC lower byte
+      else if (bytes_processed == (4 + PAYLOAD_LENGTH))  // CRC lower byte
       {
         if(byte != crc.bytes[0]) goto RESET;
       }
@@ -234,14 +238,20 @@ static void ProcessVisionData(struct FromVision * from_vision)
   memcpy(&from_vision_, from_vision, PAYLOAD_LENGTH);
 
   // Compute full quaternion.
-  quaternion_[1] = from_vision->quaternion[0];
-  quaternion_[2] = from_vision->quaternion[1];
-  quaternion_[3] = from_vision->quaternion[2];
-  quaternion_[0] = sqrt(1.0 - quaternion_[1] * quaternion_[1] - quaternion_[2]
-    * quaternion_[2] - quaternion_[3] * quaternion_[3]);
+  // quaternion_[1] = from_vision->quaternion[0];
+  // quaternion_[2] = from_vision->quaternion[1];
+  // quaternion_[3] = from_vision->quaternion[2];
+  // quaternion_[0] = sqrt(1.0 - quaternion_[1] * quaternion_[1] - quaternion_[2]
+  //   * quaternion_[2] - quaternion_[3] * quaternion_[3]);
 
-  // Compute heading.
-  heading_ = HeadingFromQuaternion(quaternion_);
+  // // Compute heading.
+  // heading_ = HeadingFromQuaternion(quaternion_);
+
+  UARTPrintf("%0.2f,%0.2f,%0.2f,%0.2f",
+    from_vision->position[0],
+    from_vision->position[1],
+    from_vision->position[2],
+    from_vision->heading);
 
   UpdatePositionToFlightCtrl();
   UpdateHeadingCorrectionToFlightCtrl();

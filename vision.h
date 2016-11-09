@@ -7,17 +7,25 @@
 #include "constants.h"
 
 
+enum VisionMessageID {
+  VISION_MESSAGE_ID_RICOH_VO       = 0x10,
+  VISION_MESSAGE_ID_RICOH_OBSTACLE = 0x20,
+};
+
 struct FromVision {
-  uint16_t latency;  // Latency (ms)
+  uint32_t latency;  // Latency (ms)
   uint32_t capture_time;
-  uint16_t reliability;
   float velocity[3];  // (mm/frame)
   float quaternion[3];  // [q_x, q_y, q_z]
   float angular_velocity[3];  // (rad/frame)
   float position[3];  // (mm)
-  uint16_t latency_ranging;  // (ms)
-  float nearest_point_parameters[3];  // Distance and two angles, TBD
-  float marking_point_parameters[3];  // Distance and two angles, TBD
+  uint16_t reliability;
+} __attribute__((packed));
+
+struct RicohObjectDetection {
+  uint32_t latency;  // Latency (ms)
+  uint32_t capture_time;
+  float position[3];
 } __attribute__((packed));
 
 enum VisionErrorBits {

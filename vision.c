@@ -20,7 +20,7 @@
 #define VISION_RX_BUFFER_LENGTH (1 << 7)  // 2^7 = 128
 #define VISION_FRESHNESS_LIMIT (100)  // millisends
 
-#define VISION_START_BYTE (0xFE)
+#define VISION_START_BYTE ('S')
 
 static volatile uint8_t rx_buffer_[VISION_RX_BUFFER_LENGTH];
 static volatile size_t rx_buffer_head_ = 0;
@@ -190,15 +190,16 @@ static uint32_t ProcessIncomingVisionByte(uint8_t byte)
     case 1:  // Payload length
       if (byte != PAYLOAD_LENGTH) goto RESET;
     case 2:  // Message ID
+    case 3:  // Reserved
       crc.u16 = CRCUpdateCCITT(crc.u16, byte);
       break;
     default:  // Payload or checksum
-      if (bytes_processed < (3 + PAYLOAD_LENGTH))  // Payload
+      if (bytes_processed < (4 + PAYLOAD_LENGTH))  // Payload
       {
         *payload_ptr++ = byte;
         crc.u16 = CRCUpdateCCITT(crc.u16, byte);
       }
-      else if (bytes_processed == (3 + PAYLOAD_LENGTH))  // CRC lower byte
+      else if (bytes_processed == (4 + PAYLOAD_LENGTH))  // CRC lower byte
       {
         if(byte != crc.bytes[0]) goto RESET;
       }

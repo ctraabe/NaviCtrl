@@ -53,7 +53,19 @@ void FiftyHzInterruptHandler(void)
   static uint16_t button_pv = 0;
 
   // Start and stop magnetometer calibration.
-  if (button && (button_pv == 0x7FFF)) mag_calibration_ = !mag_calibration_;
+  if (button && (button_pv == 0x7FFF))
+  {
+    if (!LoggingActive())
+    {
+      OpenLogFile(0);
+      mag_calibration_ = 1;
+    }
+    else
+    {
+      if (mag_calibration_) mag_calibration_ = 0;
+      else CloseLogFile();
+    }
+  }
 
   // Reset GPS home position.
   // if (button && (button_pv == 0x7FFF)) SetGPSHome();
@@ -172,6 +184,8 @@ int main(void)
   uint32_t led_timer = GetTimestamp();
   for (;;)
   {
+    ProcessLogging();
+
     // Check for new data from the magnetometer.
     ProcessIncomingLSM303DL();
 
@@ -230,8 +244,6 @@ int main(void)
     // Check for incoming data on the "update & debug" UART port.
     ProcessIncomingUART();
 
-    ProcessLogging();
-
     if (TimestampInPast(led_timer))
     {
       GreenLEDToggle();
@@ -240,10 +252,10 @@ int main(void)
 
       // Debug output for GPS and magnetomter. Remove after testing is completed
 
-      // UARTPrintf("%0.2f,%0.2f,%0.2f",
-      //   MagneticVector()[0],
-      //   MagneticVector()[1],
-      //   MagneticVector()[2]);
+      UARTPrintfSafe("%0.2f,%0.2f,%0.2f",
+        MagneticVector()[0],
+        MagneticVector()[1],
+        MagneticVector()[2]);
 
       // UARTPrintf("%i,%i,%i",
       //   MagnetometerVector()[0],
@@ -262,11 +274,11 @@ int main(void)
       //   (float)(UBXPosLLH()->latitude * 1e-7),
       //   (float)(UBXPosLLH()->height_above_ellipsoid * 1e-3));
 
-      UARTPrintf("%0.2f,%0.2f,%0.2f,%0.2f",
-        PositionVector()[0],
-        PositionVector()[1],
-        PositionVector()[2],
-        CurrentHeading());
+      // UARTPrintf("%0.2f,%0.2f,%0.2f,%0.2f",
+      //   PositionVector()[0],
+      //   PositionVector()[1],
+      //   PositionVector()[2],
+      //   CurrentHeading());
     }
   }
 }

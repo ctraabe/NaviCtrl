@@ -112,7 +112,10 @@ void LogMagnetometerData(void)
   temp.bytes[1] = 0xBB;
   WriteToFIFO((char *)temp.bytes, 2);
   WriteToFIFO((char *)MagnetometerVector(), 2*3);
+  WriteToFIFO((char *)MagneticVector(), 4*3);
   temp.u16 = CRCCCITT((uint8_t *)MagnetometerVector(), 2*3);
+  uint8_t * ptr = (uint8_t *)MagneticVector();
+  for (int i = 0; i < 4*3; i++) CRCUpdateCCITT(temp.u16, *ptr++);
   WriteToFIFO((char *)temp.bytes, 2);
 }
 
@@ -218,7 +221,7 @@ void ProcessLogging(void)
     logging_active_ = 0;
     return;
   }
-
+/*
   if (!FlightCtrlCommsOngoing())
   {
     if ((FlightCtrlState() & FC_STATE_BIT_MOTORS_RUNNING) && !logging_active_)
@@ -226,7 +229,7 @@ void ProcessLogging(void)
     if (!(FlightCtrlState() & FC_STATE_BIT_MOTORS_RUNNING) && logging_active_)
       CloseLogFile();
   }
-
+*/
   // Open the file if logging is supposed to be active but the file is closed.
   if (logging_active_ && !file_.fs)
   {

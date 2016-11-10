@@ -1,6 +1,6 @@
 # Compile option defines:
 # VISION : substitutes GPS for visual odometry
-# LOG_FDEBUG_TO_SD : perform SD card logging
+# LOG_DEBUG_TO_SD : perform SD card logging
 
 # Add library files as needed only:
 SOURCES   = libfatfs/src/ff.c
@@ -30,7 +30,7 @@ CPPFLAGS  = -std=c++11 -fno-exceptions
 LSTFLAGS  = -Wa,-adhlns=$(addprefix $(BUILD_PATH)/,$(addsuffix .lst, $<))
 LDFLAGS   = -Ofast -pedantic -Wall -Wextra -Werror -Wundef -ffreestanding \
             -Wl,--relax -Tstr911fam.ld
-ALLFLAGS  = -mcpu=$(MCU) -I. $(addprefix -I, $(LIBRARY_INC))
+ALLFLAGS  = -mcpu=$(MCU) -I. $(addprefix -I, $(LIBRARY_INC)) -DLOG_DEBUG_TO_SD
 
 CC   := arm-none-eabi-gcc
 CCP  := arm-none-eabi-g++

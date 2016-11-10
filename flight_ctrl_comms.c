@@ -295,7 +295,7 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
           new_data_ = 1;
 
 #ifdef LOG_DEBUG_TO_SD
-          // LogFromFlightCtrlData();
+          LogFromFlightCtrlData();
 #endif
         }
         goto RESET;

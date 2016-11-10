@@ -680,6 +680,7 @@ void SDCardPresentHandler(void)
   else
   {
     wiu_init.WIU_TriggerEdge = WIU_RisingEdge;
+    Wait(1000);
     SDCardMountFS();
   }
   WIU_Init(&wiu_init);

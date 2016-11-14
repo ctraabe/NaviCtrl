@@ -443,7 +443,7 @@ void UpdateVelocityToFlightCtrl(void)
   velocity[N_WORLD_AXIS] = KalmanVelocity(N_WORLD_AXIS);
   velocity[E_WORLD_AXIS] = KalmanVelocity(E_WORLD_AXIS);
   velocity[D_WORLD_AXIS] = KalmanVelocity(D_WORLD_AXIS);
-  status = 0;
+  status = 1;
 #endif
 
   struct ToFlightCtrl * to_fc = &to_fc_;

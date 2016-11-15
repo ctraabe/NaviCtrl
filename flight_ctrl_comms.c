@@ -51,12 +51,16 @@ enum ToFlightCtrlPendingUpdateBits {
 
 static volatile uint32_t comms_ongoing_ = 0;
 
+#ifndef VISION
+static struct ToFlightCtrl to_fc_ = { .version = NAV_COMMS_VERSION,
+  .status = NAV_STATUS_BIT_LOW_PRECISION_VERTICAL };
+#else
 static struct ToFlightCtrl to_fc_ = { .version = NAV_COMMS_VERSION };
+#endif
 static struct ToFlightCtrl to_fc_buffer_ = { 0 };
 static struct FromFlightCtrl from_fc_[2] = { { 0 } };
 static union U16Bytes crc_[2];
 static size_t from_fc_head_ = 1, from_fc_tail_ = 0;
-static float filtered_pressure_altitude_ = 0.0;
 static uint32_t new_data_ = 0, pending_update_bits_ = 0;
 
 
@@ -64,7 +68,6 @@ static uint32_t new_data_ = 0, pending_update_bits_ = 0;
 // Private function declarations:
 
 static void CopyPendingToFlightControlData(void);
-static void FilterPressureAltitude(void);
 static void UpdateCRCToFlightCtrl(void);
 
 
@@ -80,12 +83,6 @@ float Accelerometer(enum BodyAxes axis)
 const float * AccelerometerVector(void)
 {
   return from_fc_[from_fc_tail_].accelerometer;
-}
-
-// -----------------------------------------------------------------------------
-float FilteredPressureAltitude(void)
-{
-  return filtered_pressure_altitude_;
 }
 
 // -----------------------------------------------------------------------------
@@ -286,10 +283,10 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
           // transmission is over? Slave select?
           CopyPendingToFlightControlData();
 
-          // TODO: do this stuff somewhere else
-          FilterPressureAltitude();
+          // TODO: do this somewhere else
 #ifndef VISION
-          to_fc_.position[D_WORLD_AXIS] = -FilteredPressureAltitude();
+          to_fc_.position[D_WORLD_AXIS]
+            = -from_fc_[from_fc_tail_].pressure_altitude;
 #endif
 
           new_data_ = 1;
@@ -401,7 +398,7 @@ void UpdatePositionToFlightCtrl(void)
     - GPSHome(LATITUDE)) * UBX_LATITUDE_TO_METERS;
   current_position[E_WORLD_AXIS] = (float)(UBXPosLLH()->longitude
     - GPSHome(LONGITUDE)) * UBXLongitudeToMeters();
-  current_position[2] = -FilteredPressureAltitude();
+  current_position[2] = -from_fc_[from_fc_tail_].pressure_altitude;
   status = UBXPosLLH()->horizontal_accuracy < 5000;  // mm
 #else
   current_position[N_WORLD_AXIS] = VisionPosition(N_WORLD_AXIS);
@@ -486,6 +483,8 @@ static void CopyPendingToFlightControlData(void)
     to_fc_.transit_speed = to_fc_buffer_.transit_speed;
     to_fc_.target_heading = to_fc_buffer_.target_heading;
     to_fc_.heading_rate = to_fc_buffer_.heading_rate;
+    to_fc_.status = (to_fc_.status & !NAV_STATUS_BIT_HEADING_DATA_OK)
+      | (to_fc_buffer_.status & NAV_STATUS_BIT_HEADING_DATA_OK);
   }
 
   if (pending_update_bits_ & PENDING_UPDATE_BIT_POSITION)
@@ -493,6 +492,8 @@ static void CopyPendingToFlightControlData(void)
     to_fc_.position[N_WORLD_AXIS] = to_fc_buffer_.position[N_WORLD_AXIS];
     to_fc_.position[E_WORLD_AXIS] = to_fc_buffer_.position[E_WORLD_AXIS];
     to_fc_.position[D_WORLD_AXIS] = to_fc_buffer_.position[D_WORLD_AXIS];
+    to_fc_.status = (to_fc_.status & !NAV_STATUS_BIT_POSITION_DATA_OK)
+      | (to_fc_buffer_.status & NAV_STATUS_BIT_POSITION_DATA_OK);
   }
 
   if (pending_update_bits_ & PENDING_UPDATE_BIT_VELOCITY)
@@ -500,19 +501,12 @@ static void CopyPendingToFlightControlData(void)
     to_fc_.velocity[N_WORLD_AXIS] = to_fc_buffer_.velocity[N_WORLD_AXIS];
     to_fc_.velocity[E_WORLD_AXIS] = to_fc_buffer_.velocity[E_WORLD_AXIS];
     to_fc_.velocity[D_WORLD_AXIS] = to_fc_buffer_.velocity[D_WORLD_AXIS];
+    to_fc_.status = (to_fc_.status & !NAV_STATUS_BIT_VELOCITY_DATA_OK)
+      | (to_fc_buffer_.status & NAV_STATUS_BIT_VELOCITY_DATA_OK);
   }
 
   if (pending_update_bits_) UpdateCRCToFlightCtrl();
   pending_update_bits_ = 0;
-}
-
-// -----------------------------------------------------------------------------
-static void FilterPressureAltitude(void)
-{
-  static float delay = 0.0;
-  float temp = 0.0121236750338117 * from_fc_[from_fc_tail_].pressure_altitude;
-  filtered_pressure_altitude_ = temp + (1 + 0.975752649932377) * delay;
-  delay = temp + 0.975752649932377 * delay;
 }
 
 // -----------------------------------------------------------------------------

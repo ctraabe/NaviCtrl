@@ -43,9 +43,10 @@ enum FlightCtrlStateBits {
 };
 
 enum NavStatusBits {
-  NAV_STATUS_BIT_HEADING_DATA_OK  = 1<<0,
-  NAV_STATUS_BIT_POSITION_DATA_OK = 1<<1,
-  NAV_STATUS_BIT_VELOCITY_DATA_OK = 1<<2,
+  NAV_STATUS_BIT_HEADING_DATA_OK         = 1<<0,
+  NAV_STATUS_BIT_POSITION_DATA_OK        = 1<<1,
+  NAV_STATUS_BIT_VELOCITY_DATA_OK        = 1<<2,
+  NAV_STATUS_BIT_LOW_PRECISION_VERTICAL  = 1<<3,
 };
 
 
@@ -56,9 +57,6 @@ float Accelerometer(enum BodyAxes axis);
 
 // -----------------------------------------------------------------------------
 const float * AccelerometerVector(void);
-
-// -----------------------------------------------------------------------------
-float FilteredPressureAltitude(void);
 
 // -----------------------------------------------------------------------------
 uint32_t FlightCtrlCommsOngoing(void);

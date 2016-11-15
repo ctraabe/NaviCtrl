@@ -39,6 +39,8 @@
 #include "mk_serial_protocol.h"
 
 #include "mk_serial_rx.h"
+#include "uart1.h"
+#include "uart2.h"
 #include "union_types.h"
 
 
@@ -85,9 +87,20 @@ enum UARTRxMode MKSerialRx(uint8_t byte, uint8_t * data_buffer)
 // additional data is necessary, then the source pointer and length can both be
 // set to zero.
 void MKSerialTx(uint8_t address, uint8_t label, uint8_t * source,
-  size_t length)
+  size_t length, enum UARTPort uart_port)
 {
-  uint8_t * tx_buffer = RequestUARTTxBuffer();
+  uint8_t * tx_buffer = 0;
+  switch (uart_port)
+  {
+    case UART_PORT_UART1:
+      tx_buffer = RequestUART1TxBuffer();
+      break;
+    case UART_PORT_UART2:
+      tx_buffer = RequestUART2TxBuffer();
+      break;
+    default:
+      break;
+  }
   if (!tx_buffer) return;
 
   size_t i = 0;
@@ -111,7 +124,17 @@ void MKSerialTx(uint8_t address, uint8_t label, uint8_t * source,
 
   tx_buffer[i++] = '\r';
 
-  UARTTxBuffer(i);
+  switch (uart_port)
+  {
+    case UART_PORT_UART1:
+      UART1TxBuffer(i);
+      break;
+    case UART_PORT_UART2:
+      UART2TxBuffer(i);
+      break;
+    default:
+      break;
+  }
 }
 
 

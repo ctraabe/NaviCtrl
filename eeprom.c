@@ -4,7 +4,7 @@
 
 #include "i2c.h"
 #include "timing.h"
-#include "uart.h"
+#include "uart1.h"
 #include "union_types.h"
 
 
@@ -105,14 +105,14 @@ void ReadEEPROM(void)
 
   if (I2CError() != I2C_ERROR_NONE)
   {
-    UARTPrintf("eeprom: error reading EEPROM over I2C");
+    UART1Printf("eeprom: error reading EEPROM over I2C");
     return;
   }
 
   // If the versions mismatch, clear the EEPROM and reset the version number.
   if (eeprom_.version != EEPROM_VERSION)
   {
-    UARTPrintf("eeprom: data in EEPROM is incompatible with this FW version");
+    UART1Printf("eeprom: data in EEPROM is incompatible with this FW version");
     memset(&eeprom_, 0, sizeof(eeprom_));
     eeprom_.version = EEPROM_VERSION;
     WriteToEEPROM(&eeprom_, sizeof(eeprom_));

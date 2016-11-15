@@ -16,7 +16,7 @@
 #include "lsm303dl.h"
 #include "sd_card.h"
 #include "spi_slave.h"
-#include "uart.h"
+#include "uart1.h"
 #include "union_types.h"
 #ifndef VISION
   #include "ublox.h"
@@ -238,7 +238,7 @@ void ProcessLogging(void)
       do
       {
         snprintf(filename_, MAX_FILENAME_LENGTH, "LOG%04lu.BIN", ++i);
-        // UARTPrintf("Trying %s", filename_);
+        // UART1Printf("Trying %s", filename_);
         file_status_ = f_open(&file_, filename_, FA_WRITE | FA_CREATE_NEW);
       } while ((file_status_ == FR_EXIST) && (i < 1000));
     }
@@ -249,11 +249,11 @@ void ProcessLogging(void)
 
     if (file_status_ == FR_OK)
     {
-      UARTPrintf("logging: opened file %s", filename_);
+      UART1Printf("logging: opened file %s", filename_);
     }
     else
     {
-      UARTPrintf("logging: f_open returned error code: 0x%02X", file_status_);
+      UART1Printf("logging: f_open returned error code: 0x%02X", file_status_);
       file_status_ = f_close(&file_);
       logging_active_ = 0;
       return;
@@ -302,11 +302,11 @@ void ProcessLogging(void)
     file_status_ = f_close(&file_);
     if (file_status_ == FR_OK)
     {
-      UARTPrintf("logging: closed file %s", filename_);
+      UART1Printf("logging: closed file %s", filename_);
     }
     else
     {
-      UARTPrintf("logging: f_close returned error code: 0x%02X", file_status_);
+      UART1Printf("logging: f_close returned error code: 0x%02X", file_status_);
     }
     // GreenLEDOff();
     RedLEDOff();

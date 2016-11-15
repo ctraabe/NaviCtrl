@@ -3,6 +3,8 @@
 #include <string.h>
 
 #include "crc16.h"
+#include "uart1.h"
+#include "uart2.h"
 #include "union_types.h"
 #include "ut_serial_rx.h"
 
@@ -22,7 +24,7 @@
 // data buffer is not large enough. The return value indicates whether or not
 // more bytes are expected. If so, subsequent bytes should also be passed to
 // this function.
-enum UART2RxMode UTSerialRx(uint8_t byte, uint8_t * data_buffer)
+enum UARTRxMode UTSerialRx(uint8_t byte, uint8_t * data_buffer)
 {
   static uint8_t * rx_ptr = 0;
   static uint8_t bytes_processed = 0, length = 0, id = 0;
@@ -30,7 +32,7 @@ enum UART2RxMode UTSerialRx(uint8_t byte, uint8_t * data_buffer)
 
   if (bytes_processed == 0)  // First byte is payload length
   {
-    if ((UT_HEADER_LENGTH + byte) > UART2_DATA_BUFFER_LENGTH) goto RESET;
+    if ((UT_HEADER_LENGTH + byte) > UART_DATA_BUFFER_LENGTH) goto RESET;
     length = byte;
     crc.u16 = CRCUpdateCCITT(0xFFFF, byte);
     rx_ptr = data_buffer;
@@ -59,11 +61,11 @@ enum UART2RxMode UTSerialRx(uint8_t byte, uint8_t * data_buffer)
     goto RESET;
   }
   bytes_processed++;
-  return UART2_RX_MODE_UT_ONGOING;
+  return UART_RX_MODE_UT_ONGOING;
 
   RESET:
   bytes_processed = 0;
-  return UART2_RX_MODE_IDLE;
+  return UART_RX_MODE_IDLE;
 }
 
 // -----------------------------------------------------------------------------
@@ -71,11 +73,23 @@ enum UART2RxMode UTSerialRx(uint8_t byte, uint8_t * data_buffer)
 // message must contain at least a destination address and a label. If no
 // additional data is necessary, then the source pointer and length can both be
 // set to zero.
-void UTSerialTx(uint8_t id, const uint8_t * source, size_t length)
+void UTSerialTx(uint8_t id, const uint8_t * source, size_t length,
+  enum UARTPort uart_port)
 {
-  if ((length + 1 + UT_HEADER_LENGTH + 2) > UART2_TX_BUFFER_LENGTH) return;
+  if ((length + 1 + UT_HEADER_LENGTH + 2) > UART_TX_BUFFER_LENGTH) return;
 
-  uint8_t * tx_buffer = RequestUART2TxBuffer();
+  uint8_t * tx_buffer = 0;
+  switch (uart_port)
+  {
+    case UART_PORT_UART1:
+      tx_buffer = RequestUART1TxBuffer();
+      break;
+    case UART_PORT_UART2:
+      tx_buffer = RequestUART2TxBuffer();
+      break;
+    default:
+      break;
+  }
   if (!tx_buffer) return;
   uint8_t * tx_ptr = tx_buffer;
 
@@ -102,5 +116,15 @@ void UTSerialTx(uint8_t id, const uint8_t * source, size_t length)
   *tx_ptr++ = crc.bytes[0];
   *tx_ptr = crc.bytes[1];
 
-  UART2TxBuffer(length + UT_HEADER_LENGTH + 2);
+  switch (uart_port)
+  {
+    case UART_PORT_UART1:
+      UART1TxBuffer(length + UT_HEADER_LENGTH + 2);
+      break;
+    case UART_PORT_UART2:
+      UART2TxBuffer(length + UT_HEADER_LENGTH + 2);
+      break;
+    default:
+      break;
+  }
 }

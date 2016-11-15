@@ -3,6 +3,7 @@
 
 
 #include <inttypes.h>
+#include <stddef.h>
 
 #include "uart.h"
 
@@ -30,8 +31,8 @@ enum UARTRxMode MKSerialRx(uint8_t byte, uint8_t * data_buffer);
 // The message must contain at least a destination address and a label. If no
 // additional data is necessary, then the source pointer and length can both be
 // set to zero.
-void MKSerialTx(uint8_t address, uint8_t command, uint8_t * source,
-  size_t length);
+void MKSerialTx(uint8_t address, uint8_t label, uint8_t * source,
+  size_t length, enum UARTPort uart_port);
 
 
 #endif  // MK_SERIAL_PROTOCOL_H_

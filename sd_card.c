@@ -10,7 +10,7 @@
 #include "ff.h"  // from libfatfs
 #include "irq_priority.h"
 #include "timing.h"
-#include "uart.h"
+#include "uart1.h"
 // TODO: remove
 #include "led.h"
 
@@ -143,7 +143,7 @@ void SDCardInit(void)
   CSPinHigh();
 
   if (SDCardNotPresent())
-    UARTPrintf("logging: SD card not present");
+    UART1Printf("logging: SD card not present");
   else
     SDCardMountFS();
 }
@@ -179,7 +179,7 @@ uint32_t SDCardNotPresent(void)
 // This function returns the card status.
 DSTATUS disk_status(BYTE drive_number)
 {
-  // UARTPrintf("sd_card: disk_status(%u)", drive_number);
+  // UART1Printf("sd_card: disk_status(%u)", drive_number);
 
   // NaviCtrl only has one card slot, so there can be only drive 0.
   if (drive_number == 0) return status_;
@@ -190,7 +190,7 @@ DSTATUS disk_status(BYTE drive_number)
 // This function initialize the SD card.
 DSTATUS disk_initialize(BYTE drive_number)
 {
-  // UARTPrintf("sd_card: disk_initialize(%u)", drive_number);
+  // UART1Printf("sd_card: disk_initialize(%u)", drive_number);
 
   // NaviCtrl only has one card slot, so there can be only drive 0.
   if (drive_number != 0) return STA_NODISK | STA_NOINIT;
@@ -241,12 +241,12 @@ DSTATUS disk_initialize(BYTE drive_number)
         }
         else
         {
-          UARTPrintf("sd_card: SD card (v2) failed to leave idle state");
+          UART1Printf("sd_card: SD card (v2) failed to leave idle state");
         }
       }
       else
       {
-        UARTPrintf("sd_card: Mismatch in CMD8 R7 response");
+        UART1Printf("sd_card: Mismatch in CMD8 R7 response");
       }
     }
     else
@@ -268,7 +268,7 @@ DSTATUS disk_initialize(BYTE drive_number)
       while ((TxCommand(command, 0x00000000) != 0) && --ms_timer) Wait(1);
       if (ms_timer == 0)
       {
-        UARTPrintf("sd_card: SD card failed to leave idle state");
+        UART1Printf("sd_card: SD card failed to leave idle state");
         card_type_ = 0;
       }
     }
@@ -276,18 +276,18 @@ DSTATUS disk_initialize(BYTE drive_number)
     // Request the block length to be set to 512 bytes.
     if (!(card_type_ & CT_BLOCK) && (TxCommand(SD_CMD16, 512) != 0x00))
     {
-      UARTPrintf("sd_card: request for 512-byte block length was not honored");
+      UART1Printf("sd_card: request for 512-byte block length was not honored");
       card_type_ = 0;
     }
   }
   else
   {
-    UARTPrintf("sd_card: SD card failed to respond");
+    UART1Printf("sd_card: SD card failed to respond");
   }
 
   if (card_type_ != 0)
   {
-    UARTPrintf("sd_card: SD card type %X detected and initialized");
+    UART1Printf("sd_card: SD card type %X detected and initialized");
     status_ = 0;
   }
   else
@@ -296,7 +296,7 @@ DSTATUS disk_initialize(BYTE drive_number)
   }
 
   Deselect();
-  // UARTPrintf("sd_card: disk_initialize(): 0x%02X", status_);
+  // UART1Printf("sd_card: disk_initialize(): 0x%02X", status_);
   return status_;
 }
 

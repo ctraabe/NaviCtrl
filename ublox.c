@@ -55,7 +55,7 @@ static uint32_t last_reception_timestamp_ = 0;
 
 static void ProcessIncomingUBloxByte(uint8_t byte);
 static void ReceiveUBloxData(void);
-static void UART0Init(uint32_t baud_rate);
+static void UART1Init(uint32_t baud_rate);
 static void UBloxTxBuffer(const uint8_t * buffer, size_t length);
 
 
@@ -124,7 +124,7 @@ void UBloxInit(void)
   gpio_init.GPIO_Alternate = GPIO_OutputAlt3;  // UART0 Tx
   GPIO_Init(GPIO6, &gpio_init);
 
-  UART0Init(UBLOX_INITIAL_BAUD);
+  UART1Init(UBLOX_INITIAL_BAUD);
 
   {
     // Set the port to UART UBX @ 57600.
@@ -135,7 +135,7 @@ void UBloxInit(void)
   }
 
   Wait(150);
-  UART0Init(UBLOX_OPERATING_BAUD);
+  UART1Init(UBLOX_OPERATING_BAUD);
 
   // Enable UART Rx interrupt.
   UART_ITConfig(UART0, UART_IT_Receive, ENABLE);
@@ -378,7 +378,7 @@ static void UBloxTxBuffer(const uint8_t * buffer, size_t length)
 }
 
 // -----------------------------------------------------------------------------
-static void UART0Init(uint32_t baud_rate)
+static void UART1Init(uint32_t baud_rate)
 {
   UART_InitTypeDef uart_init;
 

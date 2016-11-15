@@ -8,7 +8,7 @@
 #include "lsm303dl.h"
 #include "matrix.h"
 #include "timing.h"
-#include "uart.h"
+#include "uart1.h"
 
 
 // =============================================================================
@@ -64,7 +64,7 @@ uint32_t MagCalibration(uint32_t mag_calibration)
     }
     else
     {
-      UARTPrintf("Calibration start");
+      UART1Printf("Calibration start");
       MagCalibrationInit(MagnetometerVector());
       mag_calibration_timer = GetTimestampMillisFromNow(20);
       mag_calibration_latch = 1;
@@ -87,8 +87,8 @@ uint32_t MagCalibration(uint32_t mag_calibration)
     WriteMagnetometerBiasToEEPROM(bias);
     WriteMagnetometerCalibratedToEEPROM(1);
 
-    UARTPrintf("unitizer: %f, %f, %f", unitizer[0], unitizer[1], unitizer[2]);
-    UARTPrintf("bias: %i, %i, %i", bias[0], bias[1], bias[2]);
+    UART1Printf("unitizer: %f, %f, %f", unitizer[0], unitizer[1], unitizer[2]);
+    UART1Printf("bias: %i, %i, %i", bias[0], bias[1], bias[2]);
 
     mag_calibration_latch = 0;
   }

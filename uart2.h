@@ -6,17 +6,6 @@
 #include <stddef.h>
 
 
-#define UART2_RX_FIFO_LENGTH (1 << 7)  // 2^7 = 128
-#define UART2_DATA_BUFFER_LENGTH (32)
-#define UART2_TX_BUFFER_LENGTH (32)
-
-enum UART2RxMode {
-  UART2_RX_MODE_IDLE = 0,
-  UART2_RX_MODE_TR_ONGOING,
-  UART2_RX_MODE_UT_ONGOING,
-};
-
-
 // =============================================================================
 // Public functions:
 

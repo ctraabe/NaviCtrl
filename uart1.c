@@ -1,4 +1,4 @@
-#include "uart.h"
+#include "uart1.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -8,12 +8,13 @@
 #include "mk_serial_protocol.h"
 #include "mk_serial_tx.h"
 #include "timing.h"
+#include "uart.h"
 
 
 // =============================================================================
 // Private data:
 
-#define UART_BAUD (57600)
+#define UART1_BAUD (57600)
 
 static volatile uint8_t rx_fifo_[UART_RX_FIFO_LENGTH];
 static volatile size_t rx_fifo_head_ = 0, tx_bytes_remaining_ = 0;
@@ -34,7 +35,7 @@ static inline void SendUARTData(void);
 // =============================================================================
 // Public functions:
 
-void UARTInit(void)
+void UART1Init(void)
 {
   SCU_APBPeriphClockConfig(__GPIO3, ENABLE);  // Enable the GPIO3 Clock
   SCU_APBPeriphClockConfig(__UART1, ENABLE);  // Enable the UART1 Clock
@@ -62,7 +63,7 @@ void UARTInit(void)
   uart_init.UART_WordLength = UART_WordLength_8D;
   uart_init.UART_StopBits = UART_StopBits_1;
   uart_init.UART_Parity = UART_Parity_No ;
-  uart_init.UART_BaudRate = UART_BAUD;
+  uart_init.UART_BaudRate = UART1_BAUD;
   uart_init.UART_HardwareFlowControl = UART_HardwareFlowControl_None;
   uart_init.UART_Mode = UART_Mode_Tx_Rx;
   uart_init.UART_FIFO = UART_FIFO_Enable;
@@ -83,7 +84,7 @@ void UARTInit(void)
 // (rx_fifo_) by the Rx interrupt handler. Each byte is passed to the
 // appropriate Rx handler, which may place it into the temporary data buffer
 // (data_buffer_).
-void ProcessIncomingUART(void)
+void ProcessIncomingUART1(void)
 {
   static size_t rx_fifo_tail = 0;
   static enum UARTRxMode mode = UART_RX_MODE_IDLE;
@@ -110,7 +111,7 @@ void ProcessIncomingUART(void)
 // -----------------------------------------------------------------------------
 // This function returns the address of the shared Tx buffer (tx_buffer_) if it
 // is available or zero (NULL) if not.
-uint8_t * RequestUARTTxBuffer(void)
+uint8_t * RequestUART1TxBuffer(void)
 {
   if (tx_bytes_remaining_ != 0)
   {
@@ -122,7 +123,7 @@ uint8_t * RequestUARTTxBuffer(void)
 
 // -----------------------------------------------------------------------------
 // This function calls handlers for pending data transmission requests.
-void SendPendingUART(void)
+void SendPendingUART1(void)
 {
   // Add other Tx protocols here.
   SendPendingMKSerial();
@@ -130,7 +131,7 @@ void SendPendingUART(void)
 
 // -----------------------------------------------------------------------------
 // This function initiates the transmission of the data in the Tx buffer.
-void UARTTxBuffer(size_t tx_length)
+void UART1TxBuffer(size_t tx_length)
 {
   if (tx_bytes_remaining_ != 0 || tx_length == 0
     || tx_length > UART_TX_BUFFER_LENGTH) return;
@@ -150,7 +151,7 @@ void UARTTxBuffer(size_t tx_length)
 // -----------------------------------------------------------------------------
 // This function immediately transmits a byte and blocks computation until
 // transmission is commenced.
-void UARTTxByte(uint8_t byte)
+void UART1TxByte(uint8_t byte)
 {
   while(UART_GetFlagStatus(UART1, UART_FLAG_TxFIFOFull));
   UART_SendData(UART1, byte);
@@ -161,14 +162,14 @@ void UARTTxByte(uint8_t byte)
 // adds the end-of-line characters and checks that the character buffer is not
 // exceeded. This version blocks program execution until UART is available and
 // then further blocks execution until the transmission has competed.
-void UARTPrintf(const char *format, ...)
+void UART1Printf(const char *format, ...)
 {
-  UARTWaitUntilCompletion(500);
+  UART1WaitUntilCompletion(500);
   va_list arglist;
   va_start(arglist, format);
   Printf(format, arglist);
   va_end(arglist);
-  UARTWaitUntilCompletion(500);
+  UART1WaitUntilCompletion(500);
 }
 
 // -----------------------------------------------------------------------------
@@ -177,7 +178,7 @@ void UARTPrintf(const char *format, ...)
 // exceeded. This version attempts to get the UART Tx buffer and then initiates
 // an interrupt-bases transmission. This function is non-blocking, but may fail
 // to get access to the UART Tx buffer.
-void UARTPrintfSafe(const char *format, ...)
+void UART1PrintfSafe(const char *format, ...)
 {
   va_list arglist;
   va_start(arglist, format);
@@ -186,7 +187,7 @@ void UARTPrintfSafe(const char *format, ...)
 }
 
 // -----------------------------------------------------------------------------
-uint32_t UARTWaitUntilCompletion(uint32_t time_limit_ms)
+uint32_t UART1WaitUntilCompletion(uint32_t time_limit_ms)
 {
   uint32_t timeout = GetTimestampMillisFromNow(time_limit_ms);
   while ((tx_bytes_remaining_ != 0) && !TimestampInPast(timeout)) continue;
@@ -194,7 +195,7 @@ uint32_t UARTWaitUntilCompletion(uint32_t time_limit_ms)
 }
 
 // -----------------------------------------------------------------------------
-void UARTHandler(void)
+void UART1Handler(void)
 {
   UART_ClearITPendingBit(UART1, UART_IT_Receive);
   ReceiveUARTData();
@@ -212,9 +213,9 @@ static void Printf(const char *format, va_list arglist)
 {
   // Buffer requirement: 100 chars + 2 newline chars + 1 null terminator
   _Static_assert(UART_TX_BUFFER_LENGTH >= 103,
-    "UART buffer not large enough for UARTPrintf");
+    "UART buffer not large enough for UART1Printf");
 
-  uint8_t * ascii = RequestUARTTxBuffer();
+  uint8_t * ascii = RequestUART1TxBuffer();
   if (!ascii) return;
 
   int length = vsnprintf((char *)ascii, 101, (char *)format, arglist);
@@ -230,7 +231,7 @@ static void Printf(const char *format, va_list arglist)
     length = 103;
   }
 
-  UARTTxBuffer(length);
+  UART1TxBuffer(length);
 }
 
 // -----------------------------------------------------------------------------

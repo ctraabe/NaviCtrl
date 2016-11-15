@@ -13,7 +13,7 @@
 #include "sd_card.h"
 #include "spi_slave.h"
 #include "timing.h"
-#include "uart.h"
+#include "uart1.h"
 #include "uart2.h"
 #ifndef VISION
   #include "ublox.h"
@@ -139,13 +139,13 @@ int main(void)
   VICConfig();
   TimingInit();
   LEDInit();
-  UARTInit();
+  UART1Init();
   UART2Init();
   I2CInit();
   SPISlaveInit();
 
   Wait(100);
-  UARTPrintf("University of Tokyo NaviCtrl firmware V2");
+  UART1Printf("University of Tokyo NaviCtrl firmware V2");
 
   ReadEEPROM();
 #ifndef VISION
@@ -228,7 +228,7 @@ int main(void)
     }
 
     // Check for incoming data on the "update & debug" UART port.
-    ProcessIncomingUART();
+    ProcessIncomingUART1();
 
     ProcessLogging();
 
@@ -240,29 +240,29 @@ int main(void)
 
       // Debug output for GPS and magnetomter. Remove after testing is completed
 
-      // UARTPrintf("%0.2f,%0.2f,%0.2f",
+      // UART1Printf("%0.2f,%0.2f,%0.2f",
       //   MagneticVector()[0],
       //   MagneticVector()[1],
       //   MagneticVector()[2]);
 
-      // UARTPrintf("%i,%i,%i",
+      // UART1Printf("%i,%i,%i",
       //   MagnetometerVector()[0],
       //   MagnetometerVector()[1],
       //   MagnetometerVector()[2]);
 
-      // UARTPrintf("%i,%i,%i",
+      // UART1Printf("%i,%i,%i",
       //   MagnetometerBiasVector()[0],
       //   MagnetometerBiasVector()[1],
       //   MagnetometerBiasVector()[2]);
 
-      // UARTPrintf("%f", CurrentHeading());
+      // UART1Printf("%f", CurrentHeading());
 
-      // UARTPrintf("%f,%f,%f",
+      // UART1Printf("%f,%f,%f",
       //   (float)(UBXPosLLH()->longitude * 1e-7),
       //   (float)(UBXPosLLH()->latitude * 1e-7),
       //   (float)(UBXPosLLH()->height_above_ellipsoid * 1e-3));
 
-      UARTPrintf("%0.2f,%0.2f,%0.2f,%0.2f",
+      UART1Printf("%0.2f,%0.2f,%0.2f,%0.2f",
         PositionVector()[0],
         PositionVector()[1],
         PositionVector()[2],

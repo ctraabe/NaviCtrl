@@ -82,6 +82,6 @@ void SetMKTxRequest(enum MKTxBits tx_request)
 
 static void SendVersion(void)
 {
-  MKSerialTx(1, 'V', 0, 0);
+  MKSerialTx(1, 'V', 0, 0, UART_PORT_UART1);
   tx_request_ &= ~MK_TX_VERSION;
 }

@@ -2,6 +2,7 @@
 
 #include "91x_lib.h"
 #include "irq_priority.h"
+#include "uart.h"
 
 
 // =============================================================================
@@ -9,11 +10,11 @@
 
 #define UART2_BAUD (115200)
 
-static volatile uint8_t rx_fifo_[UART2_RX_FIFO_LENGTH];
+static volatile uint8_t rx_fifo_[UART_RX_FIFO_LENGTH];
 static volatile size_t rx_fifo_head_ = 0, tx_bytes_remaining_ = 0;
 static const uint8_t * volatile tx_ptr_ = 0;
-// static uint8_t data_buffer_[UART2_DATA_BUFFER_LENGTH];
-static uint8_t tx_buffer_[UART2_TX_BUFFER_LENGTH];
+// static uint8_t data_buffer_[UART_DATA_BUFFER_LENGTH];
+static uint8_t tx_buffer_[UART_TX_BUFFER_LENGTH];
 static uint8_t tx_overflow_counter_ = 0;
 
 
@@ -80,13 +81,13 @@ void UART2Init(void)
 void ProcessIncomingUART2(void)
 {
   static size_t rx_fifo_tail = 0;
-  // static enum UART2RxMode mode = UART2_RX_MODE_IDLE;
+  // static enum UART2RxMode mode = UART_RX_MODE_IDLE;
 
   // Process each byte.
   while (rx_fifo_tail != rx_fifo_head_)
   {
     // Move the ring buffer tail forward.
-    rx_fifo_tail = (rx_fifo_tail + 1) % UART2_RX_FIFO_LENGTH;
+    rx_fifo_tail = (rx_fifo_tail + 1) % UART_RX_FIFO_LENGTH;
 
     // Add Rx protocols here.
   }
@@ -110,7 +111,7 @@ uint8_t * RequestUART2TxBuffer(void)
 void UART2TxBuffer(size_t tx_length)
 {
   if (tx_bytes_remaining_ != 0 || tx_length == 0
-    || tx_length > UART2_TX_BUFFER_LENGTH) return;
+    || tx_length > UART_TX_BUFFER_LENGTH) return;
 
   tx_ptr_ = &tx_buffer_[0];
   tx_bytes_remaining_ = tx_length;
@@ -148,7 +149,7 @@ static inline void ReceiveUARTData(void)
 {
   while (!UART_GetFlagStatus(UART2, UART_FLAG_RxFIFOEmpty))
   {
-    rx_fifo_head_ = (rx_fifo_head_ + 1) % UART2_RX_FIFO_LENGTH;
+    rx_fifo_head_ = (rx_fifo_head_ + 1) % UART_RX_FIFO_LENGTH;
     rx_fifo_[rx_fifo_head_] = UART_ReceiveData(UART2);
   }
 }

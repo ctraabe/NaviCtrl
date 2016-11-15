@@ -10,7 +10,7 @@
 #include "flight_ctrl_comms.h"
 #include "sd_card.h"
 #include "timing.h"
-#include "uart.h"
+#include "uart1.h"
 #include "vector.h"
 #ifndef VISION
   #include "ublox.h"
@@ -131,11 +131,11 @@ void NavigationInit(void)
   char filename[12] = "WP_LIST.CSV", line[256];
   if (f_open(&file, filename, FA_READ) != FR_OK)
   {
-    UARTPrintf("Failed to open %s", filename);
+    UART1Printf("Failed to open %s", filename);
     return;
   }
 
-  UARTPrintf("Opened file %s", filename);
+  UART1Printf("Opened file %s", filename);
 
   // Clear the waypoints.
   for (size_t i = N_ROUTES; i--; ) n_waypoints_[i] = 0;
@@ -163,7 +163,7 @@ void NavigationInit(void)
       else
       {
         nav_error_ = NAV_ERROR_SD_ROUTE_NUMBER;
-        UARTPrintf("navigation: invalid route number in WP_LIST.CSV line %i",
+        UART1Printf("navigation: invalid route number in WP_LIST.CSV line %i",
           line_number);
         goto CLOSE_AND_RETURN;
       }
@@ -182,7 +182,7 @@ void NavigationInit(void)
         if (n_waypoints_[route_index] == MAX_WAYPOINTS)
         {
           nav_error_ = NAV_ERROR_SD_WAYPOINT_COUNT;
-          UARTPrintf("navigation: too many waypoints in WP_LIST.CSV line %i",
+          UART1Printf("navigation: too many waypoints in WP_LIST.CSV line %i",
             line_number);
           goto CLOSE_AND_RETURN;
         }
@@ -226,7 +226,7 @@ void NavigationInit(void)
         else
         {
           nav_error_ = NAV_ERROR_SD_DATA_ROWS;
-          UARTPrintf("navigation: incompatible number of entries in WP_LIST.CSV"
+          UART1Printf("navigation: incompatible number of entries in WP_LIST.CSV"
             " line %i", line_number);
           goto CLOSE_AND_RETURN;
         }
@@ -240,10 +240,10 @@ void NavigationInit(void)
   // Report the loaded waypoints.
   for (uint32_t i = 0; i < 3; i++)
   {
-    UARTPrintf("Route %i:", i + 1);
+    UART1Printf("Route %i:", i + 1);
     for (uint32_t j = 0; j < n_waypoints_[i]; j++)
     {
-      UARTPrintf("%02i: (%+06.2f %+06.2f %+06.2f) %4.2f %4.2f %+04.0f %03.0f"
+      UART1Printf("%02i: (%+06.2f %+06.2f %+06.2f) %4.2f %4.2f %+04.0f %03.0f"
         " %03.0f %i", j + 1,
         waypoints_[i][j].target_position[0],
         waypoints_[i][j].target_position[1],
@@ -257,7 +257,7 @@ void NavigationInit(void)
     }
   }
 
-  UARTPrintf("End of %s", filename);
+  UART1Printf("End of %s", filename);
 
   CLOSE_AND_RETURN:
   f_close(&file);

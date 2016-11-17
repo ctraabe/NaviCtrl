@@ -15,7 +15,7 @@ SOURCES  += libstr91x/src/91x_vic.c
 SOURCES  += libstr91x/src/91x_wdg.c
 SOURCES  += libstr91x/src/91x_wiu.c
 
-TARGET := $(notdir $(shell pwd))
+TARGET := UT_NaviCtrl
 
 MCU      := arm9e
 
@@ -56,7 +56,7 @@ OBJECTS   = $(addsuffix .o, $(addprefix $(BUILD_PATH)/, $(SOURCES)))
 ASSEMBL   = $(addsuffix .lst, $(addprefix $(BUILD_PATH)/, $(SOURCES)))
 
 ELF    := $(BUILD_PATH)/$(TARGET).elf
-HEX    := $(BUILD_PATH)/$(TARGET).hex
+HEX    := $(BUILD_PATH)/$(TARGET)_STR91x.hex
 
 # Rules to make dependency "makefiles"
 $(BUILD_PATH)/%.c.d: %.c makefile

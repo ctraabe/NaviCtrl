@@ -15,11 +15,9 @@
 #include "timing.h"
 #include "uart1.h"
 #include "uart2.h"
-#ifndef VISION
-  #include "ublox.h"
-#else
+#include "ublox.h"
+#ifdef VISION
   #include "kalman_filter.h"
-  #include "vision.h"
 #endif
 
 
@@ -148,11 +146,7 @@ int main(void)
   UART1Printf("University of Tokyo NaviCtrl firmware V2");
 
   ReadEEPROM();
-#ifndef VISION
   UBloxInit();
-#else
-  VisionInit();
-#endif
   LSM303DLInit();
   FlightCtrlCommsInit();
   SDCardInit();
@@ -178,19 +172,8 @@ int main(void)
     // Skip the rest of the main loop if mag calibration is ongoing.
     if (MagCalibration(mag_calibration_)) continue;
 
-    // Check for new data on the upper serial connection (GPS or vision).
-#ifndef VISION
+    // Check for new data on the GPS UART port.
     ProcessIncomingUBlox();
-#else
-    if (ProcessIncomingVision())
-    {
-      KalmanVisionUpdate();
-#ifdef LOG_DEBUG_TO_SD
-      SetNewDataCallback(LogVisionData);
-      SetNewDataCallback(LogKalmanData);
-#endif
-    }
-#endif
 
     // Check for new data from the FlightCtrl.
     if (NewDataFromFlightCtrl())
@@ -229,6 +212,9 @@ int main(void)
 
     // Check for incoming data on the "update & debug" UART port.
     ProcessIncomingUART1();
+
+    // Check for incoming data on the "FligthCtrl" UART port.
+    ProcessIncomingUART2();
 
     ProcessLogging();
 

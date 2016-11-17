@@ -9,6 +9,7 @@
 #include "mk_serial_tx.h"
 #include "timing.h"
 #include "uart.h"
+#include "ut_serial_protocol.h"
 
 
 // =============================================================================
@@ -28,8 +29,8 @@ static uint8_t tx_overflow_counter_ = 0;
 // Private function declarations:
 
 static void Printf(const char *format, va_list arglist);
-static inline void ReceiveUARTData(void);
-static inline void SendUARTData(void);
+static inline void ReceiveUART1Data(void);
+static inline void SendUART1Data(void);
 
 
 // =============================================================================
@@ -91,7 +92,7 @@ void ProcessIncomingUART1(void)
 
   // Make sure nothing is remaining in the UART1 hardware receive FIFO.
   VIC_ITCmd(UART1_ITLine, DISABLE);
-  ReceiveUARTData();
+  ReceiveUART1Data();
   VIC_ITCmd(UART1_ITLine, ENABLE);
 
   // Process each byte.
@@ -100,11 +101,30 @@ void ProcessIncomingUART1(void)
     // Move the ring buffer tail forward.
     rx_fifo_tail = (rx_fifo_tail + 1) % UART_RX_FIFO_LENGTH;
 
-    // Add other Rx protocols here.
-    if (mode != UART_RX_MODE_IDLE)
-      mode = MKSerialRx(rx_fifo_[rx_fifo_tail], data_buffer_);
-    else if (rx_fifo_[rx_fifo_tail] == '#')  // MK protocol start character
-      mode = UART_RX_MODE_MK_ONGOING;
+    // Add Rx protocols here.
+    switch (mode)
+    {
+      default:
+      case UART_RX_MODE_IDLE:
+        switch (rx_fifo_[rx_fifo_tail])
+        {
+          case MK_START_CHARACTER:
+            mode = UART_RX_MODE_MK_ONGOING;
+            break;
+          case UT_START_CHARACTER:
+            mode = UART_RX_MODE_UT_ONGOING;
+            break;
+          default:
+            break;
+        }
+        break;
+      case UART_RX_MODE_MK_ONGOING:
+        mode = MKSerialRx(rx_fifo_[rx_fifo_tail], data_buffer_);
+        break;
+      case UART_RX_MODE_UT_ONGOING:
+        mode = UTSerialRx(rx_fifo_[rx_fifo_tail], data_buffer_);
+        break;
+    }
   }
 }
 
@@ -141,7 +161,7 @@ void UART1TxBuffer(size_t tx_length)
 
   // Fill up the UART1 hardware transmit FIFO.
   VIC_ITCmd(UART1_ITLine, DISABLE);
-  SendUARTData();
+  SendUART1Data();
   VIC_ITCmd(UART1_ITLine, ENABLE);
 
   // Enable the transmit FIFO almost empty interrupt.
@@ -198,8 +218,8 @@ uint32_t UART1WaitUntilCompletion(uint32_t time_limit_ms)
 void UART1Handler(void)
 {
   UART_ClearITPendingBit(UART1, UART_IT_Receive);
-  ReceiveUARTData();
-  SendUARTData();
+  ReceiveUART1Data();
+  SendUART1Data();
 }
 
 
@@ -235,7 +255,7 @@ static void Printf(const char *format, va_list arglist)
 }
 
 // -----------------------------------------------------------------------------
-static inline void ReceiveUARTData(void)
+static inline void ReceiveUART1Data(void)
 {
   while (!UART_GetFlagStatus(UART1, UART_FLAG_RxFIFOEmpty))
   {
@@ -245,7 +265,7 @@ static inline void ReceiveUARTData(void)
 }
 
 // -----------------------------------------------------------------------------
-static inline void SendUARTData(void)
+static inline void SendUART1Data(void)
 {
   while (tx_bytes_remaining_ != 0
     && !UART_GetFlagStatus(UART1, UART_FLAG_TxFIFOFull))

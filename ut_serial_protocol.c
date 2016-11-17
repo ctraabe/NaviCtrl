@@ -10,12 +10,6 @@
 
 
 // =============================================================================
-// Private data:
-
-#define UT_HEADER_LENGTH (1)
-
-
-// =============================================================================
 // Public functions:
 
 // This function collects an incoming byte that is assumed to be part of a
@@ -27,7 +21,8 @@
 enum UARTRxMode UTSerialRx(uint8_t byte, uint8_t * data_buffer)
 {
   static uint8_t * rx_ptr = 0;
-  static uint8_t bytes_processed = 0, length = 0, id = 0;
+  static uint8_t bytes_processed = 0, length = 0;
+  static uint8_t component_id = 0, message_id = 0;
   static union U16Bytes crc;
 
   if (bytes_processed == 0)  // First byte is payload length
@@ -37,13 +32,14 @@ enum UARTRxMode UTSerialRx(uint8_t byte, uint8_t * data_buffer)
     crc.u16 = CRCUpdateCCITT(0xFFFF, byte);
     rx_ptr = data_buffer;
   }
-  else if (bytes_processed == 1)  // Second byte is id
+  else if (bytes_processed == 1)  // Second byte is the message ID
   {
-    id = byte;
+    message_id = byte;
     crc.u16 = CRCUpdateCCITT(crc.u16, byte);
   }
-  else if (bytes_processed == 2)  // Third byte is currently unused
+  else if (bytes_processed == 2)  // Third byte is the component ID
   {
+    component_id = byte;
     crc.u16 = CRCUpdateCCITT(crc.u16, byte);
   }
   else if (bytes_processed < (UT_HEADER_LENGTH - 1 + length))  // Payload
@@ -57,7 +53,7 @@ enum UARTRxMode UTSerialRx(uint8_t byte, uint8_t * data_buffer)
   }
   else  // CRC[1]
   {
-    if (byte == crc.bytes[1]) HandleUTRx(id, data_buffer);
+    if (byte == crc.bytes[1]) HandleUTRx(component_id, message_id, data_buffer);
     goto RESET;
   }
   bytes_processed++;
@@ -73,8 +69,8 @@ enum UARTRxMode UTSerialRx(uint8_t byte, uint8_t * data_buffer)
 // message must contain at least a destination address and a label. If no
 // additional data is necessary, then the source pointer and length can both be
 // set to zero.
-void UTSerialTx(uint8_t id, const uint8_t * source, size_t length,
-  enum UARTPort uart_port)
+void UTSerialTx(uint8_t component_id, uint8_t message_id,
+  const uint8_t * source, size_t length, enum UARTPort uart_port)
 {
   if ((length + 1 + UT_HEADER_LENGTH + 2) > UART_TX_BUFFER_LENGTH) return;
 
@@ -99,11 +95,11 @@ void UTSerialTx(uint8_t id, const uint8_t * source, size_t length,
   // Copy the payload length to the TX buffer.
   *tx_ptr++ = length;
 
-  // Copy the id to the TX buffer.
-  *tx_ptr++ = id;
+  // Copy the message ID to the TX buffer.
+  *tx_ptr++ = message_id;
 
-  // The next byte is unused (for padding and future use)
-  tx_ptr++;
+  // Copy the component ID to the TX buffer.
+  *tx_ptr++ = component_id;
 
   // Copy the payload to the TX buffer.
   memcpy(tx_ptr, source, length);
@@ -111,7 +107,7 @@ void UTSerialTx(uint8_t id, const uint8_t * source, size_t length,
 
   // Compute the CRC (starting from payload length) and copy to the TX buffer.
   union U16Bytes crc = { 0xFFFF };
-  for(uint8_t i = 1; i < length + UT_HEADER_LENGTH; ++i)
+  for(size_t i = 1; i < length + UT_HEADER_LENGTH; ++i)
     crc.u16 = CRCUpdateCCITT(crc.u16, tx_buffer[i]);
   *tx_ptr++ = crc.bytes[0];
   *tx_ptr = crc.bytes[1];

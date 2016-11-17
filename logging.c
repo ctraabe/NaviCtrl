@@ -18,11 +18,9 @@
 #include "spi_slave.h"
 #include "uart1.h"
 #include "union_types.h"
-#ifndef VISION
-  #include "ublox.h"
-#else
+#include "ublox.h"
+#ifdef VISION
   #include "kalman_filter.h"
-  #include "vision.h"
 #endif
 // TODO: remove
 #include "led.h"
@@ -103,6 +101,21 @@ void LogFromFlightCtrlData(void)
 }
 
 // -----------------------------------------------------------------------------
+#ifdef VISION
+void LogKalmanData(void)
+{
+  if (SDCardNotPresent() || !file_.fs) return;
+
+  union U16Bytes temp;
+  temp.bytes[0] = 0x88;
+  temp.bytes[1] = 0x99;
+  WriteToFIFO((char *)temp.bytes, 2);
+  WriteToFIFO((char *)KalmanVelocityVector(), sizeof(float) * 3);
+  temp.u16 = CRCCCITT((uint8_t *)KalmanVelocityVector(), sizeof(float) * 3);
+  WriteToFIFO((char *)temp.bytes, 2);
+}
+#endif
+// -----------------------------------------------------------------------------
 void LogMagnetometerData(void)
 {
   if (SDCardNotPresent() || !file_.fs) return;
@@ -127,23 +140,21 @@ void LogToFlightCtrlData(const struct ToFlightCtrl * data)
   WriteToFIFO((char *)temp.bytes, 2);
   WriteToFIFO((char *)data, sizeof(struct ToFlightCtrl));
 }
-
-// -----------------------------------------------------------------------------
 #ifdef VISION
-void LogKalmanData(void)
+// -----------------------------------------------------------------------------
+void LogTX1VisionData(struct TX1Vision * from_tx1)
 {
   if (SDCardNotPresent() || !file_.fs) return;
 
   union U16Bytes temp;
-  temp.bytes[0] = 0x88;
-  temp.bytes[1] = 0x99;
+  temp.bytes[0] = 0xCC;
+  temp.bytes[1] = 0xDD;
   WriteToFIFO((char *)temp.bytes, 2);
-  WriteToFIFO((char *)KalmanVelocityVector(), sizeof(float) * 3);
-  temp.u16 = CRCCCITT((uint8_t *)KalmanVelocityVector(), sizeof(float) * 3);
+  WriteToFIFO((char *)from_tx1, sizeof(struct TX1Vision));
+  temp.u16 = CRCCCITT((uint8_t *)from_tx1, sizeof(struct TX1Vision));
   WriteToFIFO((char *)temp.bytes, 2);
 }
 #endif
-#ifndef VISION
 // -----------------------------------------------------------------------------
 void LogUBXPosLLH(void)
 {
@@ -193,22 +204,6 @@ void LogUBXTimeUTC(void)
   uint16_t crc = CRCCCITT((uint8_t *)UBXTimeUTC(), sizeof(struct UBXTimeUTC));
   WriteToFIFO((char *)&crc, 2);
 }
-#endif
-#ifdef VISION
-// -----------------------------------------------------------------------------
-void LogVisionData(void)
-{
-  if (SDCardNotPresent() || !file_.fs) return;
-
-  union U16Bytes temp;
-  temp.bytes[0] = 0xCC;
-  temp.bytes[1] = 0xDD;
-  WriteToFIFO((char *)temp.bytes, 2);
-  WriteToFIFO((char *)FromVision(), sizeof(struct FromVision));
-  temp.u16 = CRCCCITT((uint8_t *)FromVision(), sizeof(struct FromVision));
-  WriteToFIFO((char *)temp.bytes, 2);
-}
-#endif
 
 // -----------------------------------------------------------------------------
 void ProcessLogging(void)

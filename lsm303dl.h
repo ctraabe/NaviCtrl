@@ -33,11 +33,6 @@ const float * MagneticVector(void);
 // -----------------------------------------------------------------------------
 const int16_t * MagnetometerVector(void);
 
-#ifndef VISION
-// -----------------------------------------------------------------------------
-float UBXLongitudeToMeters(void);
-#endif
-
 
 // =============================================================================
 // Public functions:

@@ -2,7 +2,9 @@
 
 #include "91x_lib.h"
 #include "irq_priority.h"
+#include "mk_serial_protocol.h"
 #include "uart.h"
+#include "ut_serial_protocol.h"
 
 
 // =============================================================================
@@ -13,7 +15,7 @@
 static volatile uint8_t rx_fifo_[UART_RX_FIFO_LENGTH];
 static volatile size_t rx_fifo_head_ = 0, tx_bytes_remaining_ = 0;
 static const uint8_t * volatile tx_ptr_ = 0;
-// static uint8_t data_buffer_[UART_DATA_BUFFER_LENGTH];
+static uint8_t data_buffer_[UART_DATA_BUFFER_LENGTH];
 static uint8_t tx_buffer_[UART_TX_BUFFER_LENGTH];
 static uint8_t tx_overflow_counter_ = 0;
 
@@ -21,8 +23,8 @@ static uint8_t tx_overflow_counter_ = 0;
 // =============================================================================
 // Private function declarations:
 
-static inline void ReceiveUARTData(void);
-static inline void SendUARTData(void);
+static inline void ReceiveUART2Data(void);
+static inline void SendUART2Data(void);
 
 
 // =============================================================================
@@ -81,7 +83,12 @@ void UART2Init(void)
 void ProcessIncomingUART2(void)
 {
   static size_t rx_fifo_tail = 0;
-  // static enum UART2RxMode mode = UART_RX_MODE_IDLE;
+  static enum UARTRxMode mode = UART_RX_MODE_IDLE;
+
+  // Make sure nothing is remaining in the UART2 hardware receive FIFO.
+  VIC_ITCmd(UART2_ITLine, DISABLE);
+  ReceiveUART2Data();
+  VIC_ITCmd(UART2_ITLine, ENABLE);
 
   // Process each byte.
   while (rx_fifo_tail != rx_fifo_head_)
@@ -90,6 +97,29 @@ void ProcessIncomingUART2(void)
     rx_fifo_tail = (rx_fifo_tail + 1) % UART_RX_FIFO_LENGTH;
 
     // Add Rx protocols here.
+    switch (mode)
+    {
+      default:
+      case UART_RX_MODE_IDLE:
+        switch (rx_fifo_[rx_fifo_tail])
+        {
+          case MK_START_CHARACTER:
+            mode = UART_RX_MODE_MK_ONGOING;
+            break;
+          case UT_START_CHARACTER:
+            mode = UART_RX_MODE_UT_ONGOING;
+            break;
+          default:
+            break;
+        }
+        break;
+      case UART_RX_MODE_MK_ONGOING:
+        mode = MKSerialRx(rx_fifo_[rx_fifo_tail], data_buffer_);
+        break;
+      case UART_RX_MODE_UT_ONGOING:
+        mode = UTSerialRx(rx_fifo_[rx_fifo_tail], data_buffer_);
+        break;
+    }
   }
 }
 
@@ -118,7 +148,7 @@ void UART2TxBuffer(size_t tx_length)
 
   // Fill up the UART2 hardware transmit FIFO.
   VIC_ITCmd(UART2_ITLine, DISABLE);
-  SendUARTData();
+  SendUART2Data();
   VIC_ITCmd(UART2_ITLine, ENABLE);
 
   // Enable the transmit FIFO almost empty interrupt.
@@ -138,14 +168,14 @@ void UART2TxByte(uint8_t byte)
 void UART2Handler(void)
 {
   UART_ClearITPendingBit(UART2, UART_IT_Receive);
-  ReceiveUARTData();
+  ReceiveUART2Data();
 }
 
 
 // =============================================================================
 // Private functions:
 
-static inline void ReceiveUARTData(void)
+static inline void ReceiveUART2Data(void)
 {
   while (!UART_GetFlagStatus(UART2, UART_FLAG_RxFIFOEmpty))
   {
@@ -155,7 +185,7 @@ static inline void ReceiveUARTData(void)
 }
 
 // -----------------------------------------------------------------------------
-static inline void SendUARTData(void)
+static inline void SendUART2Data(void)
 {
   while (tx_bytes_remaining_ != 0
     && !UART_GetFlagStatus(UART2, UART_FLAG_TxFIFOFull))

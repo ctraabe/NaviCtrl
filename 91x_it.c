@@ -30,11 +30,7 @@
 #include "spi_slave.h"
 #include "uart1.h"
 #include "uart2.h"
-#ifndef VISION
-  #include "ublox.h"
-#else
-  #include "vision.h"
-#endif
+#include "ublox.h"
 
 
 // Exceptions:
@@ -70,11 +66,7 @@ void UART0_IRQHandler(void)
   DAISY_VIC();
   IENABLE;
 
-#ifndef VISION
   UBloxUARTHandler();
-#else
-  VisionUARTHandler();
-#endif
 
   IDISABLE;
   VIC1->VAR = 0xFF;

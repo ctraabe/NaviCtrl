@@ -52,6 +52,14 @@ float TargetPosition(enum WorldAxes axis);
 // -----------------------------------------------------------------------------
 float TransitSpeed(void);
 
+#ifndef VISION
+// -----------------------------------------------------------------------------
+int32_t GPSHome(enum GeoAxes axis);
+
+// -----------------------------------------------------------------------------
+float UBXLongitudeToMeters(void);
+#endif
+
 
 // =============================================================================
 // Public functions:
@@ -62,9 +70,6 @@ void NavigationInit(void);
 void UpdateNavigation(void);
 
 #ifndef VISION
-// -----------------------------------------------------------------------------
-int32_t GPSHome(enum GeoAxes axis);
-
 // -----------------------------------------------------------------------------
 void SetGPSHome(void);
 #endif

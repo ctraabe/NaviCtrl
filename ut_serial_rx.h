@@ -10,7 +10,8 @@
 
 // This function handles the response to data that has been received in the
 // UTokyo protocol.
-void HandleUTRx(uint8_t id, const uint8_t * data_buffer);
+void HandleUTRx(uint8_t component_id, uint8_t message_id,
+  const uint8_t * data_buffer);
 
 
 #endif  // UT_SERIAL_RX_H_

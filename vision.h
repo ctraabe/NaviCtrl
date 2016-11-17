@@ -7,7 +7,7 @@
 #include "constants.h"
 
 
-struct FromVision {
+struct TX1Vision {
   uint32_t timestamp;  // microseconds
   float position[3];  // meters
   float quaternion[3];
@@ -39,25 +39,14 @@ uint16_t VisionStatus(void);
 // -----------------------------------------------------------------------------
 uint32_t VisionTimestamp(void);
 
-// -----------------------------------------------------------------------------
-const struct FromVision * FromVision(void);
-
 
 // =============================================================================
 // Public functions:
 
-void VisionInit(void);
-
-// -----------------------------------------------------------------------------
-// This function processes bytes that have been read into the Rx ring buffer
-// (rx_buffer_) by the Rx interrupt handler.
-uint32_t ProcessIncomingVision(void);
-
-// -----------------------------------------------------------------------------
 void CheckVisionFreshness(void);
 
 // -----------------------------------------------------------------------------
-void VisionUARTHandler(void);
+void ProcessTX1VisionData(struct TX1Vision * from_vision);
 
 
 #endif  // VISION_H_

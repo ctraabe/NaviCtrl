@@ -28,6 +28,12 @@ static enum VisionErrorBits vision_error_bits_ = VISION_ERROR_BIT_STALE;
 
 
 // =============================================================================
+// Private function declarations:
+
+static void VisionUpdates(void);
+
+
+// =============================================================================
 // Accessors:
 
 float VisionHeading(void)
@@ -82,6 +88,18 @@ void CheckVisionFreshness(void)
 }
 
 // -----------------------------------------------------------------------------
+void ProcessRaspiVisionData(struct RaspiVision * from_raspi)
+{
+  // Copy received data.
+  Vector3Copy(from_raspi->position, position_);
+  heading_ = from_raspi->heading;
+  status_ = from_raspi->status;
+  timestamp_ = from_raspi->timestamp;
+
+  VisionUpdates();
+}
+
+// -----------------------------------------------------------------------------
 void ProcessTX1VisionData(struct TX1Vision * from_tx1)
 {
   // Copy received data.
@@ -99,6 +117,15 @@ void ProcessTX1VisionData(struct TX1Vision * from_tx1)
   // Compute heading.
   heading_ = HeadingFromQuaternion(quaternion_);
 
+  VisionUpdates();
+}
+
+
+// =============================================================================
+// Private functions:
+
+static void VisionUpdates(void)
+{
   UpdatePositionToFlightCtrl();
   UpdateHeadingCorrectionToFlightCtrl();
   KalmanVisionUpdate();

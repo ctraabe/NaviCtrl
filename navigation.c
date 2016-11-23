@@ -24,6 +24,8 @@
 
 #define N_ROUTES (3)
 #define MAX_WAYPOINTS (32)
+// TODO: make this a set-able parameter
+#define DEFAULT_TRANSIT_SPEED (1)  // m/s
 
 struct Waypoint {
   float target_position[3];
@@ -101,7 +103,8 @@ float TargetPosition(enum WorldAxes axis)
 // -----------------------------------------------------------------------------
 float TransitSpeed(void)
 {
-  return current_waypoint_->transit_speed;
+  if (mode_ == NAV_MODE_AUTO) return current_waypoint_->transit_speed;
+  return DEFAULT_TRANSIT_SPEED;
 }
 
 #ifndef VISION
@@ -311,7 +314,7 @@ void UpdateNavigation(void)
   Vector3Subtract(PositionVector(), target_position_, delta_postion_);
   delta_heading_ = WrapToPlusMinusPi(current_heading_ - target_heading_);
 
-  if ((RequestedNavMode() == NAV_MODE_AUTO))
+  if (mode_ == NAV_MODE_AUTO)
   {
     if (!waypoint_reached
       && (Vector3NormSquared(delta_postion_) < radius_squared)

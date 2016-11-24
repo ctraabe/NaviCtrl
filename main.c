@@ -166,6 +166,7 @@ int main(void)
   uint32_t led_timer = GetTimestamp();
   for (;;)
   {
+#ifndef VISION
     // Check for new data from the magnetometer.
     ProcessIncomingLSM303DL();
 
@@ -174,6 +175,7 @@ int main(void)
 
     // Check for new data on the GPS UART port.
     ProcessIncomingUBlox();
+#endif
 
     // Check for new data from the FlightCtrl.
     if (NewDataFromFlightCtrl())
@@ -188,7 +190,9 @@ int main(void)
 
       PrepareFlightCtrlDataExchange();
 
+#ifndef VISION
       RequestLSM303DL();
+#endif
 
       // Check if new data has come while processing the data. This indicates
       // that processing did not complete fast enough.
@@ -198,6 +202,7 @@ int main(void)
       }
     }
 
+#ifndef VISION
     // Normally the magnetometer is read every time new data comes from the
     // FlightCtrl. The following statement is a backup that ensures the
     // magnetometer is updated even if there is no connection to the FlightCtrl
@@ -209,6 +214,7 @@ int main(void)
       if (LSM303DLErrorBits() & LSM303DL_ERROR_BIT_I2C_BUSY)
         I2CReset();
     }
+#endif
 
     // Check for incoming data on the "update & debug" UART port.
     ProcessIncomingUART1();
@@ -248,11 +254,11 @@ int main(void)
       //   (float)(UBXPosLLH()->latitude * 1e-7),
       //   (float)(UBXPosLLH()->height_above_ellipsoid * 1e-3));
 
-      UART1Printf("%0.2f,%0.2f,%0.2f,%0.2f",
-        PositionVector()[0],
-        PositionVector()[1],
-        PositionVector()[2],
-        CurrentHeading());
+      // UART1Printf("%0.2f,%0.2f,%0.2f,%0.2f",
+      //   PositionVector()[0],
+      //   PositionVector()[1],
+      //   PositionVector()[2],
+      //   CurrentHeading());
     }
   }
 }

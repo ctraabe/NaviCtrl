@@ -472,6 +472,8 @@ static void CopyPendingToFlightControlData(void)
   {
     to_fc_.heading_correction_quat_0 = to_fc_buffer_.heading_correction_quat_0;
     to_fc_.heading_correction_quat_z = to_fc_buffer_.heading_correction_quat_z;
+    to_fc_.status = (to_fc_.status & ~NAV_STATUS_BIT_HEADING_DATA_OK)
+      | (to_fc_buffer_.status & NAV_STATUS_BIT_HEADING_DATA_OK);
   }
 
   if (pending_update_bits_ & PENDING_UPDATE_BIT_NAVIGATION)
@@ -483,8 +485,6 @@ static void CopyPendingToFlightControlData(void)
     to_fc_.transit_speed = to_fc_buffer_.transit_speed;
     to_fc_.target_heading = to_fc_buffer_.target_heading;
     to_fc_.heading_rate = to_fc_buffer_.heading_rate;
-    to_fc_.status = (to_fc_.status & !NAV_STATUS_BIT_HEADING_DATA_OK)
-      | (to_fc_buffer_.status & NAV_STATUS_BIT_HEADING_DATA_OK);
   }
 
   if (pending_update_bits_ & PENDING_UPDATE_BIT_POSITION)
@@ -492,7 +492,7 @@ static void CopyPendingToFlightControlData(void)
     to_fc_.position[N_WORLD_AXIS] = to_fc_buffer_.position[N_WORLD_AXIS];
     to_fc_.position[E_WORLD_AXIS] = to_fc_buffer_.position[E_WORLD_AXIS];
     to_fc_.position[D_WORLD_AXIS] = to_fc_buffer_.position[D_WORLD_AXIS];
-    to_fc_.status = (to_fc_.status & !NAV_STATUS_BIT_POSITION_DATA_OK)
+    to_fc_.status = (to_fc_.status & ~NAV_STATUS_BIT_POSITION_DATA_OK)
       | (to_fc_buffer_.status & NAV_STATUS_BIT_POSITION_DATA_OK);
   }
 
@@ -501,7 +501,7 @@ static void CopyPendingToFlightControlData(void)
     to_fc_.velocity[N_WORLD_AXIS] = to_fc_buffer_.velocity[N_WORLD_AXIS];
     to_fc_.velocity[E_WORLD_AXIS] = to_fc_buffer_.velocity[E_WORLD_AXIS];
     to_fc_.velocity[D_WORLD_AXIS] = to_fc_buffer_.velocity[D_WORLD_AXIS];
-    to_fc_.status = (to_fc_.status & !NAV_STATUS_BIT_VELOCITY_DATA_OK)
+    to_fc_.status = (to_fc_.status & ~NAV_STATUS_BIT_VELOCITY_DATA_OK)
       | (to_fc_buffer_.status & NAV_STATUS_BIT_VELOCITY_DATA_OK);
   }
 

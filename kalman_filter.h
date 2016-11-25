@@ -21,7 +21,10 @@ const float * KalmanVelocityVector(void);
 void KalmanTimeUpdate(void);
 
 // -----------------------------------------------------------------------------
-void KalmanVisionUpdate(void);
+void KalmanVisionUpdateVelocity(const float velocity[3]);
+
+// -----------------------------------------------------------------------------
+void KalmanVisionUpdateFromPosition(void);
 
 
 #endif // KALMAN_FILTER_H_

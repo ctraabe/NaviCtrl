@@ -12,9 +12,10 @@
 // Private data:
 
 #define Q_ACC_INTEGRAL (0.001)
-#define R_VISION_DERIVATIVE (0.025)
+#define R_VISION_VELOCITY (0.01)
+#define R_VISION_POSITION_DERIVATIVE (0.025)
 
-static float p_ = 0.0;
+static float p_ = 1e6;
 static float velocity_[3] = { 0.0 };  // m/s
 
 
@@ -58,11 +59,31 @@ void KalmanTimeUpdate(void)
 }
 
 // -----------------------------------------------------------------------------
-void KalmanVisionUpdate(void)
+void KalmanVisionUpdateVelocity(const float velocity[3])
+{
+  float k = p_ / (p_ + R_VISION_VELOCITY);
+
+  if (VisionStatus() == 1)
+  {
+    float temp[3];
+    Vector3AddToSelf(Vector3ScaleSelf(velocity_, 1.0 - k),
+      Vector3Scale(velocity, k, temp));
+
+    // Update estimate error covariance, last_timestamp, and past value.
+    p_ = (1.0 - k) * p_;
+    // TODO: remove this artificial limit
+    if (p_ > 1e6) p_ = 1e6;
+
+    UpdateVelocityToFlightCtrl();
+  }
+}
+
+// -----------------------------------------------------------------------------
+void KalmanVisionUpdateFromPosition(void)
 {
   static uint32_t last_timestamp = 0;
   static float position_pv[3] = { 0.0 };
-  float k = p_ / (p_ + R_VISION_DERIVATIVE);
+  float k = p_ / (p_ + R_VISION_POSITION_DERIVATIVE);
 
   if (VisionStatus() == 1)
   {

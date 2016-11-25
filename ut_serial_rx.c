@@ -17,6 +17,8 @@ void HandleUTRx(uint8_t component_id, uint8_t message_id,
     case UT_SERIAL_COMPONENT_ID_RICOH:
       switch (message_id)
       {
+        case VISION_MESSAGE_ID_RICOH_VO:
+          ProcessRicohVisionData((struct RicohVision *)data_buffer);
         default:
           break;
       }

@@ -100,6 +100,39 @@ void ProcessRaspiVisionData(struct RaspiVision * from_raspi)
 }
 
 // -----------------------------------------------------------------------------
+void ProcessRicohVisionData(struct RicohVision * from_ricoh)
+{
+  status_ = from_ricoh->reliability;
+  // Convert angular rate from rad/frame (at 30 fps) to rad/s.
+  // from_ricoh->angular_velocity[0] *= 30.0;
+  // from_ricoh->angular_velocity[1] *= 30.0;
+  // from_ricoh->angular_velocity[2] *= 30.0;
+
+  // Convert position from mm to m.
+  Vector3Copy(Vector3ScaleSelf(from_ricoh->position, 1.0 / 1000.0), position_);
+
+  // Compute full quaternion.
+  quaternion_[1] = from_ricoh->quaternion[0];
+  quaternion_[2] = from_ricoh->quaternion[1];
+  quaternion_[3] = from_ricoh->quaternion[2];
+  quaternion_[0] = sqrt(1.0 - quaternion_[1] * quaternion_[1] - quaternion_[2]
+    * quaternion_[2] - quaternion_[3] * quaternion_[3]);
+
+  // Convert velocity from mm/frame (at 30 fps) to m/s.
+  Vector3ScaleSelf(from_ricoh->velocity, 30.0 / 1000.0);
+
+  // Compute inertial velocity.
+  float inertial_velocity[3];
+  QuaternionRotateVector(quaternion_, from_ricoh->velocity, inertial_velocity);
+  KalmanVisionUpdateVelocity(inertial_velocity);
+
+  // Compute heading angle.
+  heading_ = HeadingFromQuaternion(quaternion_);
+
+  VisionUpdates();
+}
+
+// -----------------------------------------------------------------------------
 void ProcessTX1VisionData(struct TX1Vision * from_tx1)
 {
   // Copy received data.
@@ -128,7 +161,7 @@ static void VisionUpdates(void)
 {
   UpdatePositionToFlightCtrl();
   UpdateHeadingCorrectionToFlightCtrl();
-  KalmanVisionUpdate();
+  KalmanVisionUpdateFromPosition();
 #ifdef LOG_DEBUG_TO_SD
   // LogTX1VisionData(from_tx1);
   // LogKalmanData;

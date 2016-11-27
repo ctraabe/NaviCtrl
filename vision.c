@@ -122,9 +122,9 @@ void ProcessRicohVisionData(struct RicohVision * from_ricoh)
   Vector3ScaleSelf(from_ricoh->velocity, 30.0 / 1000.0);
 
   // Compute inertial velocity.
-  float inertial_velocity[3];
+  float inertial_velocity[3], r[3] = { 0.1, 0.1, 0.1 };
   QuaternionRotateVector(quaternion_, from_ricoh->velocity, inertial_velocity);
-  KalmanVisionUpdateVelocity(inertial_velocity);
+  KalmanVelocityMeasurementUpdate(inertial_velocity, r);
 
   // Compute heading angle.
   heading_ = HeadingFromQuaternion(quaternion_);

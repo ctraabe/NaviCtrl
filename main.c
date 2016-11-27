@@ -183,7 +183,7 @@ int main(void)
       ClearNewDataFromFlightCtrlFlag();
 
 #ifdef VISION
-      KalmanTimeUpdate();
+      KalmanAccelerometerUpdate();
 #endif
 
       UpdateNavigation();

@@ -1,3 +1,20 @@
+// This is a custom library of matrix mathematics.
+//
+// This library has been constructed with speed being the top priority and
+// minimizing memory being the secondary priority. As such, there is absolutely
+// no protection for memory boundaries. It is up to the programmer to ensure
+// that the pointers being passed to these functions have appropriate memory
+// allocation.
+//
+// General function parameter guidelines:
+//   - First argument(s) should be the RHS (input) mathematical operand(s)
+//   - Next argument(s) should define the size of the operand(s)
+//   - Final argument should be the LHS (output) mathematical result
+//   - In the case that the result is itself an operand, it should be the first
+//       argument
+//   - The address of the result should be passed as the output so that these
+//       functions can be daisy-chained
+
 #include "matrix.h"
 
 #include <math.h>
@@ -12,6 +29,72 @@
 // =============================================================================
 // Public functions:
 
+float * DiagonalAddToEachElement(const float * A, float scalar, size_t size,
+  float * result)
+{
+  for (size_t i = 0; i < size; i++) result[i] = A[i] + scalar;
+
+  return result;
+}
+
+// -----------------------------------------------------------------------------
+float * DiagonalAddToSelf(float * A, const float * B, size_t size)
+{
+  for (size_t i = 0; i < size; i++) A[i] += B[i];
+
+  return A;
+}
+
+// -----------------------------------------------------------------------------
+float * DiagonalCopy(const float * A, size_t size, float * result)
+{
+  for (size_t i = 0; i < size; i++) result[i] = A[i];
+
+  return result;
+}
+
+// -----------------------------------------------------------------------------
+float * DiagonalInvertSelf(float * A, size_t size)
+{
+  for (size_t i = 0; i < size; i++) A[i] = 1.0 / A[i];
+
+  return A;
+}
+
+// -----------------------------------------------------------------------------
+float * DiagonalMultiply(const float * A, const float * B, size_t size,
+  float * result)
+{
+  for (size_t i = 0; i < size; i++) result[i] = A[i] * B[i];
+
+  return result;
+}
+
+// -----------------------------------------------------------------------------
+float * DiagonalScale(const float * A, float scale, size_t size, float * result)
+{
+  for (size_t i = 0; i < size; i++) result[i] = A[i] * scale;
+
+  return result;
+}
+
+// -----------------------------------------------------------------------------
+float * DiagonalSubtractFromSelf(float * A, const float * B, size_t size)
+{
+  for (size_t i = 0; i < size; i++) A[i] -= B[i];
+
+  return A;
+}
+
+// -----------------------------------------------------------------------------
+float * DiagonalSubtractSelfFrom(float * A, const float * B, size_t size)
+{
+  for (size_t i = 0; i < size; i++) A[i] = B[i] - A[i];
+
+  return A;
+}
+
+// -----------------------------------------------------------------------------
 float * MatrixAdd(const float * A, const float * B, size_t A_rows,
   size_t A_cols, float * result)
 {

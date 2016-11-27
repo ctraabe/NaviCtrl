@@ -18,10 +18,14 @@ const float * KalmanVelocityVector(void);
 // =============================================================================
 // Public functions:
 
-void KalmanTimeUpdate(void);
+// This function combines both the Kalman time update and the accelerometer
+// measurement update (since they both rely on only the accelerometer).
+void KalmanAccelerometerUpdate(void);
 
 // -----------------------------------------------------------------------------
-void KalmanVisionUpdateVelocity(const float velocity[3]);
+// This function takes an NED velocity measurement and error covariance and 
+// computes an update to the state estimate.
+void KalmanVelocityMeasurementUpdate(const float velocity[3], const float r[3]);
 
 // -----------------------------------------------------------------------------
 void KalmanVisionUpdateFromPosition(void);

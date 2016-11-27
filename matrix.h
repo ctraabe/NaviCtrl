@@ -8,6 +8,33 @@
 // =============================================================================
 // Public functions:
 
+float * DiagonalAddToEachElement(const float * A, float scalar, size_t size,
+  float * result);
+
+// -----------------------------------------------------------------------------
+float * DiagonalAddToSelf(float * A, const float * B, size_t size);
+
+// -----------------------------------------------------------------------------
+float * DiagonalCopy(const float * A, size_t size, float * result);
+
+// -----------------------------------------------------------------------------
+float * DiagonalInvertSelf(float * A, size_t size);
+
+// -----------------------------------------------------------------------------
+float * DiagonalMultiply(const float * A, const float * B, size_t size,
+  float * result);
+
+// -----------------------------------------------------------------------------
+float * DiagonalScale(const float * A, float scale, size_t size,
+  float * result);
+
+// -----------------------------------------------------------------------------
+float * DiagonalSubtractFromSelf(float * A, const float * B, size_t size);
+
+// -----------------------------------------------------------------------------
+float * DiagonalSubtractSelfFrom(float * A, const float * B, size_t size);
+
+// -----------------------------------------------------------------------------
 float * MatrixAdd(const float * A, const float * B, size_t A_rows,
   size_t A_cols, float * result);
 

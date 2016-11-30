@@ -1,7 +1,7 @@
-// This file combines noisy NED velocity estimates from the vision sensor with
-// the IMU to provide a cleaner NED velocity estimate. A naive accelerometer
-// bias estimate is also included relying on the assumption that long-term-
-// average acceleration is zero.
+// This file combines noisy NED velocity estimates with the IMU to provide a
+// cleaner NED velocity estimate. A naive accelerometer bias estimate is also
+// included relying on the assumption that long-term- average acceleration is
+// zero.
 //
 // In MATLAB syntax:
 // x = [velocity(3); bias(3)]
@@ -21,24 +21,19 @@
 
 #include <math.h>
 
-#include "attitude.h"
-#include "constants.h"
 #include "flight_ctrl_comms.h"
 #include "matrix.h"
 #include "quaternion.h"
 #include "vector.h"
-#include "vision.h"
 
 
 // =============================================================================
 // Private data:
 
-#define Q_ACCELEROMETER (0.1)
+#define Q_ACCELEROMETER (0.05 * GRAVITY_ACCELERATION)
 #define Q_ACCELEROMETER_INTEGRAL (Q_ACCELEROMETER * DT / sqrt(2))
 #define Q_ACCELEROMETER_BIAS (1e-5)
 #define R_ACCELEROMETER_BIAS (1.0)
-#define R_VISION_VELOCITY (0.01)
-#define R_VISION_POSITION_DERIVATIVE (0.025)
 
 static float velocity_[3] = { 0.0 };  // m/s
 static float bias_[3] = { 0.0 };  // g
@@ -50,7 +45,7 @@ static float p_11_[3] = { 0.0 }, p_12_[3] = { 0.0 }, p_21_[3] = { 0.0 },
 // Private function declarations:
 
 static void AccelerometerBiasMeasurementUpdate(const float acceleration[3]);
-static void KalmanTimeUpdate(const float acceleration[3]);
+static void TimeUpdate(const float acceleration[3]);
 
 
 // =============================================================================
@@ -86,7 +81,7 @@ void KalmanAccelerometerUpdate(void)
   AccelerometerBiasMeasurementUpdate(acceleration_ned);
 
   // Time update (integrate acceleration).
-  KalmanTimeUpdate(acceleration_ned);
+  TimeUpdate(acceleration_ned);
 
   UpdateVelocityToFlightCtrl();
 }
@@ -118,7 +113,7 @@ void KalmanVelocityMeasurementUpdate(const float velocity[3], const float r[3])
   float residual[3], temp[3];
   Vector3Subtract(velocity, velocity_, residual);
   Vector3AddToSelf(velocity_, DiagonalMultiply(k_1, residual, 3, temp));
-  Vector3AddToSelf(velocity_, DiagonalMultiply(k_2, residual, 3, temp));
+  Vector3AddToSelf(bias_, DiagonalMultiply(k_2, residual, 3, temp));
 
   // Update the estimate covariance P = (I - K * H) * P
   DiagonalSubtractFromSelf(p_11_, DiagonalMultiply(k_1, p_11_, 3, temp), 3);
@@ -127,36 +122,12 @@ void KalmanVelocityMeasurementUpdate(const float velocity[3], const float r[3])
   DiagonalSubtractFromSelf(p_22_, DiagonalMultiply(k_2, p_12_, 3, temp), 3);
 }
 
-// -----------------------------------------------------------------------------
-void KalmanVisionUpdateFromPosition(void)
-{
-  // static uint32_t last_timestamp = 0;
-  // static float position_pv[3] = { 0.0 };
-  // float k = p_ / (p_ + R_VISION_POSITION_DERIVATIVE);
-
-  // if (VisionStatus() == 1)
-  // {
-  //   uint32_t timestamp = VisionTimestamp();
-  //   float dt = (float)(timestamp - last_timestamp) * 1e-6;
-  //   if (dt < 1e-2) dt = 1e-2;
-
-  //   Vector3AddToSelf(Vector3ScaleSelf(velocity_, 1.0 - k),
-  //     Vector3ScaleSelf(Vector3SubtractSelfFrom(position_pv,
-  //     VisionPositionVector()), k / dt));
-
-  //   // Update estimate error covariance, last_timestamp, and past value.
-  //   p_ = (1.0 - k) * p_;
-  //   last_timestamp = timestamp;
-  //   Vector3Copy(VisionPositionVector(), position_pv);
-
-  //   UpdateVelocityToFlightCtrl();
-  // }
-}
-
 
 // =============================================================================
 // Private functions:
 
+// This function takes an acceleration measurement in g's and computes a naive
+// accelerometer bias estimate.
 static void AccelerometerBiasMeasurementUpdate(const float acceleration[3])
 {
   // Notes:
@@ -193,7 +164,7 @@ static void AccelerometerBiasMeasurementUpdate(const float acceleration[3])
 // -----------------------------------------------------------------------------
 // This function takes an NED acceleration measurement in g's and computes a
 // time update.
-static void KalmanTimeUpdate(const float acceleration[3])
+static void TimeUpdate(const float acceleration[3])
 {
   // Notes:
   // Block diagonal A = [eye(3), -dt * eye(3); zeros(3), eye(3)]
@@ -208,7 +179,9 @@ static void KalmanTimeUpdate(const float acceleration[3])
   float temp[3];
 
   // Convert g's to m/s^2 and multiply by DT for integration to velocity.
-  Vector3Scale(acceleration, GRAVITY_ACCELERATION * DT, temp);
+  float unbiased_acceleration[3];
+  Vector3Subtract(acceleration, bias_, unbiased_acceleration);
+  Vector3Scale(unbiased_acceleration, GRAVITY_ACCELERATION * DT, temp);
   Vector3AddToSelf(velocity_, temp);
 
   // Compute A * P (intermediate).

@@ -203,17 +203,22 @@ int main(void)
     }
 
 #ifndef VISION
+    CheckUBXFreshness();
+    CheckLSM303DLFreshness();
+
     // Normally the magnetometer is read every time new data comes from the
     // FlightCtrl. The following statement is a backup that ensures the
     // magnetometer is updated even if there is no connection to the FlightCtrl
     // and also deals with read errors.
-    if (MillisSinceTimestamp(LSM303DLLastUpdateTimestamp()) > 20)
+    if (LSM303DLDataStale())
     {
       if (MillisSinceTimestamp(LSM303DLLastRequestTimestamp()) > 20)
         RequestLSM303DL();
       if (LSM303DLErrorBits() & LSM303DL_ERROR_BIT_I2C_BUSY)
         I2CReset();
     }
+#else
+    CheckVisionFreshness();
 #endif
 
     // Check for incoming data on the "update & debug" UART port.

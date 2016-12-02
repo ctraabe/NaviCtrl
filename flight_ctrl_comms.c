@@ -337,14 +337,12 @@ void UpdateHeadingCorrectionToFlightCtrl(void)
   // TODO: dedeclinate
   // TODO: do some sanity checking on the magnetic scale, etc.
   heading_error = -atan2(mag_earth[1], mag_earth[0]);
-  status = 1;
+  status = !LSM303DLDataStale();
 #else
+  heading_error = VisionHeading() - CurrentHeading();
   status = VisionStatus();
-  if (status != 1)
-    heading_error = 0;
-  else
-    heading_error = VisionHeading() - CurrentHeading();
 #endif
+  if (status != 1) heading_error = 0;
   WrapToPlusMinusPi(heading_error);
   // TODO: put these magic numbers in a #define
   float quat_c_z = 0.5 * 0.025 * heading_error;
@@ -399,7 +397,7 @@ void UpdatePositionToFlightCtrl(void)
   current_position[E_WORLD_AXIS] = (float)(UBXPosLLH()->longitude
     - GPSHome(LONGITUDE)) * UBXLongitudeToMeters();
   current_position[2] = -from_fc_[from_fc_tail_].pressure_altitude;
-  status = UBXPosLLH()->horizontal_accuracy < 5000;  // mm
+  status = (UBXPosLLH()->horizontal_accuracy < 5000) && !UBXDataStale();
 #else
   current_position[N_WORLD_AXIS] = VisionPosition(N_WORLD_AXIS);
   current_position[E_WORLD_AXIS] = VisionPosition(E_WORLD_AXIS);
@@ -435,12 +433,12 @@ void UpdateVelocityToFlightCtrl(void)
   velocity[N_WORLD_AXIS] = (float)UBXVelNED()->velocity_north * 1.0e-2;
   velocity[E_WORLD_AXIS] = (float)UBXVelNED()->velocity_east * 1.0e-2;
   velocity[D_WORLD_AXIS] = (float)UBXVelNED()->velocity_down * 1.0e-2;
-  status = UBXVelNED()->speed_accuracy < 100;  // cm/s
+  status = (UBXVelNED()->speed_accuracy < 100) && !UBXDataStale();
 #else
   velocity[N_WORLD_AXIS] = KalmanVelocity(N_WORLD_AXIS);
   velocity[E_WORLD_AXIS] = KalmanVelocity(E_WORLD_AXIS);
   velocity[D_WORLD_AXIS] = KalmanVelocity(D_WORLD_AXIS);
-  status = 1;
+  status = VisionStatus();
 #endif
 
   struct ToFlightCtrl * to_fc = &to_fc_;

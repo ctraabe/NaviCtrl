@@ -36,6 +36,8 @@ static enum LSM303DLModel {
   LSM303DL_MODEL_M,
 } lsm303dl_model_ = LSM303DL_NOT_PRESENT;
 
+#define LSM303DL_FRESHNESS_LIMIT (20)  // millisends
+
 static volatile uint32_t unprocessed_data_waiting_ = 0;
 static volatile uint8_t magnetometer_raw_[6] = { 0 };
 static float magnetic_vector_[3] = { 0.0 };
@@ -53,6 +55,12 @@ static void DataReceivedCallback(void);
 // =============================================================================
 // Accessors:
 
+uint32_t LSM303DLDataStale(void)
+{
+  return error_bits_ & LSM303DL_ERROR_BIT_STALE;
+}
+
+// -----------------------------------------------------------------------------
 uint32_t LSM303DLDataWaiting(void)
 {
   return unprocessed_data_waiting_;
@@ -111,6 +119,20 @@ uint32_t LSM303DLInit(void)
   error_bits_ &= ~LSM303DL_ERROR_BIT_NOT_INITIALIZED;
 
   return error_bits_;
+}
+
+// -----------------------------------------------------------------------------
+void CheckLSM303DLFreshness(void)
+{
+  // Only check freshness if the data is not yet stale because the timestamp
+  // might rollover, giving a false freshness.
+  if ((~error_bits_ & LSM303DL_ERROR_BIT_STALE) &&
+    (MillisSinceTimestamp(last_update_timepstamp_) > LSM303DL_FRESHNESS_LIMIT))
+  {
+    error_bits_ |= LSM303DL_ERROR_BIT_STALE;
+    // Update LSM303DL data to FlightCtrl to reflect staleness.
+    UpdateHeadingCorrectionToFlightCtrl();
+  }
 }
 
 // -----------------------------------------------------------------------------

@@ -63,6 +63,12 @@ const float * VisionQuaternionVector(void)
 }
 
 // -----------------------------------------------------------------------------
+uint32_t VisionDataStale(void)
+{
+  return vision_error_bits_ & VISION_ERROR_BIT_STALE;
+}
+
+// -----------------------------------------------------------------------------
 uint16_t VisionStatus(void)
 {
   return status_;
@@ -93,6 +99,8 @@ void CheckVisionFreshness(void)
   {
     vision_error_bits_ |= VISION_ERROR_BIT_STALE;
     status_ = 0;
+    // Update vision data to FlightCtrl to reflect staleness.
+    VisionUpdates();
   }
 }
 

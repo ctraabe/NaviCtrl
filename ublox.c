@@ -34,7 +34,7 @@
 #define UBX_ID_SOL (0x06)
 #define UBX_ID_TIME_UTC (0x21)
 
-#define UBX_FRESHNESS_LIMIT (1000)  // millisends
+#define UBX_FRESHNESS_LIMIT (500)  // millisends
 
 static volatile uint8_t rx_buffer_[UBLOX_RX_BUFFER_LENGTH];
 static volatile size_t rx_buffer_head_ = 0;
@@ -244,6 +244,9 @@ void CheckUBXFreshness(void)
     (MillisSinceTimestamp(last_reception_timestamp_) > UBX_FRESHNESS_LIMIT))
   {
     error_bits_ |= UBX_ERROR_BIT_STALE;
+    // Update GPS data to FlightCtrl to reflect staleness.
+    UpdatePositionToFlightCtrl();
+    UpdateVelocityToFlightCtrl();
   }
 }
 

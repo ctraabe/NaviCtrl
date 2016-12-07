@@ -19,8 +19,8 @@
 // Private data:
 
 #define VISION_FRESHNESS_LIMIT (100)  // millisends
-#define SIGMA_POSITION_TX1 (0.01)
-#define SIGMA_VELOCITY_RICOH (0.01)
+#define VARIANCE_POSITION_TX1 (0.0001)
+#define VARIANCE_VELOCITY_RICOH (0.0001)
 
 static float heading_ = 0.0, position_[3] = { 0.0 }, velocity_ned_[3] = { 0.0 },
   quaternion_[4] = { 1.0, 0.0, 0.0, 0.0 };
@@ -32,7 +32,7 @@ static enum VisionErrorBits vision_error_bits_ = VISION_ERROR_BIT_STALE;
 // =============================================================================
 // Private function declarations:
 
-static void VelocityFromPosition(const float sigma_position[3]);
+static void VelocityFromPosition(const float position_variance[3]);
 static void VisionUpdates(void);
 
 
@@ -123,7 +123,7 @@ void ProcessRaspiVisionData(struct RaspiVision * from_raspi)
   heading_ = HeadingFromQuaternion(quaternion_);
 
   // Compute NED velocity by differentiating the position.
-  VelocityFromPosition(from_raspi->position_sigma);
+  VelocityFromPosition(from_raspi->position_variance);
 
   VisionUpdates();
 }
@@ -153,8 +153,8 @@ void ProcessRicohVisionData(struct RicohVision * from_ricoh)
 
   if (status_ == 1)
   {
-    float r_velocity_ned[3] = { SIGMA_VELOCITY_RICOH, SIGMA_VELOCITY_RICOH,
-      SIGMA_VELOCITY_RICOH };
+    float r_velocity_ned[3] = { VARIANCE_VELOCITY_RICOH,
+      VARIANCE_VELOCITY_RICOH, VARIANCE_VELOCITY_RICOH };
     KalmanVelocityMeasurementUpdate(velocity_ned_, r_velocity_ned);
   }
 
@@ -180,9 +180,9 @@ void ProcessTX1VisionData(struct TX1Vision * from_tx1)
   heading_ = HeadingFromQuaternion(quaternion_);
 
   // Compute NED velocity by differentiating the position.
-  float sigma_position[3] = { SIGMA_POSITION_TX1, SIGMA_POSITION_TX1,
-    SIGMA_POSITION_TX1 };
-  VelocityFromPosition(sigma_position);
+  float position_variance[3] = { VARIANCE_POSITION_TX1, VARIANCE_POSITION_TX1,
+    VARIANCE_POSITION_TX1 };
+  VelocityFromPosition(position_variance);
 
   VisionUpdates();
 }
@@ -191,32 +191,37 @@ void ProcessTX1VisionData(struct TX1Vision * from_tx1)
 // =============================================================================
 // Private functions:
 
-static void VelocityFromPosition(const float sigma_position[3])
+static void VelocityFromPosition(const float position_variance[3])
 {
   static uint32_t timestamp_pv = 0;
-  static float position_pv[3] = { 0.0 }, sigma_pv[3] = { 0.0 };
+  static float position_pv[3] = { 0.0 }, variance_pv[3] = { 0.0 };
   if (status_ == 1)
   {
     uint32_t dt_us = timestamp_ - timestamp_pv;
-    if (dt_us < 1000) dt_us = 1000;
-    float dt_inv = 1e6 / (float)dt_us;
 
-    // Differentiate the position.
-    Vector3ScaleSelf(Vector3Subtract(position_, position_pv, velocity_ned_),
-      dt_inv);
+    // Only update the velocity if the previous sample is recent.
+    if (dt_us < 200000)
+    {
+      if (dt_us < 1000) dt_us = 1000;
+      float dt_inv = 1e6 / (float)dt_us;
 
-    // Estimate the error covariance.
-    float sigma_velocity_ned[3];
-    Vector3ScaleSelf(Vector3Add(sigma_position, sigma_pv,
-      sigma_velocity_ned), 0.5 * sqrt(2) * dt_inv);
+      // Differentiate the position.
+      Vector3ScaleSelf(Vector3Subtract(position_, position_pv, velocity_ned_),
+        dt_inv);
 
-    // Update the Kalman filter.
-    KalmanVelocityMeasurementUpdate(velocity_ned_, sigma_velocity_ned);
+      // Estimate the error covariance.
+      float velocity_ned_variance[3];
+      Vector3ScaleSelf(Vector3Add(position_variance, variance_pv,
+        velocity_ned_variance), dt_inv * dt_inv);
+
+      // Update the Kalman filter.
+      KalmanVelocityMeasurementUpdate(velocity_ned_, velocity_ned_variance);
+    }
 
     // Update past values.
     timestamp_pv = timestamp_;
     Vector3Copy(position_, position_pv);
-    Vector3Copy(sigma_position, sigma_pv);
+    Vector3Copy(position_variance, variance_pv);
   }
 }
 

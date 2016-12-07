@@ -16,7 +16,7 @@ struct RaspiVision {
   uint32_t timestamp;  // microseconds
   float position[3];  // meters
   float quaternion[3];
-  float position_sigma[3];
+  float position_variance[3];
   uint8_t status;
 } __attribute__((packed));
 

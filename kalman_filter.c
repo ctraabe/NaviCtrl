@@ -6,8 +6,8 @@
 // In MATLAB syntax:
 // x = [velocity(3); bias(3)]
 // u = acceleration(3)
-// A = [eye(3), -dt * eye(3); zeros(3), eye(3)]
-// B = [dt * eye(3); zeros(3)]
+// A = [eye(3), -9.8 * dt * eye(3); zeros(3), eye(3)]
+// B = [9.8 * dt * eye(3); zeros(3)]
 //
 // Since it is assumed that long-term-average acceleration is zero, then
 // acceleration is itself a measurement of accelerometer bias, although the
@@ -30,15 +30,15 @@
 // =============================================================================
 // Private data:
 
-#define Q_ACCELEROMETER (0.05 * GRAVITY_ACCELERATION)
-#define Q_ACCELEROMETER_INTEGRAL (Q_ACCELEROMETER * DT / sqrt(2))
-#define Q_ACCELEROMETER_BIAS (1e-5)
-#define R_ACCELEROMETER_BIAS (1.0)
+#define SIGMA_ACCELEROMETER_INPUT (0.04 * GRAVITY_ACCELERATION * DT)
+#define Q_VELOCITY (SIGMA_ACCELEROMETER_INPUT *  SIGMA_ACCELEROMETER_INPUT)
+#define Q_ACCELEROMETER_BIAS (1e-8)
+#define R_ACCELEROMETER_BIAS (1e-2)
 
 static float velocity_[3] = { 0.0 };  // m/s
 static float bias_[3] = { 0.0 };  // g
-static float p_11_[3] = { 0.0 }, p_12_[3] = { 0.0 }, p_21_[3] = { 0.0 },
-  p_22_[3] = { 0.0 };
+static float p_11_[3] = { 0.1, 0.1, 0.1 }, p_12_[3] = { 0.0 },
+  p_21_[3] = { 1e-5, 1e-5, 1e-5 }, p_22_[3] = { 0.0 };
 
 
 // =============================================================================
@@ -199,7 +199,7 @@ static void TimeUpdate(const float acceleration[3])
   float * apat_22 = ap_22;
 
   // Update the estimate covariance P = A * P * A^T + Q.
-  DiagonalAddToEachElement(apat_11, Q_ACCELEROMETER_INTEGRAL, 3, p_11_);
+  DiagonalAddToEachElement(apat_11, Q_VELOCITY, 3, p_11_);
   DiagonalCopy(apat_12, 3, p_12_);
   DiagonalCopy(apat_21, 3, p_21_);
   DiagonalAddToEachElement(apat_22, Q_ACCELEROMETER_BIAS, 3, p_22_);

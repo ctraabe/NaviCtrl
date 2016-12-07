@@ -103,7 +103,16 @@ void ProcessRaspiVisionData(struct RaspiVision * from_raspi)
   status_ = from_raspi->status;
   timestamp_ = from_raspi->timestamp;
   Vector3Copy(from_raspi->position, position_);
-  heading_ = from_raspi->heading;
+
+  // Compute full quaternion.
+  quaternion_[1] = from_raspi->quaternion[0];
+  quaternion_[2] = from_raspi->quaternion[1];
+  quaternion_[3] = from_raspi->quaternion[2];
+  quaternion_[0] = sqrt(1.0 - quaternion_[1] * quaternion_[1] - quaternion_[2]
+    * quaternion_[2] - quaternion_[3] * quaternion_[3]);
+
+  // Compute heading.
+  heading_ = HeadingFromQuaternion(quaternion_);
 
   // Compute NED velocity by differentiating the position.
   VelocityFromPosition(from_raspi->position_sigma);

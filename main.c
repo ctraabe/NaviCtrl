@@ -237,7 +237,7 @@ int main(void)
 
       // Debug output for GPS and magnetomter. Remove after testing is completed
 
-      // UART1Printf("%0.2f,%0.2f,%0.2f",
+      // UART1Printf("%+5.2f,%+5.2f,%+5.2f",
       //   MagneticVector()[0],
       //   MagneticVector()[1],
       //   MagneticVector()[2]);
@@ -259,11 +259,11 @@ int main(void)
       //   (float)(UBXPosLLH()->latitude * 1e-7),
       //   (float)(UBXPosLLH()->height_above_ellipsoid * 1e-3));
 
-      // UART1Printf("%0.2f,%0.2f,%0.2f,%0.2f",
-      //   PositionVector()[0],
-      //   PositionVector()[1],
-      //   PositionVector()[2],
-      //   CurrentHeading());
+      UART1PrintfSafe("%+5.2f,%+5.2f,%+5.2f,%+5.2f",
+        PositionVector()[0],
+        PositionVector()[1],
+        PositionVector()[2],
+        CurrentHeading());
     }
   }
 }

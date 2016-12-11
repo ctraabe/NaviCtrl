@@ -30,15 +30,15 @@
 // =============================================================================
 // Private data:
 
-#define SIGMA_ACCELEROMETER_INPUT (0.04 * GRAVITY_ACCELERATION * DT)
+#define SIGMA_ACCELEROMETER_INPUT (1.0 * GRAVITY_ACCELERATION * DT)
 #define Q_VELOCITY (SIGMA_ACCELEROMETER_INPUT *  SIGMA_ACCELEROMETER_INPUT)
 #define Q_ACCELEROMETER_BIAS (1e-8)
-#define R_ACCELEROMETER_BIAS (1e-2)
+#define R_ACCELEROMETER_BIAS (1e-1)
 
 static float velocity_[3] = { 0.0 };  // m/s
 static float bias_[3] = { 0.0 };  // g
 static float p_11_[3] = { 0.1, 0.1, 0.1 }, p_12_[3] = { 0.0 },
-  p_21_[3] = { 1e-5, 1e-5, 1e-5 }, p_22_[3] = { 0.0 };
+  p_21_[3] = { 0.0 }, p_22_[3] = { 1e-5, 1e-5, 1e-5 };
 
 
 // =============================================================================
@@ -71,7 +71,7 @@ const float * KalmanVelocityVector(void)
 void KalmanAccelerometerUpdate(void)
 {
   float acceleration_ned[3];  // NED inertial frame
-  QuaternionInverseRotateVector((float *)Quat(), (float *)AccelerometerVector(),
+  QuaternionRotateVector((float *)Quat(), (float *)AccelerometerVector(),
     acceleration_ned);
 
   // Remove acceleration due to gravity.

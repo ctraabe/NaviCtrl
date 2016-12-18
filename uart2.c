@@ -160,7 +160,7 @@ void UART2TxBuffer(size_t tx_length)
 // transmission is commenced.
 void UART2TxByte(uint8_t byte)
 {
-  while(UART_GetFlagStatus(UART2, UART_FLAG_TxFIFOFull));
+  while(UART_GetFlagStatus(UART2, UART_FLAG_TxFIFOFull)) continue;
   UART_SendData(UART2, byte);
 }
 

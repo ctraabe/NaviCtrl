@@ -10,8 +10,8 @@
 #include "timing.h"
 #include "vector.h"
 #ifdef LOG_DEBUG_TO_SD
-  #include logging.h
-  #include main.h
+  #include "logging.h"
+  #include "main.h"
 #endif
 
 

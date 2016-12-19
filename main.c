@@ -31,7 +31,9 @@ static volatile Callback callback_buffer_[4] = { 0 };
 static volatile size_t callback_buffer_head_ = 0;
 static size_t callback_buffer_tail_ = 0;
 static uint32_t overrun_counter_ = 0;
-static uint32_t mag_calibration_ = 0;
+#ifndef LOGGING_BUTTON
+  static uint32_t mag_calibration_ = 0;
+#endif
 
 
 // =============================================================================
@@ -50,8 +52,18 @@ void FiftyHzInterruptHandler(void)
   uint16_t button = GPIO_ReadBit(GPIO3, GPIO_Pin_1);
   static uint16_t button_pv = 0;
 
+#ifdef LOGGING_BUTTON
+  if (button && (button_pv == 0x7FFF))
+  {
+    if (LoggingActive())
+      CloseLogFile();
+    else
+      OpenLogFile(0);
+  }
+#else
   // Start and stop magnetometer calibration.
   if (button && (button_pv == 0x7FFF)) mag_calibration_ = !mag_calibration_;
+#endif
 
   // Reset GPS home position.
   // if (button && (button_pv == 0x7FFF)) SetGPSHome();
@@ -170,8 +182,10 @@ int main(void)
     // Check for new data from the magnetometer.
     ProcessIncomingLSM303DL();
 
+#ifndef LOGGING_BUTTON
     // Skip the rest of the main loop if mag calibration is ongoing.
     if (MagCalibration(mag_calibration_)) continue;
+#endif
 
     // Check for new data on the GPS UART port.
     ProcessIncomingUBlox();

@@ -170,7 +170,7 @@ uint32_t ProcessIncomingLSM303DL(void)
   UpdateHeadingCorrectionToFlightCtrl();
 
 #ifdef LOG_DEBUG_TO_SD
-  SetNewDataCallback(LogMagnetometerData);
+  LogMagnetometerData();
 #endif
 
   return 1;

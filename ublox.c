@@ -272,7 +272,7 @@ static void CopyUBloxMessage(uint8_t id)
       new_data_bits_ |= UBX_NEW_DATA_BIT_POS_LLH;
       UpdatePositionToFlightCtrl();
 #ifdef LOG_DEBUG_TO_SD
-      SetNewDataCallback(LogUBXPosLLH);
+      LogUBXPosLLH();
 #endif
       break;
     case UBX_ID_VEL_NED:
@@ -280,21 +280,21 @@ static void CopyUBloxMessage(uint8_t id)
       new_data_bits_ |= UBX_NEW_DATA_BIT_VEL_NED;
       UpdateVelocityToFlightCtrl();
 #ifdef LOG_DEBUG_TO_SD
-      SetNewDataCallback(LogUBXVelNED);
+      LogUBXVelNED();
 #endif
       break;
     case UBX_ID_SOL:
       memcpy(&ubx_sol_, &data_buffer_[0], sizeof(struct UBXSol));
       new_data_bits_ |= UBX_NEW_DATA_BIT_SOL;
 #ifdef LOG_DEBUG_TO_SD
-      // SetNewDataCallback(LogUBXSol);
+      // LogUBXSol();
 #endif
       break;
     case UBX_ID_TIME_UTC:
       memcpy(&ubx_time_utc_, &data_buffer_[0], sizeof(struct UBXTimeUTC));
       new_data_bits_ |= UBX_NEW_DATA_BIT_TIME_UTC;
 #ifdef LOG_DEBUG_TO_SD
-      // SetNewDataCallback(LogUBXTimeUTC);
+      // LogUBXTimeUTC();
 #endif
       break;
   }

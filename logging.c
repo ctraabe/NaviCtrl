@@ -130,6 +130,20 @@ void LogMagnetometerData(void)
 }
 
 // -----------------------------------------------------------------------------
+void LogRaspiTimestamp(uint32_t timestamp)
+{
+  if (SDCardNotPresent() || !file_.fs) return;
+
+  union U16Bytes temp;
+  temp.bytes[0] = 56;
+  temp.bytes[1] = 56;
+  WriteToFIFO((char *)temp.bytes, 2);
+  WriteToFIFO((char *)&timestamp, sizeof(timestamp));
+  temp.u16 = CRCCCITT((uint8_t *)&timestamp, sizeof(timestamp));
+  WriteToFIFO((char *)temp.bytes, 2);
+}
+
+// -----------------------------------------------------------------------------
 void LogToFlightCtrlData(const struct ToFlightCtrl * data)
 {
   if (SDCardNotPresent() || !file_.fs) return;

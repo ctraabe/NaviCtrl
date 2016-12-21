@@ -273,11 +273,11 @@ int main(void)
       //   (float)(UBXPosLLH()->latitude * 1e-7),
       //   (float)(UBXPosLLH()->height_above_ellipsoid * 1e-3));
 
-      UART1PrintfSafe("%+5.2f,%+5.2f,%+5.2f,%+5.2f",
-        PositionVector()[0],
-        PositionVector()[1],
-        PositionVector()[2],
-        CurrentHeading());
+      // UART1PrintfSafe("%+5.2f,%+5.2f,%+5.2f,%+5.2f",
+      //   PositionVector()[0],
+      //   PositionVector()[1],
+      //   PositionVector()[2],
+      //   CurrentHeading());
     }
   }
 }

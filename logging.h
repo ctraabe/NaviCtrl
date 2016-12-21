@@ -35,6 +35,9 @@ void LogKalmanData(void);
 void LogMagnetometerData(void);
 
 // -----------------------------------------------------------------------------
+void LogRaspiTimestamp(uint32_t timestamp);
+
+// -----------------------------------------------------------------------------
 void LogToFlightCtrlData(const struct ToFlightCtrl * data);
 #ifdef VISION
 // -----------------------------------------------------------------------------

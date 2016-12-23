@@ -278,6 +278,11 @@ int main(void)
       //   PositionVector()[1],
       //   PositionVector()[2],
       //   CurrentHeading());
+
+      // UART1PrintfSafe("%+5.2f,%+5.2f,%+5.2f",
+      //   VisionObstacleLocationVector()[0],
+      //   VisionObstacleLocationVector()[1],
+      //   VisionObstacleLocationVector()[2]);
     }
   }
 }

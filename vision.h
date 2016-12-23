@@ -23,7 +23,7 @@ struct RaspiVision {
 struct RicohObjectDetection {
   uint32_t latency;  // Latency (ms)
   uint32_t capture_time;
-  float position[3];
+  float position[3];  // (mm)
 } __attribute__((packed));
 
 struct RicohVision {
@@ -54,6 +54,9 @@ enum VisionErrorBits {
 float VisionHeading(void);
 
 // -----------------------------------------------------------------------------
+const float * VisionObstacleLocationVector(void);
+
+// -----------------------------------------------------------------------------
 float VisionPosition(enum WorldAxes axis);
 
 // -----------------------------------------------------------------------------
@@ -82,6 +85,9 @@ void CheckVisionFreshness(void);
 
 // -----------------------------------------------------------------------------
 void ProcessRaspiVisionData(struct RaspiVision * from_raspi);
+
+// -----------------------------------------------------------------------------
+void ProcessRicohObstacleData(struct RicohObjectDetection * from_ricoh);
 
 // -----------------------------------------------------------------------------
 void ProcessRicohVisionData(struct RicohVision * from_ricoh);

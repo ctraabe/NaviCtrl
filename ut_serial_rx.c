@@ -19,6 +19,10 @@ void HandleUTRx(uint8_t component_id, uint8_t message_id,
       {
         case VISION_MESSAGE_ID_RICOH_VO:
           ProcessRicohVisionData((struct RicohVision *)data_buffer);
+          break;
+        case VISION_MESSAGE_ID_RICOH_OBSTACLE:
+          ProcessRicohObstacleData((struct RicohObjectDetection *)data_buffer);
+          break;
         default:
           break;
       }

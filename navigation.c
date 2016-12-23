@@ -128,6 +128,31 @@ float UBXLongitudeToMeters(void)
 // Try to load waypoints from WP_LIST.CSV on the SD card (if inserted).
 void NavigationInit(void)
 {
+#ifdef OBSTACLE_AVOIDANCE
+  // Temporarily hard-coded waypoints
+  n_waypoints_[ROUTE_1] = 2;
+
+  waypoints_[ROUTE_1][0].target_position[0] = 2.0;
+  waypoints_[ROUTE_1][0].target_position[1] = 0.0;
+  waypoints_[ROUTE_1][0].target_position[2] = -0.8;
+  waypoints_[ROUTE_1][0].transit_speed = 0.5;
+  waypoints_[ROUTE_1][0].radius = 1.0;
+  waypoints_[ROUTE_1][0].target_heading = 0.0;
+  waypoints_[ROUTE_1][0].heading_rate = 0.1;
+  waypoints_[ROUTE_1][0].heading_range = 0.1;
+  waypoints_[ROUTE_1][0].wait_ms = 0;
+
+  waypoints_[ROUTE_1][1].target_position[0] = 2.0;
+  waypoints_[ROUTE_1][1].target_position[1] = -1.0;
+  waypoints_[ROUTE_1][1].target_position[2] = -0.8;
+  waypoints_[ROUTE_1][1].transit_speed = 0.5;
+  waypoints_[ROUTE_1][1].radius = 1.0;
+  waypoints_[ROUTE_1][1].target_heading = 0.0;
+  waypoints_[ROUTE_1][1].heading_rate = 0.1;
+  waypoints_[ROUTE_1][1].heading_range = 0.1;
+  waypoints_[ROUTE_1][1].wait_ms = 0;
+#endif
+
   if (!SDCardFSMounted()) return;
 
   FIL file;
@@ -269,8 +294,10 @@ void NavigationInit(void)
 // -----------------------------------------------------------------------------
 void UpdateNavigation(void)
 {
+#ifndef OBSTACLE_AVOIDANCE
   static float radius_squared = 1.0;
   static uint32_t next_waypoint_time = 0, waypoint_reached = 0;  // , baro_reset = 0;
+#endif
 
 #ifndef VISION
   static uint32_t state_pv = 0;
@@ -284,14 +311,20 @@ void UpdateNavigation(void)
   {
     if (RequestedNavMode() == NAV_MODE_AUTO)
     {
+#ifndef OBSTACLE_AVOIDANCE
       uint32_t route = RequestedNavRoute();
+#else
+      uint32_t route = ROUTE_1;
+#endif
       if ((nav_error_ == NAV_ERROR_NONE) && n_waypoints_[route] > 0)
       {
         current_waypoint_ = &waypoints_[route][0];
         final_waypoint_ = &waypoints_[route][n_waypoints_[route]-1];
         Vector3Copy(current_waypoint_->target_position, target_position_);
         target_heading_ = current_waypoint_->target_heading;
+#ifndef OBSTACLE_AVOIDANCE
         radius_squared = current_waypoint_->radius * current_waypoint_->radius;
+#endif
         mode_ = NAV_MODE_AUTO;
       }
       else
@@ -316,6 +349,7 @@ void UpdateNavigation(void)
 
   if (mode_ == NAV_MODE_AUTO)
   {
+#ifndef OBSTACLE_AVOIDANCE
     if (!waypoint_reached
       && (Vector3NormSquared(delta_postion_) < radius_squared)
       && (fabs(delta_heading_) < current_waypoint_->heading_range))
@@ -333,6 +367,14 @@ void UpdateNavigation(void)
       target_heading_ = current_waypoint_->target_heading;
       radius_squared = current_waypoint_->radius * current_waypoint_->radius;
     }
+#else
+    if (VisionObstacleLocationVector()[0] != 0.0)
+      current_waypoint_ = &waypoints_[ROUTE_1][1];
+    else
+      current_waypoint_ = &waypoints_[ROUTE_1][0];
+    Vector3Copy(current_waypoint_->target_position, target_position_);
+    target_heading_ = current_waypoint_->target_heading;
+#endif
   }
 
   UpdateNavigationToFlightCtrl();

@@ -135,8 +135,8 @@ void LogRaspiTimestamp(uint32_t timestamp)
   if (SDCardNotPresent() || !file_.fs) return;
 
   union U16Bytes temp;
-  temp.bytes[0] = 56;
-  temp.bytes[1] = 56;
+  temp.bytes[0] = 0x56;
+  temp.bytes[1] = 0x56;
   WriteToFIFO((char *)temp.bytes, 2);
   WriteToFIFO((char *)&timestamp, sizeof(timestamp));
   temp.u16 = CRCCCITT((uint8_t *)&timestamp, sizeof(timestamp));
@@ -176,10 +176,8 @@ void LogUBXPosLLH(void)
 
   uint16_t header = 0x1212;
   WriteToFIFO((char *)&header, 2);
-  // WriteToFIFO((char *)UBXPosLLH(), sizeof(struct UBXPosLLH));
-  // uint16_t crc = CRCCCITT((uint8_t *)UBXPosLLH(), sizeof(struct UBXPosLLH));
-  WriteToFIFO((char *)UBXPosLLH(), sizeof(uint32_t));
-  uint16_t crc = CRCCCITT((uint8_t *)UBXPosLLH(), sizeof(uint32_t));
+  WriteToFIFO((char *)UBXPosLLH(), sizeof(struct UBXPosLLH));
+  uint16_t crc = CRCCCITT((uint8_t *)UBXPosLLH(), sizeof(struct UBXPosLLH));
   WriteToFIFO((char *)&crc, 2);
 }
 

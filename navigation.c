@@ -128,9 +128,32 @@ float UBXLongitudeToMeters(void)
 // Try to load waypoints from WP_LIST.CSV on the SD card (if inserted).
 void NavigationInit(void)
 {
-#ifdef OBSTACLE_AVOIDANCE
+#if defined(OBSTACLE_AVOIDANCE_A)
   // Temporarily hard-coded waypoints
   n_waypoints_[ROUTE_1] = 2;
+
+  waypoints_[ROUTE_1][0].target_position[0] = 0.0;
+  waypoints_[ROUTE_1][0].target_position[1] = 0.0;
+  waypoints_[ROUTE_1][0].target_position[2] = -1.0;
+  waypoints_[ROUTE_1][0].transit_speed = 0.5;
+  waypoints_[ROUTE_1][0].radius = 1.0;
+  waypoints_[ROUTE_1][0].target_heading = 0.0;
+  waypoints_[ROUTE_1][0].heading_rate = 0.1;
+  waypoints_[ROUTE_1][0].heading_range = 0.1;
+  waypoints_[ROUTE_1][0].wait_ms = 0;
+
+  waypoints_[ROUTE_1][1].target_position[0] = 0.0;
+  waypoints_[ROUTE_1][1].target_position[1] = -1.5;
+  waypoints_[ROUTE_1][1].target_position[2] = -1.0;
+  waypoints_[ROUTE_1][1].transit_speed = 0.5;
+  waypoints_[ROUTE_1][1].radius = 1.0;
+  waypoints_[ROUTE_1][1].target_heading = 0.0;
+  waypoints_[ROUTE_1][1].heading_rate = 0.1;
+  waypoints_[ROUTE_1][1].heading_range = 0.1;
+  waypoints_[ROUTE_1][1].wait_ms = 0;
+#elif defined(OBSTACLE_AVOIDANCE_B)
+  // Temporarily hard-coded waypoints
+  n_waypoints_[ROUTE_1] = 3;
 
   waypoints_[ROUTE_1][0].target_position[0] = 2.0;
   waypoints_[ROUTE_1][0].target_position[1] = 0.0;
@@ -151,8 +174,69 @@ void NavigationInit(void)
   waypoints_[ROUTE_1][1].heading_rate = 0.1;
   waypoints_[ROUTE_1][1].heading_range = 0.1;
   waypoints_[ROUTE_1][1].wait_ms = 0;
-#endif
 
+  waypoints_[ROUTE_1][2].target_position[0] = 2.0;
+  waypoints_[ROUTE_1][2].target_position[1] = -1.0;
+  waypoints_[ROUTE_1][2].target_position[2] = -0.8;
+  waypoints_[ROUTE_1][2].transit_speed = 0.5;
+  waypoints_[ROUTE_1][2].radius = 1.0;
+  waypoints_[ROUTE_1][2].target_heading = 0.0;
+  waypoints_[ROUTE_1][2].heading_rate = 0.1;
+  waypoints_[ROUTE_1][2].heading_range = 0.1;
+  waypoints_[ROUTE_1][2].wait_ms = 0;
+
+  n_waypoints_[ROUTE_2] = 5;
+
+  waypoints_[ROUTE_1][0].target_position[0] = 2.0;
+  waypoints_[ROUTE_1][0].target_position[1] = 0.0;
+  waypoints_[ROUTE_1][0].target_position[2] = -0.8;
+  waypoints_[ROUTE_1][0].transit_speed = 0.5;
+  waypoints_[ROUTE_1][0].radius = 1.0;
+  waypoints_[ROUTE_1][0].target_heading = 0.0;
+  waypoints_[ROUTE_1][0].heading_rate = 0.1;
+  waypoints_[ROUTE_1][0].heading_range = 0.1;
+  waypoints_[ROUTE_1][0].wait_ms = 0;
+
+  waypoints_[ROUTE_1][1].target_position[0] = 2.0;
+  waypoints_[ROUTE_1][1].target_position[1] = -1.0;
+  waypoints_[ROUTE_1][1].target_position[2] = -0.8;
+  waypoints_[ROUTE_1][1].transit_speed = 0.5;
+  waypoints_[ROUTE_1][1].radius = 1.0;
+  waypoints_[ROUTE_1][1].target_heading = 0.0;
+  waypoints_[ROUTE_1][1].heading_rate = 0.1;
+  waypoints_[ROUTE_1][1].heading_range = 0.1;
+  waypoints_[ROUTE_1][1].wait_ms = 0;
+
+  waypoints_[ROUTE_1][2].target_position[0] = 2.0;
+  waypoints_[ROUTE_1][2].target_position[1] = -1.0;
+  waypoints_[ROUTE_1][2].target_position[2] = -0.8;
+  waypoints_[ROUTE_1][2].transit_speed = 0.5;
+  waypoints_[ROUTE_1][2].radius = 1.0;
+  waypoints_[ROUTE_1][2].target_heading = 0.0;
+  waypoints_[ROUTE_1][2].heading_rate = 0.1;
+  waypoints_[ROUTE_1][2].heading_range = 0.1;
+  waypoints_[ROUTE_1][2].wait_ms = 0;
+
+  waypoints_[ROUTE_1][3].target_position[0] = 2.0;
+  waypoints_[ROUTE_1][3].target_position[1] = -1.0;
+  waypoints_[ROUTE_1][3].target_position[2] = -0.8;
+  waypoints_[ROUTE_1][3].transit_speed = 0.5;
+  waypoints_[ROUTE_1][3].radius = 1.0;
+  waypoints_[ROUTE_1][3].target_heading = 0.0;
+  waypoints_[ROUTE_1][3].heading_rate = 0.1;
+  waypoints_[ROUTE_1][3].heading_range = 0.1;
+  waypoints_[ROUTE_1][3].wait_ms = 0;
+
+  waypoints_[ROUTE_1][4].target_position[0] = 2.0;
+  waypoints_[ROUTE_1][4].target_position[1] = -1.0;
+  waypoints_[ROUTE_1][4].target_position[2] = -0.8;
+  waypoints_[ROUTE_1][4].transit_speed = 0.5;
+  waypoints_[ROUTE_1][4].radius = 1.0;
+  waypoints_[ROUTE_1][4].target_heading = 0.0;
+  waypoints_[ROUTE_1][4].heading_rate = 0.1;
+  waypoints_[ROUTE_1][4].heading_range = 0.1;
+  waypoints_[ROUTE_1][4].wait_ms = 0;
+#else
   if (!SDCardFSMounted()) return;
 
   FIL file;
@@ -264,6 +348,7 @@ void NavigationInit(void)
       line_ptr++;  // Next character
     }
   }
+#endif
 
   // Report the loaded waypoints.
   for (uint32_t i = 0; i < 3; i++)
@@ -285,16 +370,19 @@ void NavigationInit(void)
     }
   }
 
+#if defined(OBSTACLE_AVOIDANCE_A) || defined(OBSTACLE_AVOIDANCE_B)
+#else
   UART1Printf("End of %s", filename);
 
   CLOSE_AND_RETURN:
   f_close(&file);
+#endif
 }
 
 // -----------------------------------------------------------------------------
 void UpdateNavigation(void)
 {
-#ifndef OBSTACLE_AVOIDANCE
+#ifndef OBSTACLE_AVOIDANCE_A
   static float radius_squared = 1.0;
   static uint32_t next_waypoint_time = 0, waypoint_reached = 0;  // , baro_reset = 0;
 #endif
@@ -311,10 +399,10 @@ void UpdateNavigation(void)
   {
     if (RequestedNavMode() == NAV_MODE_AUTO)
     {
-#ifndef OBSTACLE_AVOIDANCE
-      uint32_t route = RequestedNavRoute();
-#else
+#if defined(OBSTACLE_AVOIDANCE_A) || defined(OBSTACLE_AVOIDANCE_B)
       uint32_t route = ROUTE_1;
+#else
+      uint32_t route = RequestedNavRoute();
 #endif
       if ((nav_error_ == NAV_ERROR_NONE) && n_waypoints_[route] > 0)
       {
@@ -322,7 +410,7 @@ void UpdateNavigation(void)
         final_waypoint_ = &waypoints_[route][n_waypoints_[route]-1];
         Vector3Copy(current_waypoint_->target_position, target_position_);
         target_heading_ = current_waypoint_->target_heading;
-#ifndef OBSTACLE_AVOIDANCE
+#ifndef OBSTACLE_AVOIDANCE_A
         radius_squared = current_waypoint_->radius * current_waypoint_->radius;
 #endif
         mode_ = NAV_MODE_AUTO;
@@ -349,7 +437,7 @@ void UpdateNavigation(void)
 
   if (mode_ == NAV_MODE_AUTO)
   {
-#ifndef OBSTACLE_AVOIDANCE
+#ifndef OBSTACLE_AVOIDANCE_A
     if (!waypoint_reached
       && (Vector3NormSquared(delta_postion_) < radius_squared)
       && (fabs(delta_heading_) < current_waypoint_->heading_range))
@@ -367,6 +455,14 @@ void UpdateNavigation(void)
       target_heading_ = current_waypoint_->target_heading;
       radius_squared = current_waypoint_->radius * current_waypoint_->radius;
     }
+  #ifdef OBSTACLE_AVOIDANCE_B
+    if ((current_waypoint_ == &waypoints_[ROUTE_1][1])
+      && VisionObstacleLocationVector()[0] != 0.0)
+    {
+      current_waypoint_ = &waypoints_[ROUTE_2][1];
+      final_waypoint_ = &waypoints_[ROUTE_2][n_waypoints_[ROUTE_2]-1];
+    }
+  #endif
 #else
     if (VisionObstacleLocationVector()[0] != 0.0)
       current_waypoint_ = &waypoints_[ROUTE_1][1];

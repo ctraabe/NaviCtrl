@@ -1,5 +1,5 @@
 # Compile option defines:
-# VISION : substitutes GPS for visual odometry
+# BARO_ALTIMETER_VERTICAL_NAVIGATION : use baro altimeter for vertical position
 # LOG_DEBUG_TO_SD : perform SD card logging
 # LOGGING_BUTTON : initiate logging with a button push
 
@@ -31,8 +31,8 @@ CPPFLAGS  = -std=c++11 -fno-exceptions
 LSTFLAGS  = -Wa,-adhlns=$(addprefix $(BUILD_PATH)/,$(addsuffix .lst, $<))
 LDFLAGS   = -Ofast -pedantic -Wall -Wextra -Werror -Wundef -ffreestanding \
             -Wl,--relax -Tstr911fam.ld
-ALLFLAGS  = -mcpu=$(MCU) -I. $(addprefix -I, $(LIBRARY_INC)) -DVISION \
-            -DOBSTACLE_AVOIDANCE_A
+ALLFLAGS  = -mcpu=$(MCU) -I. $(addprefix -I, $(LIBRARY_INC)) \
+            -DBARO_ALTIMETER_VERTICAL_NAVIGATION
 
 CC   := arm-none-eabi-gcc
 CCP  := arm-none-eabi-g++

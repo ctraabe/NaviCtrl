@@ -5,6 +5,7 @@
 #include "flight_ctrl_comms.h"
 #include "i2c.h"
 #include "main.h"
+#include "sensor_enumeration.h"
 #include "timing.h"
 #ifdef LOG_DEBUG_TO_SD
   #include "logging.h"
@@ -131,7 +132,7 @@ void CheckLSM303DLFreshness(void)
   {
     error_bits_ |= LSM303DL_ERROR_BIT_STALE;
     // Update LSM303DL data to FlightCtrl to reflect staleness.
-    UpdateHeadingCorrectionToFlightCtrl();
+    UpdateHeadingCorrectionToFlightCtrl(LSM303DL);
   }
 }
 
@@ -167,7 +168,7 @@ uint32_t ProcessIncomingLSM303DL(void)
 
   unprocessed_data_waiting_ = 0;
 
-  UpdateHeadingCorrectionToFlightCtrl();
+  UpdateHeadingCorrectionToFlightCtrl(LSM303DL);
 
 #ifdef LOG_DEBUG_TO_SD
   LogMagnetometerData();

@@ -83,7 +83,7 @@ void KalmanAccelerometerUpdate(void)
   // Time update (integrate acceleration).
   TimeUpdate(acceleration_ned);
 
-  UpdateVelocityToFlightCtrl();
+  UpdateVelocityToFlightCtrl(VISION);
 }
 
 // -----------------------------------------------------------------------------

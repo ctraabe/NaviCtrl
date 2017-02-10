@@ -15,6 +15,7 @@
 #include "logging.h"
 #include "flight_ctrl_comms.h"
 #include "main.h"
+#include "sensor_enumeration.h"
 #include "timing.h"
 
 
@@ -46,6 +47,7 @@ static struct UBXSol ubx_sol_;
 static struct UBXTimeUTC ubx_time_utc_;
 
 static enum UBXErrorBits error_bits_ = UBX_ERROR_BIT_STALE;
+static uint32_t status_ = 0;
 static uint32_t new_data_bits_ = 0;
 static uint32_t last_reception_timestamp_ = 0;
 
@@ -95,6 +97,12 @@ const struct UBXTimeUTC * UBXTimeUTC(void)
 uint32_t UBXDataStale(void)
 {
   return error_bits_ & UBX_ERROR_BIT_STALE;
+}
+
+// -----------------------------------------------------------------------------
+uint32_t UBXStatus(void)
+{
+  return status_;
 }
 
 
@@ -244,9 +252,10 @@ void CheckUBXFreshness(void)
     (MillisSinceTimestamp(last_reception_timestamp_) > UBX_FRESHNESS_LIMIT))
   {
     error_bits_ |= UBX_ERROR_BIT_STALE;
+    status_ = 0;
     // Update GPS data to FlightCtrl to reflect staleness.
-    UpdatePositionToFlightCtrl();
-    UpdateVelocityToFlightCtrl();
+    UpdatePositionToFlightCtrl(UBLOX);
+    UpdateVelocityToFlightCtrl(UBLOX);
   }
 }
 
@@ -269,18 +278,19 @@ static void CopyUBloxMessage(uint8_t id)
   {
     case UBX_ID_POS_LLH:
       memcpy(&ubx_pos_llh_, &data_buffer_[0], sizeof(struct UBXPosLLH));
+      status_ = ubx_pos_llh_.horizontal_accuracy < 5000;
       new_data_bits_ |= UBX_NEW_DATA_BIT_POS_LLH;
-      UpdatePositionToFlightCtrl();
+      UpdatePositionToFlightCtrl(UBLOX);
 #ifdef LOG_DEBUG_TO_SD
-      LogUBXPosLLH();
+      // LogUBXPosLLH();
 #endif
       break;
     case UBX_ID_VEL_NED:
       memcpy(&ubx_vel_ned_, &data_buffer_[0], sizeof(struct UBXVelNED));
       new_data_bits_ |= UBX_NEW_DATA_BIT_VEL_NED;
-      UpdateVelocityToFlightCtrl();
+      UpdateVelocityToFlightCtrl(UBLOX);
 #ifdef LOG_DEBUG_TO_SD
-      LogUBXVelNED();
+      // LogUBXVelNED();
 #endif
       break;
     case UBX_ID_SOL:

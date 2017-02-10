@@ -5,6 +5,7 @@
 #include <inttypes.h>
 
 #include "constants.h"
+#include "sensor_enumeration.h"
 
 
 // TODO: correct this for WGS84 model
@@ -25,11 +26,29 @@ enum NavError {
   NAV_ERROR_SD_DATA_ROWS,
 };
 
+enum WaypointTypeBits {
+  WP_TYPE_BIT_VISION   = 1<<0,
+  WP_TYPE_BIT_GEODETIC = 1<<1,
+};
+
+enum WaypointType {
+  WP_TYPE_GPS_RELATIVE    = 0,
+  WP_TYPE_VISION_RELATIVE = WP_TYPE_BIT_VISION,
+  WP_TYPE_GPS_GEODETIC    = WP_TYPE_BIT_GEODETIC,
+  WP_TYPE_VISION_GEODETIC = WP_TYPE_BIT_VISION | WP_TYPE_BIT_GEODETIC,
+};
+
 
 // =============================================================================
 // Accessors:
 
+enum SensorBits ActiveNavSensorBits(void);
+
+// -----------------------------------------------------------------------------
 float CurrentHeading(void);
+
+// -----------------------------------------------------------------------------
+int32_t GeodeticHome(enum GeoAxes axis);
 
 // -----------------------------------------------------------------------------
 float CurrentPosition(enum WorldAxes axis);
@@ -52,13 +71,8 @@ float TargetPosition(enum WorldAxes axis);
 // -----------------------------------------------------------------------------
 float TransitSpeed(void);
 
-#ifndef VISION
-// -----------------------------------------------------------------------------
-int32_t GPSHome(enum GeoAxes axis);
-
 // -----------------------------------------------------------------------------
 float UBXLongitudeToMeters(void);
-#endif
 
 
 // =============================================================================
@@ -69,10 +83,8 @@ void NavigationInit(void);
 // -----------------------------------------------------------------------------
 void UpdateNavigation(void);
 
-#ifndef VISION
 // -----------------------------------------------------------------------------
-void SetGPSHome(void);
-#endif
+void SetGeodeticHome(void);
 
 
 #endif  // NAVIGATION_H_

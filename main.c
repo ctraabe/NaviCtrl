@@ -5,6 +5,7 @@
 #include "flight_ctrl_comms.h"
 #include "i2c.h"
 #include "irq_priority.h"
+#include "kalman_filter.h"
 #include "led.h"
 #include "logging.h"
 #include "lsm303dl.h"
@@ -16,9 +17,7 @@
 #include "uart1.h"
 #include "uart2.h"
 #include "ublox.h"
-#ifdef VISION
-  #include "kalman_filter.h"
-#endif
+#include "vision.h"
 
 
 // =============================================================================
@@ -66,7 +65,7 @@ void FiftyHzInterruptHandler(void)
 #endif
 
   // Reset GPS home position.
-  // if (button && (button_pv == 0x7FFF)) SetGPSHome();
+  // if (button && (button_pv == 0x7FFF)) SetGeodeticHome();
 
   button_pv = (button_pv << 1) | button;
 }
@@ -178,7 +177,6 @@ int main(void)
   uint32_t led_timer = GetTimestamp();
   for (;;)
   {
-#ifndef VISION
     // Check for new data from the magnetometer.
     ProcessIncomingLSM303DL();
 
@@ -189,24 +187,19 @@ int main(void)
 
     // Check for new data on the GPS UART port.
     ProcessIncomingUBlox();
-#endif
 
     // Check for new data from the FlightCtrl.
     if (NewDataFromFlightCtrl())
     {
       ClearNewDataFromFlightCtrlFlag();
 
-#ifdef VISION
       KalmanAccelerometerUpdate();
-#endif
 
       UpdateNavigation();
 
       PrepareFlightCtrlDataExchange();
 
-#ifndef VISION
       RequestLSM303DL();
-#endif
 
       // Check if new data has come while processing the data. This indicates
       // that processing did not complete fast enough.
@@ -216,8 +209,17 @@ int main(void)
       }
     }
 
-#ifndef VISION
+    // Check for incoming data on the "update & debug" UART port.
+    ProcessIncomingUART1();
+
+    // Check for incoming vision data on the "FligthCtrl" UART port.
+    ProcessIncomingUART2();
+
+    // ProcessLogging();
+
+    // Check sensor data freshness.
     CheckUBXFreshness();
+    CheckVisionFreshness();
     CheckLSM303DLFreshness();
 
     // Normally the magnetometer is read every time new data comes from the
@@ -231,17 +233,6 @@ int main(void)
       if (LSM303DLErrorBits() & LSM303DL_ERROR_BIT_I2C_BUSY)
         I2CReset();
     }
-#else
-    CheckVisionFreshness();
-#endif
-
-    // Check for incoming data on the "update & debug" UART port.
-    ProcessIncomingUART1();
-
-    // Check for incoming data on the "FligthCtrl" UART port.
-    ProcessIncomingUART2();
-
-    ProcessLogging();
 
     if (TimestampInPast(led_timer))
     {

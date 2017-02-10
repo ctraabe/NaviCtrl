@@ -4,18 +4,15 @@
 #include "crc16.h"
 #include "heading.h"
 #include "irq_priority.h"
+#include "kalman_filter.h"
+#include "lsm303dl.h"
 #include "main.h"
+#include "quaternion.h"
 #include "spi_slave.h"
 #include "timing.h"
+#include "ublox.h"
 #include "union_types.h"
-#ifndef VISION
-  #include "lsm303dl.h"
-  #include "quaternion.h"
-  #include "ublox.h"
-#else
-  #include "kalman_filter.h"
-  #include "vision.h"
-#endif
+#include "vision.h"
 #ifdef LOG_DEBUG_TO_SD
   #include "logging.h"
 #endif
@@ -51,7 +48,7 @@ enum ToFlightCtrlPendingUpdateBits {
 
 static volatile uint32_t comms_ongoing_ = 0;
 
-#ifndef VISION
+#ifdef BARO_ALTIMETER_VERTICAL_NAVIGATION
 static struct ToFlightCtrl to_fc_ = { .version = NAV_COMMS_VERSION,
   .status = NAV_STATUS_BIT_LOW_PRECISION_VERTICAL };
 #else
@@ -284,7 +281,7 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
           CopyPendingToFlightControlData();
 
           // TODO: do this somewhere else
-#ifndef VISION
+#ifdef BARO_ALTIMETER_VERTICAL_NAVIGATION
           to_fc_.position[D_WORLD_AXIS]
             = -from_fc_[from_fc_tail_].pressure_altitude;
 #endif
@@ -326,22 +323,31 @@ void SetFlightCtrlCommsOngoingFlag(void)
 }
 
 // -----------------------------------------------------------------------------
-void UpdateHeadingCorrectionToFlightCtrl(void)
+void UpdateHeadingCorrectionToFlightCtrl(enum Sensors sensor)
 {
   // Form a heading correction
   float heading_error;
   uint32_t status;
-#ifndef VISION
-  float mag_earth[3];
-  QuaternionRotateVector((float *)Quat(), MagneticVector(), mag_earth);
-  // TODO: dedeclinate
-  // TODO: do some sanity checking on the magnetic scale, etc.
-  heading_error = -atan2(mag_earth[1], mag_earth[0]);
-  status = !LSM303DLDataStale();
-#else
-  heading_error = VisionHeading() - CurrentHeading();
-  status = VisionStatus();
-#endif
+
+  if ((sensor == LSM303DL) && (ActiveNavSensorBits() | SENSOR_BIT_LSM303DL))
+  {
+    float mag_earth[3];
+    QuaternionRotateVector((float *)Quat(), MagneticVector(), mag_earth);
+    // TODO: dedeclinate
+    // TODO: do some sanity checking on the magnetic scale, etc.
+    heading_error = -atan2(mag_earth[1], mag_earth[0]);
+    status = !LSM303DLDataStale();
+  }
+  else if ((sensor == VISION) && (ActiveNavSensorBits() | SENSOR_BIT_VISION))
+  {
+    heading_error = VisionHeading() - CurrentHeading();
+    status = VisionStatus();
+  }
+  else
+  {
+    return;
+  }
+
   if (status != 1) heading_error = 0;
   WrapToPlusMinusPi(heading_error);
   // TODO: put these magic numbers in a #define
@@ -387,23 +393,36 @@ void UpdateNavigationToFlightCtrl(void)
 }
 
 // -----------------------------------------------------------------------------
-void UpdatePositionToFlightCtrl(void)
+void UpdatePositionToFlightCtrl(enum Sensors sensor)
 {
   float current_position[3];
   uint32_t status;
-#ifndef VISION
-  current_position[N_WORLD_AXIS] = (float)(UBXPosLLH()->latitude
-    - GPSHome(LATITUDE)) * UBX_LATITUDE_TO_METERS;
-  current_position[E_WORLD_AXIS] = (float)(UBXPosLLH()->longitude
-    - GPSHome(LONGITUDE)) * UBXLongitudeToMeters();
-  current_position[2] = -from_fc_[from_fc_tail_].pressure_altitude;
-  status = (UBXPosLLH()->horizontal_accuracy < 5000) && !UBXDataStale();
-#else
-  current_position[N_WORLD_AXIS] = VisionPosition(N_WORLD_AXIS);
-  current_position[E_WORLD_AXIS] = VisionPosition(E_WORLD_AXIS);
-  current_position[D_WORLD_AXIS] = VisionPosition(D_WORLD_AXIS);
-  status = VisionStatus();
+
+  if ((sensor == UBLOX) && (ActiveNavSensorBits() | SENSOR_BIT_UBLOX))
+  {
+    current_position[N_WORLD_AXIS] = (float)(UBXPosLLH()->latitude
+      - GeodeticHome(LATITUDE)) * UBX_LATITUDE_TO_METERS;
+    current_position[E_WORLD_AXIS] = (float)(UBXPosLLH()->longitude
+      - GeodeticHome(LONGITUDE)) * UBXLongitudeToMeters();
+#ifndef BARO_ALTIMETER_VERTICAL_NAVIGATION
+    current_position[D_WORLD_AXIS] = (float)(UBXPosLLH()->height_above_ellipsoid
+      - GeodeticHome(HEIGHT)) * -1e-3;
 #endif
+    status = UBXStatus();
+  }
+  else if ((sensor == VISION) && (ActiveNavSensorBits() | SENSOR_BIT_VISION))
+  {
+    current_position[N_WORLD_AXIS] = VisionPosition(N_WORLD_AXIS);
+    current_position[E_WORLD_AXIS] = VisionPosition(E_WORLD_AXIS);
+#ifndef BARO_ALTIMETER_VERTICAL_NAVIGATION
+    current_position[D_WORLD_AXIS] = VisionPosition(D_WORLD_AXIS);
+#endif
+    status = VisionStatus();
+  }
+  else
+  {
+    return;
+  }
 
   struct ToFlightCtrl * to_fc = &to_fc_;
   if (comms_ongoing_)
@@ -414,7 +433,9 @@ void UpdatePositionToFlightCtrl(void)
 
   to_fc->position[N_WORLD_AXIS] = current_position[N_WORLD_AXIS];
   to_fc->position[E_WORLD_AXIS] = current_position[E_WORLD_AXIS];
+#ifndef BARO_ALTIMETER_VERTICAL_NAVIGATION
   to_fc->position[D_WORLD_AXIS] = current_position[D_WORLD_AXIS];
+#endif
 
   if (status)
     to_fc->status |= NAV_STATUS_BIT_POSITION_DATA_OK;
@@ -425,21 +446,29 @@ void UpdatePositionToFlightCtrl(void)
 }
 
 // -----------------------------------------------------------------------------
-void UpdateVelocityToFlightCtrl(void)
+void UpdateVelocityToFlightCtrl(enum Sensors sensor)
 {
   float velocity[3];
   uint32_t status;
-#ifndef VISION
-  velocity[N_WORLD_AXIS] = (float)UBXVelNED()->velocity_north * 1.0e-2;
-  velocity[E_WORLD_AXIS] = (float)UBXVelNED()->velocity_east * 1.0e-2;
-  velocity[D_WORLD_AXIS] = (float)UBXVelNED()->velocity_down * 1.0e-2;
-  status = (UBXVelNED()->speed_accuracy < 100) && !UBXDataStale();
-#else
-  velocity[N_WORLD_AXIS] = KalmanVelocity(N_WORLD_AXIS);
-  velocity[E_WORLD_AXIS] = KalmanVelocity(E_WORLD_AXIS);
-  velocity[D_WORLD_AXIS] = KalmanVelocity(D_WORLD_AXIS);
-  status = VisionStatus();
-#endif
+
+  if ((sensor == UBLOX) && (ActiveNavSensorBits() | SENSOR_BIT_UBLOX))
+  {
+    velocity[N_WORLD_AXIS] = (float)UBXVelNED()->velocity_north * 1.0e-2;
+    velocity[E_WORLD_AXIS] = (float)UBXVelNED()->velocity_east * 1.0e-2;
+    velocity[D_WORLD_AXIS] = (float)UBXVelNED()->velocity_down * 1.0e-2;
+    status = (UBXVelNED()->speed_accuracy < 100) && !UBXDataStale();
+  }
+  else if ((sensor == VISION) && (ActiveNavSensorBits() | SENSOR_BIT_VISION))
+  {
+    velocity[N_WORLD_AXIS] = KalmanVelocity(N_WORLD_AXIS);
+    velocity[E_WORLD_AXIS] = KalmanVelocity(E_WORLD_AXIS);
+    velocity[D_WORLD_AXIS] = KalmanVelocity(D_WORLD_AXIS);
+    status = VisionStatus();
+  }
+  else
+  {
+    return;
+  }
 
   struct ToFlightCtrl * to_fc = &to_fc_;
   if (comms_ongoing_)
@@ -489,7 +518,9 @@ static void CopyPendingToFlightControlData(void)
   {
     to_fc_.position[N_WORLD_AXIS] = to_fc_buffer_.position[N_WORLD_AXIS];
     to_fc_.position[E_WORLD_AXIS] = to_fc_buffer_.position[E_WORLD_AXIS];
+#ifndef BARO_ALTIMETER_VERTICAL_NAVIGATION
     to_fc_.position[D_WORLD_AXIS] = to_fc_buffer_.position[D_WORLD_AXIS];
+#endif
     to_fc_.status = (to_fc_.status & ~NAV_STATUS_BIT_POSITION_DATA_OK)
       | (to_fc_buffer_.status & NAV_STATUS_BIT_POSITION_DATA_OK);
   }

@@ -7,6 +7,7 @@
 
 #include "constants.h"
 #include "navigation.h"
+#include "sensor_enumeration.h"
 
 
 struct FromFlightCtrl {
@@ -125,16 +126,16 @@ void PrepareFlightCtrlDataExchange(void);
 void SetFlightCtrlCommsOngoingFlag(void);
 
 // -----------------------------------------------------------------------------
-void UpdateHeadingCorrectionToFlightCtrl(void);
+void UpdateHeadingCorrectionToFlightCtrl(enum Sensors sensor);
 
 // -----------------------------------------------------------------------------
 void UpdateNavigationToFlightCtrl(void);
 
 // -----------------------------------------------------------------------------
-void UpdatePositionToFlightCtrl(void);
+void UpdatePositionToFlightCtrl(enum Sensors sensor);
 
 // -----------------------------------------------------------------------------
-void UpdateVelocityToFlightCtrl(void);
+void UpdateVelocityToFlightCtrl(enum Sensors sensor);
 
 
 #endif  // FLT_CTRL_COMMS_H_

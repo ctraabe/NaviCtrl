@@ -25,7 +25,7 @@
 static float heading_ = 0.0, position_[3] = { 0.0 }, velocity_ned_[3] = { 0.0 },
   quaternion_[4] = { 1.0, 0.0, 0.0, 0.0 };
 static float obstacle_location_[3] = { 0.0 };
-static uint16_t status_;
+static uint16_t status_ = 0;
 static uint32_t timestamp_ = 0, last_reception_timestamp_ = 0;
 static enum VisionErrorBits vision_error_bits_ = VISION_ERROR_BIT_STALE;
 
@@ -241,8 +241,8 @@ static void VelocityFromPosition(const float position_variance[3])
 // -----------------------------------------------------------------------------
 static void VisionUpdates(void)
 {
-  UpdatePositionToFlightCtrl();
-  UpdateHeadingCorrectionToFlightCtrl();
+  UpdatePositionToFlightCtrl(VISION);
+  UpdateHeadingCorrectionToFlightCtrl(VISION);
 #ifdef LOG_DEBUG_TO_SD
   // LogTX1VisionData(from_tx1);
   // LogKalmanData;

@@ -2,8 +2,6 @@
 
 #include "ut_serial_protocol.h"
 #include "vision.h"
-// TODO: remove
-#include "logging.h"
 
 
 // =============================================================================
@@ -33,8 +31,7 @@ void HandleUTRx(uint8_t component_id, uint8_t message_id,
       ProcessTX1VisionData((struct TX1Vision *)data_buffer);
       break;
     case UT_SERIAL_COMPONENT_ID_RASPI:
-      LogRaspiTimestamp(*(uint32_t *)data_buffer);
-      // ProcessRaspiVisionData((struct RaspiVision *)data_buffer);
+      ProcessRaspiVisionData((struct RaspiVision *)data_buffer);
       break;
     default:
       break;

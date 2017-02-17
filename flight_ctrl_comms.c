@@ -329,7 +329,7 @@ void UpdateHeadingCorrectionToFlightCtrl(enum Sensors sensor)
   float heading_error;
   uint32_t status;
 
-  if ((sensor == LSM303DL) && (ActiveNavSensorBits() | SENSOR_BIT_LSM303DL))
+  if ((sensor == LSM303DL) && (ActiveNavSensorBits() & SENSOR_BIT_LSM303DL))
   {
     float mag_earth[3];
     QuaternionRotateVector((float *)Quat(), MagneticVector(), mag_earth);
@@ -338,7 +338,7 @@ void UpdateHeadingCorrectionToFlightCtrl(enum Sensors sensor)
     heading_error = -atan2(mag_earth[1], mag_earth[0]);
     status = !LSM303DLDataStale();
   }
-  else if ((sensor == VISION) && (ActiveNavSensorBits() | SENSOR_BIT_VISION))
+  else if ((sensor == VISION) && (ActiveNavSensorBits() & SENSOR_BIT_VISION))
   {
     heading_error = VisionHeading() - CurrentHeading();
     status = VisionStatus();
@@ -398,7 +398,7 @@ void UpdatePositionToFlightCtrl(enum Sensors sensor)
   float current_position[3];
   uint32_t status;
 
-  if ((sensor == UBLOX) && (ActiveNavSensorBits() | SENSOR_BIT_UBLOX))
+  if ((sensor == UBLOX) && (ActiveNavSensorBits() & SENSOR_BIT_UBLOX))
   {
     current_position[N_WORLD_AXIS] = (float)(UBXPosLLH()->latitude
       - GeodeticHome(LATITUDE)) * UBX_LATITUDE_TO_METERS;
@@ -410,7 +410,7 @@ void UpdatePositionToFlightCtrl(enum Sensors sensor)
 #endif
     status = UBXStatus();
   }
-  else if ((sensor == VISION) && (ActiveNavSensorBits() | SENSOR_BIT_VISION))
+  else if ((sensor == VISION) && (ActiveNavSensorBits() & SENSOR_BIT_VISION))
   {
     current_position[N_WORLD_AXIS] = VisionPosition(N_WORLD_AXIS);
     current_position[E_WORLD_AXIS] = VisionPosition(E_WORLD_AXIS);
@@ -451,14 +451,14 @@ void UpdateVelocityToFlightCtrl(enum Sensors sensor)
   float velocity[3];
   uint32_t status;
 
-  if ((sensor == UBLOX) && (ActiveNavSensorBits() | SENSOR_BIT_UBLOX))
+  if ((sensor == UBLOX) && (ActiveNavSensorBits() & SENSOR_BIT_UBLOX))
   {
     velocity[N_WORLD_AXIS] = (float)UBXVelNED()->velocity_north * 1.0e-2;
     velocity[E_WORLD_AXIS] = (float)UBXVelNED()->velocity_east * 1.0e-2;
     velocity[D_WORLD_AXIS] = (float)UBXVelNED()->velocity_down * 1.0e-2;
     status = (UBXVelNED()->speed_accuracy < 100) && !UBXDataStale();
   }
-  else if ((sensor == VISION) && (ActiveNavSensorBits() | SENSOR_BIT_VISION))
+  else if ((sensor == VISION) && (ActiveNavSensorBits() & SENSOR_BIT_VISION))
   {
     velocity[N_WORLD_AXIS] = KalmanVelocity(N_WORLD_AXIS);
     velocity[E_WORLD_AXIS] = KalmanVelocity(E_WORLD_AXIS);

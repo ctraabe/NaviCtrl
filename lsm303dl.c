@@ -167,6 +167,7 @@ uint32_t ProcessIncomingLSM303DL(void)
     * MagnetometerUnitizerVector()[2];
 
   unprocessed_data_waiting_ = 0;
+  error_bits_ &= ~LSM303DL_ERROR_BIT_STALE;
 
   UpdateHeadingCorrectionToFlightCtrl(LSM303DL);
 

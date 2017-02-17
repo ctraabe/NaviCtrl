@@ -14,7 +14,7 @@ Requirements
 --
 
 * NaviCtrl V2.0 or V2.1
-* LSM303D magnetometer (IC5 should be unpoulated)
+* LSM303D magnetometer (IC5 should be unpopulated)
 
 **This firmware requires the following modifications to the NaviCtrl board**
 
@@ -25,20 +25,22 @@ Requirements
 To do
 --
 
-- Compass calibration via least-squares ellipsoid
-- Waypoint management
+- Implement "go home" functionality, possibly with a route specified by SD
+- Make baro permanent for GPS nav and remove it from other sources
+  - maintain some fudge factor for smooth transition back to GPS from vision
+  - send a notification to FC of possible discontinuity due to sensor switching
 
 Intent
 --
 
 This firmware is intended to wholly replace the MikroKopter ecosystem. It may or may not be compatible with the MikroKopter tool in the future, but is not as of now.
 
-The primary goal of the firmware is to provide unrestricted navigation and fast SD card logging.
+The primary goal of the firmware is to provide unrestricted navigation and to interface with a custom (vision) position sensor.
 
 Build and install
 --
 
-This software was developed for use with the Sourcery CodeBench Lite toolchain
+This software was developed for use with the arm-none-eabi gcc toolchain.
 
 Hex files can be uploaded using the Mikrokopter Tool or the firmware uploader (Linux) available at https://github.com/ctraabe/MKProgrammer
 
@@ -62,6 +64,7 @@ Interrupt priority:
 
 Main loop:
 
+(out of date)
 1. Receive interrupt from FlightCtrl indicating a new 128Hz frame
 2. Request the latest magnetometer reading from LSM303D
 3. Process any data received from UBlox GPS

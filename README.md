@@ -25,11 +25,6 @@ Requirements
 To do
 --
 
-- Implement "go home" functionality, possibly with a route specified by SD
-- Make baro permanent for GPS nav and remove it from other sources
-  - maintain some fudge factor for smooth transition back to GPS from vision
-  - send a notification to FC of possible discontinuity due to sensor switching
-
 Intent
 --
 

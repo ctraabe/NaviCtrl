@@ -48,12 +48,6 @@ enum SensorBits ActiveNavSensorBits(void);
 float CurrentHeading(void);
 
 // -----------------------------------------------------------------------------
-int32_t GeodeticHome(enum GeoAxes axis);
-
-// -----------------------------------------------------------------------------
-float CurrentPosition(enum WorldAxes axis);
-
-// -----------------------------------------------------------------------------
 float HeadingRate(void);
 
 // -----------------------------------------------------------------------------
@@ -85,6 +79,9 @@ void UpdateNavigation(void);
 
 // -----------------------------------------------------------------------------
 void SetGeodeticHome(void);
+
+// -----------------------------------------------------------------------------
+void UBXToMeters(const int32_t ubx_geodetic[2], float ne[2]);
 
 
 #endif  // NAVIGATION_H_

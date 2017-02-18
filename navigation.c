@@ -22,6 +22,8 @@
 
 #define N_ROUTES (3)
 #define MAX_WAYPOINTS (32)
+#define N_GO_HOME_WAYPOINTS (3)
+#define GO_HOME_ALTITUDE (30.0) // m
 // TODO: make this a set-able parameter
 #define DEFAULT_TRANSIT_SPEED (1)  // m/s
 
@@ -49,6 +51,7 @@ enum RouteNumber {
 
 static uint32_t n_waypoints_[N_ROUTES] = { 0, 0, 0 };
 static struct Waypoint waypoints_[N_ROUTES][MAX_WAYPOINTS] = { 0 };
+static struct Waypoint go_home_[N_GO_HOME_WAYPOINTS] = { 0 };
 static enum NavMode mode_ = NAV_MODE_OFF;
 static enum NavError nav_error_ = NAV_ERROR_NONE;
 static enum SensorBits active_nav_sensors_ = SENSOR_BIT_UBLOX
@@ -70,7 +73,6 @@ static float ubx_longitude_to_meters_;
 // Private function declarations:
 
 static uint32_t NextWaypointValid(void);
-static void SetActiveNavSensors(void);
 static void SetTargetPosition(const struct Waypoint * const waypoint);
 
 
@@ -86,12 +88,6 @@ enum SensorBits ActiveNavSensorBits(void)
 float CurrentHeading(void)
 {
   return current_heading_;
-}
-
-// -----------------------------------------------------------------------------
-int32_t GeodeticHome(enum GeoAxes axis)
-{
-  return geodetic_home_[axis];
 }
 
 // -----------------------------------------------------------------------------
@@ -144,6 +140,42 @@ float UBXLongitudeToMeters(void)
 // Try to load waypoints from WP_LIST.CSV on the SD card (if inserted).
 void NavigationInit(void)
 {
+  // Initialize "go home" waypoint speeds. etc.
+
+  // First waypoint is directly up to "go home" altitude.
+  go_home_[0].type = WP_TYPE_GPS_RELATIVE;
+  go_home_[0].target_position[D_WORLD_AXIS].f = -GO_HOME_ALTITUDE;
+  go_home_[0].transit_speed = 0.5;
+  go_home_[0].radius = 1.0;
+  go_home_[0].target_heading = 0.0;
+  go_home_[0].heading_rate = 0.1;
+  go_home_[0].heading_range = 0.1;
+  go_home_[0].wait_ms = 0;
+
+  // Second waypoint directly across to home.
+  go_home_[1].type = WP_TYPE_GPS_RELATIVE;
+  go_home_[1].target_position[N_WORLD_AXIS].f = 0.0;
+  go_home_[1].target_position[E_WORLD_AXIS].f = 0.0;
+  go_home_[1].target_position[D_WORLD_AXIS].f = -GO_HOME_ALTITUDE;
+  go_home_[1].transit_speed = 1.0;
+  go_home_[1].radius = 1.0;
+  go_home_[1].target_heading = 0.0;
+  go_home_[1].heading_rate = 0.1;
+  go_home_[1].heading_range = 0.1;
+  go_home_[1].wait_ms = 0;
+
+  // Third waypoint descends vertically to the ground.
+  go_home_[2].type = WP_TYPE_GPS_RELATIVE;
+  go_home_[2].target_position[N_WORLD_AXIS].f = 0.0;
+  go_home_[2].target_position[E_WORLD_AXIS].f = 0.0;
+  go_home_[2].target_position[D_WORLD_AXIS].f = 999.0;
+  go_home_[2].transit_speed = 0.5;
+  go_home_[2].radius = 1.0;
+  go_home_[2].target_heading = 0.0;
+  go_home_[2].heading_rate = 0.1;
+  go_home_[2].heading_range = 0.1;
+  go_home_[2].wait_ms = 0;
+
 #if defined(OBSTACLE_AVOIDANCE_A)
   n_waypoints_[ROUTE_1] = 2;
 
@@ -446,58 +478,99 @@ void UpdateNavigation(void)
   state_pv = FlightCtrlState();
   current_heading_ = HeadingFromQuaternion((float *)Quat());
 
+  // Mode switching logic.
   if (RequestedNavMode() != mode_)
   {
-    if (RequestedNavMode() == NAV_MODE_AUTO)
+    switch (RequestedNavMode())
     {
-#if defined(OBSTACLE_AVOIDANCE_A) || defined(OBSTACLE_AVOIDANCE_B)
-      uint32_t route = ROUTE_1;
-#else
-      uint32_t route = RequestedNavRoute();
-#endif
-      if ((nav_error_ == NAV_ERROR_NONE) && n_waypoints_[route] > 0)
+      case NAV_MODE_AUTO:
       {
-        final_waypoint_ = &waypoints_[route][n_waypoints_[route]-1];
-        // Allow continuation from NAV_MODE_HOLD.
-        if ((current_waypoint_ >= final_waypoint_) || (current_waypoint_ <
-          &waypoints_[route][0]))
+#if defined(OBSTACLE_AVOIDANCE_A) || defined(OBSTACLE_AVOIDANCE_B)
+        uint32_t route = ROUTE_1;
+#else
+        uint32_t route = RequestedNavRoute();
+#endif
+        if ((nav_error_ == NAV_ERROR_NONE) && n_waypoints_[route] > 0)
         {
-          current_waypoint_ = &waypoints_[route][0];
+          final_waypoint_ = &waypoints_[route][n_waypoints_[route]-1];
+          // Allow continuation from NAV_MODE_HOLD.
+          if ((current_waypoint_ >= final_waypoint_) || (current_waypoint_ <
+            &waypoints_[route][0]))
+          {
+            current_waypoint_ = &waypoints_[route][0];
+          }
+          SetTargetPosition(current_waypoint_);
+          target_heading_ = current_waypoint_->target_heading;
+#ifndef OBSTACLE_AVOIDANCE_A
+          radius_squared = current_waypoint_->radius * current_waypoint_->radius;
+#endif
+          mode_ = NAV_MODE_AUTO;
         }
+        else
+        {
+          mode_ = NAV_MODE_HOLD;
+        }
+        break;
+      }
+      case NAV_MODE_HOME:
+      {
+        // Set N & E for the first waypoint to current position.
+        if (VisionStatus())
+        {
+          memcpy(go_home_[0].target_position, VisionPositionVector(),
+            sizeof(float) * 2);
+        }
+        else if (UBXStatus())
+        {
+          UBXToMeters(UBXGeodeticPositionVector(),
+            (float *)go_home_[0].target_position);
+        }
+        else
+        {
+          memcpy(go_home_[0].target_position, PositionVector(),
+            sizeof(float) * 2);
+        }
+
+        current_waypoint_ = &go_home_[0];
+        final_waypoint_ = &go_home_[2];
         SetTargetPosition(current_waypoint_);
         target_heading_ = current_waypoint_->target_heading;
-#ifndef OBSTACLE_AVOIDANCE_A
         radius_squared = current_waypoint_->radius * current_waypoint_->radius;
-#endif
-        SetActiveNavSensors();
-        mode_ = NAV_MODE_AUTO;
+        mode_ = NAV_MODE_HOME;
+        break;
       }
-      else
+      default:
       {
-        mode_ = NAV_MODE_HOLD;
+        mode_ = RequestedNavMode();
+        break;
       }
-    }
-    else
-    {
-      mode_ = RequestedNavMode();
     }
 
     if (mode_ == NAV_MODE_HOLD)
     {
-      Vector3Copy(PositionVector(), target_position_);
+      if (VisionStatus())
+      {
+        Vector3Copy(VisionPositionVector(), target_position_);
+      }
+      else if (UBXStatus())
+      {
+        UBXToMeters(UBXGeodeticPositionVector(), target_position_);
+        target_position_[D_WORLD_AXIS] = -PressureAltitude();
+      }
+      else
+      {
+        Vector3Copy(PositionVector(), target_position_);
+      }
       target_heading_ = current_heading_;
     }
   }
 
+  // Compute the deviation from that active waypoint.
   Vector3Subtract(PositionVector(), target_position_, delta_postion_);
   delta_heading_ = WrapToPlusMinusPi(current_heading_ - target_heading_);
 
-  if (mode_ == NAV_MODE_HOLD)
-  {
-    SetActiveNavSensors();
-  }
-
-  if (mode_ == NAV_MODE_AUTO)
+  // Waypoint switching logic.
+  if (mode_ == NAV_MODE_AUTO || mode_ == NAV_MODE_HOME)
   {
 #ifndef OBSTACLE_AVOIDANCE_A
     if (!waypoint_reached
@@ -516,7 +589,6 @@ void UpdateNavigation(void)
       SetTargetPosition(current_waypoint_);
       target_heading_ = current_waypoint_->target_heading;
       radius_squared = current_waypoint_->radius * current_waypoint_->radius;
-      SetActiveNavSensors();
     }
   #ifdef OBSTACLE_AVOIDANCE_B
     if ((current_waypoint_ == &waypoints_[ROUTE_1][1])
@@ -536,16 +608,36 @@ void UpdateNavigation(void)
 #endif
   }
 
+  // Active sensor logic (slight preference for vision).
+  if ((mode_ == NAV_MODE_AUTO && current_waypoint_->type & WP_TYPE_BIT_VISION)
+    || (mode_ != NAV_MODE_AUTO && VisionStatus()))
+  {
+    active_nav_sensors_ = SENSOR_BIT_VISION;
+  }
+  else if ((mode_ == NAV_MODE_AUTO) || (mode_ != NAV_MODE_AUTO && UBXStatus()))
+  {
+    active_nav_sensors_ = SENSOR_BIT_UBLOX | SENSOR_BIT_LSM303DL;
+  }
+
   UpdateNavigationToFlightCtrl();
 }
 
 // -----------------------------------------------------------------------------
 void SetGeodeticHome(void)
 {
-  memcpy(geodetic_home_, &UBXPosLLH()->longitude, sizeof(geodetic_home_));
+  memcpy(geodetic_home_, UBXGeodeticPositionVector(), sizeof(geodetic_home_));
 
   ubx_longitude_to_meters_ = UBX_LATITUDE_TO_METERS
     * cos((float)geodetic_home_[LATITUDE] * 1.0e-7 * M_PI / 180.0);
+}
+
+// -----------------------------------------------------------------------------
+void UBXToMeters(const int32_t ubx_geodetic[2], float ne[2])
+{
+    ne[N_WORLD_AXIS] = (float)(ubx_geodetic[LATITUDE]
+      - geodetic_home_[LATITUDE]) * UBX_LATITUDE_TO_METERS;
+    ne[E_WORLD_AXIS] = (float)(ubx_geodetic[LONGITUDE]
+      - geodetic_home_[LONGITUDE]) * ubx_longitude_to_meters_;
 }
 
 
@@ -559,20 +651,6 @@ static uint32_t NextWaypointValid(void)
   if (current_waypoint_[1].type & WP_TYPE_BIT_VISION) return VisionStatus();
 
   return UBXStatus();
-}
-
-// -----------------------------------------------------------------------------
-static void SetActiveNavSensors(void)
-{
-  if ((mode_ == NAV_MODE_AUTO && current_waypoint_->type & WP_TYPE_BIT_VISION)
-    || (mode_ != NAV_MODE_AUTO && VisionStatus()))
-  {
-    active_nav_sensors_ = SENSOR_BIT_VISION;
-  }
-  else
-  {
-    active_nav_sensors_ = SENSOR_BIT_UBLOX | SENSOR_BIT_LSM303DL;
-  }
 }
 
 // -----------------------------------------------------------------------------

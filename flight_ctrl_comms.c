@@ -280,12 +280,6 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
           // transmission is over? Slave select?
           CopyPendingToFlightControlData();
 
-          // TODO: do this somewhere else
-#ifdef BARO_ALTIMETER_VERTICAL_NAVIGATION
-          to_fc_.position[D_WORLD_AXIS]
-            = -from_fc_[from_fc_tail_].pressure_altitude;
-#endif
-
           new_data_ = 1;
 
 #ifdef LOG_DEBUG_TO_SD
@@ -381,6 +375,11 @@ void UpdateNavigationToFlightCtrl(void)
     pending_update_bits_ |= PENDING_UPDATE_BIT_NAVIGATION;
   }
 
+  if (ActiveNavSensorBits() & SENSOR_BIT_UBLOX)
+    to_fc->status |= NAV_STATUS_BIT_LOW_PRECISION_VERTICAL;
+  else
+    to_fc->status &= ~NAV_STATUS_BIT_LOW_PRECISION_VERTICAL;
+
   to_fc->nav_mode = (uint8_t)NavMode();
   to_fc->target_position[0] = TargetPosition(N_WORLD_AXIS);
   to_fc->target_position[1] = TargetPosition(E_WORLD_AXIS);
@@ -400,23 +399,15 @@ void UpdatePositionToFlightCtrl(enum Sensors sensor)
 
   if ((sensor == UBLOX) && (ActiveNavSensorBits() & SENSOR_BIT_UBLOX))
   {
-    current_position[N_WORLD_AXIS] = (float)(UBXPosLLH()->latitude
-      - GeodeticHome(LATITUDE)) * UBX_LATITUDE_TO_METERS;
-    current_position[E_WORLD_AXIS] = (float)(UBXPosLLH()->longitude
-      - GeodeticHome(LONGITUDE)) * UBXLongitudeToMeters();
-#ifndef BARO_ALTIMETER_VERTICAL_NAVIGATION
-    current_position[D_WORLD_AXIS] = (float)(UBXPosLLH()->height_above_ellipsoid
-      - GeodeticHome(HEIGHT)) * -1e-3;
-#endif
+    UBXToMeters(UBXGeodeticPositionVector(), current_position);
+    current_position[D_WORLD_AXIS] = -PressureAltitude();
     status = UBXStatus();
   }
   else if ((sensor == VISION) && (ActiveNavSensorBits() & SENSOR_BIT_VISION))
   {
     current_position[N_WORLD_AXIS] = VisionPosition(N_WORLD_AXIS);
     current_position[E_WORLD_AXIS] = VisionPosition(E_WORLD_AXIS);
-#ifndef BARO_ALTIMETER_VERTICAL_NAVIGATION
     current_position[D_WORLD_AXIS] = VisionPosition(D_WORLD_AXIS);
-#endif
     status = VisionStatus();
   }
   else
@@ -433,9 +424,7 @@ void UpdatePositionToFlightCtrl(enum Sensors sensor)
 
   to_fc->position[N_WORLD_AXIS] = current_position[N_WORLD_AXIS];
   to_fc->position[E_WORLD_AXIS] = current_position[E_WORLD_AXIS];
-#ifndef BARO_ALTIMETER_VERTICAL_NAVIGATION
   to_fc->position[D_WORLD_AXIS] = current_position[D_WORLD_AXIS];
-#endif
 
   if (status)
     to_fc->status |= NAV_STATUS_BIT_POSITION_DATA_OK;
@@ -512,15 +501,15 @@ static void CopyPendingToFlightControlData(void)
     to_fc_.transit_speed = to_fc_buffer_.transit_speed;
     to_fc_.target_heading = to_fc_buffer_.target_heading;
     to_fc_.heading_rate = to_fc_buffer_.heading_rate;
+    to_fc_.status = (to_fc_.status & ~NAV_STATUS_BIT_LOW_PRECISION_VERTICAL)
+      | (to_fc_buffer_.status & NAV_STATUS_BIT_LOW_PRECISION_VERTICAL);
   }
 
   if (pending_update_bits_ & PENDING_UPDATE_BIT_POSITION)
   {
     to_fc_.position[N_WORLD_AXIS] = to_fc_buffer_.position[N_WORLD_AXIS];
     to_fc_.position[E_WORLD_AXIS] = to_fc_buffer_.position[E_WORLD_AXIS];
-#ifndef BARO_ALTIMETER_VERTICAL_NAVIGATION
     to_fc_.position[D_WORLD_AXIS] = to_fc_buffer_.position[D_WORLD_AXIS];
-#endif
     to_fc_.status = (to_fc_.status & ~NAV_STATUS_BIT_POSITION_DATA_OK)
       | (to_fc_buffer_.status & NAV_STATUS_BIT_POSITION_DATA_OK);
   }

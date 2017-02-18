@@ -41,6 +41,7 @@ enum FlightCtrlStateBits {
   FC_STATE_BIT_STARTING              = 1<<2,
   FC_STATE_BIT_MOTORS_RUNNING        = 1<<3,
   FC_STATE_BIT_INITIALIZATION_TOGGLE = 1<<4,
+  FC_STATE_BIT_LOST_CONTROL_LINK     = 1<<5,
 };
 
 enum NavStatusBits {

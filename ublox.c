@@ -70,6 +70,12 @@ uint32_t UBXNewDataBits(void)
 }
 
 // -----------------------------------------------------------------------------
+const int32_t * UBXGeodeticPositionVector(void)
+{
+  return &ubx_pos_llh_.longitude;
+}
+
+// -----------------------------------------------------------------------------
 const struct UBXPosLLH * UBXPosLLH(void)
 {
   return &ubx_pos_llh_;

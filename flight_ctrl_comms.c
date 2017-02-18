@@ -368,6 +368,7 @@ void UpdateHeadingCorrectionToFlightCtrl(enum Sensors sensor)
 // -----------------------------------------------------------------------------
 void UpdateNavigationToFlightCtrl(void)
 {
+  static uint32_t active_nav_sensor_bits_pv = 0, position_reset_timer = 0;
   struct ToFlightCtrl * to_fc = &to_fc_;
   if (comms_ongoing_)
   {
@@ -380,6 +381,19 @@ void UpdateNavigationToFlightCtrl(void)
   else
     to_fc->status &= ~NAV_STATUS_BIT_LOW_PRECISION_VERTICAL;
 
+  // If active sensors have changed, request a reset for 500 ms to make sure
+  // that a new (possible discontinuous) sensor reading has been registered.
+  if (ActiveNavSensorBits() != active_nav_sensor_bits_pv)
+  {
+    to_fc->status |= NAV_STATUS_BIT_POSITION_RESET_REQUEST;
+    position_reset_timer = GetTimestampMillisFromNow(500);
+  }
+  if ((to_fc_.status & NAV_STATUS_BIT_POSITION_RESET_REQUEST)
+    && TimestampInPast(position_reset_timer))
+  {
+    to_fc->status &= ~NAV_STATUS_BIT_POSITION_RESET_REQUEST;
+  }
+
   to_fc->nav_mode = (uint8_t)NavMode();
   to_fc->target_position[0] = TargetPosition(N_WORLD_AXIS);
   to_fc->target_position[1] = TargetPosition(E_WORLD_AXIS);
@@ -389,6 +403,8 @@ void UpdateNavigationToFlightCtrl(void)
   to_fc->heading_rate = HeadingRate();
 
   if (to_fc == &to_fc_) UpdateCRCToFlightCtrl();
+
+  active_nav_sensor_bits_pv = ActiveNavSensorBits();
 }
 
 // -----------------------------------------------------------------------------
@@ -503,6 +519,8 @@ static void CopyPendingToFlightControlData(void)
     to_fc_.heading_rate = to_fc_buffer_.heading_rate;
     to_fc_.status = (to_fc_.status & ~NAV_STATUS_BIT_LOW_PRECISION_VERTICAL)
       | (to_fc_buffer_.status & NAV_STATUS_BIT_LOW_PRECISION_VERTICAL);
+    to_fc_.status = (to_fc_.status & ~NAV_STATUS_BIT_POSITION_RESET_REQUEST)
+      | (to_fc_buffer_.status & NAV_STATUS_BIT_POSITION_RESET_REQUEST);
   }
 
   if (pending_update_bits_ & PENDING_UPDATE_BIT_POSITION)

@@ -238,7 +238,7 @@ int main(void)
     {
       GreenLEDToggle();
 
-      while (TimestampInPast(led_timer)) led_timer += 100;
+      while (TimestampInPast(led_timer)) led_timer += 500;
 
       // Debug output for GPS and magnetomter. Remove after testing is completed
 
@@ -264,11 +264,25 @@ int main(void)
       //   (float)(UBXPosLLH()->latitude * 1e-7),
       //   (float)(UBXPosLLH()->height_above_ellipsoid * 1e-3));
 
-      // UART1PrintfSafe("%+5.2f,%+5.2f,%+5.2f,%+5.2f",
-      //   PositionVector()[0],
-      //   PositionVector()[1],
-      //   PositionVector()[2],
-      //   CurrentHeading());
+      // UART1PrintfSafe("C:(%+6.2f,%+6.2f,%+6.2f) H:%+4.0f",
+      //   VisionPositionVector()[0],
+      //   VisionPositionVector()[1],
+      //   VisionPositionVector()[2],
+      //   CurrentHeading() * 180.0 / 3.141596);
+
+      UART1PrintfSafe("C:(%+6.2f,%+6.2f,%+6.2f) D:(%+6.2f,%+6.2f,%+6.2f) H:%+4.0f",
+        PositionVector()[0],
+        PositionVector()[1],
+        PositionVector()[2],
+        NavDeltaPosition(0),
+        NavDeltaPosition(1),
+        NavDeltaPosition(2),
+        CurrentHeading() * 180.0 / 3.141596);
+
+      // UART1Printf("%+i,%+i,%+i",
+      //   UBXGeodeticPositionVector()[0],
+      //   UBXGeodeticPositionVector()[1],
+      //   UBXGeodeticPositionVector()[2]);
 
       // UART1PrintfSafe("%+5.2f,%+5.2f,%+5.2f",
       //   VisionObstacleLocationVector()[0],

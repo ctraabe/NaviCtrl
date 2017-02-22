@@ -398,6 +398,15 @@ void NavigationInit(void)
           waypoint_ptr->target_position[2].f
             = -waypoint_ptr->target_position[2].f;
 
+          // Swap the order of lat and lon to match UBX.
+          if (waypoint_ptr->type & WP_TYPE_BIT_GEODETIC)
+          {
+            int32_t temp = waypoint_ptr->target_position[0].s32;
+            waypoint_ptr->target_position[0].s32
+              = waypoint_ptr->target_position[1].s32;
+            waypoint_ptr->target_position[1].s32 = temp;
+          }
+
           // Safety checks.
           waypoint_ptr->transit_speed = fabs(waypoint_ptr->transit_speed);
           waypoint_ptr->radius = fabs(waypoint_ptr->radius);
@@ -432,13 +441,13 @@ void NavigationInit(void)
       float position[2];
       if (waypoints_[i][j].type & WP_TYPE_BIT_GEODETIC)
       {
-        position[0] = waypoints_[i][j].target_position[0].s32 * 1.0e-7;
-        position[1] = waypoints_[i][j].target_position[1].s32 * 1.0e-7;
+        position[0] = waypoints_[i][j].target_position[LATITUDE].s32 * 1.0e-7;
+        position[1] = waypoints_[i][j].target_position[LONGITUDE].s32 * 1.0e-7;
       }
       else
       {
-        position[0] = waypoints_[i][j].target_position[0].f;
-        position[1] = waypoints_[i][j].target_position[1].f;
+        position[0] = waypoints_[i][j].target_position[N_WORLD_AXIS].f;
+        position[1] = waypoints_[i][j].target_position[E_WORLD_AXIS].f;
       }
       UART1Printf("%02i: (%+06.2f %+06.2f %+06.2f) %4.2f %4.2f %+04.0f %03.0f"
         " %03.0f %i %i", j + 1,

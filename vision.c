@@ -242,7 +242,9 @@ static void VelocityFromPosition(const float position_variance[3])
 static void VisionUpdates(void)
 {
   UpdatePositionToFlightCtrl(VISION);
+#ifndef ALWAYS_USE_MAGNETOMETER
   UpdateHeadingCorrectionToFlightCtrl(VISION);
+#endif
 #ifdef LOG_DEBUG_TO_SD
   // LogTX1VisionData(from_tx1);
   // LogKalmanData;

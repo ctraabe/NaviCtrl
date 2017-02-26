@@ -23,7 +23,7 @@
 #define N_ROUTES (3)
 #define MAX_WAYPOINTS (32)
 #define N_GO_HOME_WAYPOINTS (3)
-#define GO_HOME_ALTITUDE (30.0) // m
+#define GO_HOME_ALTITUDE (3.0) // m
 // TODO: make this a set-able parameter
 #define DEFAULT_TRANSIT_SPEED (1)  // m/s
 
@@ -140,6 +140,12 @@ float UBXLongitudeToMeters(void)
 // Try to load waypoints from WP_LIST.CSV on the SD card (if inserted).
 void NavigationInit(void)
 {
+#ifdef HARDCODE_GEODETIC_HOME
+  geodetic_home_[LONGITUDE] = 1399730700;
+  geodetic_home_[LATITUDE] = 359297400;
+  geodetic_home_[HEIGHT] = 0;
+#endif
+
   // Initialize "go home" waypoint speeds. etc.
 
   // First waypoint is directly up to "go home" altitude.
@@ -481,10 +487,12 @@ void UpdateNavigation(void)
   static uint32_t next_waypoint_time = 0, waypoint_reached = 0;
 #endif
 
+#ifndef HARDCODE_GEODETIC_HOME
   static uint32_t state_pv = 0;
   if ((FlightCtrlState() ^ state_pv) & FC_STATE_BIT_INITIALIZATION_TOGGLE)
     SetGeodeticHome();
   state_pv = FlightCtrlState();
+#endif
   current_heading_ = HeadingFromQuaternion((float *)Quat());
 
   // Mode switching logic.
@@ -621,7 +629,11 @@ void UpdateNavigation(void)
   if ((mode_ == NAV_MODE_AUTO && current_waypoint_->type & WP_TYPE_BIT_VISION)
     || (mode_ != NAV_MODE_AUTO && VisionStatus()))
   {
+#ifdef ALWAYS_USE_MAGNETOMETER
+    active_nav_sensors_ = SENSOR_BIT_VISION | SENSOR_BIT_LSM303DL;
+#else
     active_nav_sensors_ = SENSOR_BIT_VISION;
+#endif
   }
   else if ((mode_ == NAV_MODE_AUTO) || (mode_ != NAV_MODE_AUTO && UBXStatus()))
   {

@@ -141,9 +141,11 @@ float UBXLongitudeToMeters(void)
 void NavigationInit(void)
 {
 #ifdef HARDCODE_GEODETIC_HOME
-  geodetic_home_[LONGITUDE] = 1399730700;
-  geodetic_home_[LATITUDE] = 359297400;
+  geodetic_home_[LONGITUDE] = 1394220087;
+  geodetic_home_[LATITUDE] = 354991805;
   geodetic_home_[HEIGHT] = 0;
+  ubx_longitude_to_meters_ = UBX_LATITUDE_TO_METERS
+  * cos((float)geodetic_home_[LATITUDE] * 1.0e-7 * M_PI / 180.0);
 #endif
 
   // Initialize "go home" waypoint speeds. etc.

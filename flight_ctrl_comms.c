@@ -48,12 +48,7 @@ enum ToFlightCtrlPendingUpdateBits {
 
 static volatile uint32_t comms_ongoing_ = 0;
 
-#ifdef BARO_ALTIMETER_VERTICAL_NAVIGATION
-static struct ToFlightCtrl to_fc_ = { .version = NAV_COMMS_VERSION,
-  .status = NAV_STATUS_BIT_LOW_PRECISION_VERTICAL };
-#else
 static struct ToFlightCtrl to_fc_ = { .version = NAV_COMMS_VERSION };
-#endif
 static struct ToFlightCtrl to_fc_buffer_ = { 0 };
 static struct FromFlightCtrl from_fc_[2] = { { 0 } };
 static union U16Bytes crc_[2];

@@ -1,5 +1,4 @@
 # Compile option defines:
-# BARO_ALTIMETER_VERTICAL_NAVIGATION : use baro altimeter for vertical position
 # LOG_DEBUG_TO_SD : perform SD card logging
 # LOGGING_BUTTON : initiate logging with a button push
 

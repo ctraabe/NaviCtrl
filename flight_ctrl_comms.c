@@ -27,6 +27,7 @@
 
 #define NAV_COMMS_VERSION (1)
 #define SPI_FC_START_BYTE (0xAA)
+#define MAG_DECLINATION (7.5 * M_PI / 180.0)
 
 enum NavModeBits {
   NAV_BIT_MODE_0     = 1<<0,
@@ -320,11 +321,14 @@ void UpdateHeadingCorrectionToFlightCtrl(enum Sensors sensor)
 
   if ((sensor == LSM303DL) && (ActiveNavSensorBits() & SENSOR_BIT_LSM303DL))
   {
-    float mag_earth[3];
-    QuaternionRotateVector((float *)Quat(), MagneticVector(), mag_earth);
-    // TODO: dedeclinate
     // TODO: do some sanity checking on the magnetic scale, etc.
-    heading_error = -atan2(mag_earth[1], mag_earth[0]);
+    float mag_world[3], true_world[2];
+    QuaternionRotateVector((float *)Quat(), MagneticVector(), mag_world);
+    true_world[N_WORLD_AXIS] = mag_world[N_WORLD_AXIS] * cos(MAG_DECLINATION)
+      - mag_world[E_WORLD_AXIS] * sin(MAG_DECLINATION);
+    true_world[E_WORLD_AXIS] = mag_world[E_WORLD_AXIS] * cos(MAG_DECLINATION)
+      + mag_world[N_WORLD_AXIS] * sin(MAG_DECLINATION);
+    heading_error = -atan2(true_world[E_WORLD_AXIS], true_world[N_WORLD_AXIS]);
     status = !LSM303DLDataStale();
   }
   else if ((sensor == VISION) && (ActiveNavSensorBits() & SENSOR_BIT_VISION))

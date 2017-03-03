@@ -23,7 +23,7 @@
 #define N_ROUTES (3)
 #define MAX_WAYPOINTS (32)
 #define N_GO_HOME_WAYPOINTS (3)
-#define GO_HOME_ALTITUDE (3.0) // m
+#define GO_HOME_ALTITUDE (30.0) // m
 // TODO: make this a set-able parameter
 #define DEFAULT_TRANSIT_SPEED (1)  // m/s
 
@@ -141,8 +141,9 @@ float UBXLongitudeToMeters(void)
 void NavigationInit(void)
 {
 #ifdef HARDCODE_GEODETIC_HOME
-  geodetic_home_[LONGITUDE] = 1394220087;
-  geodetic_home_[LATITUDE] = 354991805;
+  // Ina-shi, Nagano
+  geodetic_home_[LONGITUDE] = 1380821430;
+  geodetic_home_[LATITUDE] = 358082810;
   geodetic_home_[HEIGHT] = 0;
   ubx_longitude_to_meters_ = UBX_LATITUDE_TO_METERS
   * cos((float)geodetic_home_[LATITUDE] * 1.0e-7 * M_PI / 180.0);
@@ -523,6 +524,7 @@ void UpdateNavigation(void)
 #ifndef OBSTACLE_AVOIDANCE_A
           radius_squared = current_waypoint_->radius * current_waypoint_->radius;
 #endif
+          waypoint_reached = 0;
           mode_ = NAV_MODE_AUTO;
         }
         else
@@ -555,6 +557,7 @@ void UpdateNavigation(void)
         SetTargetPosition(current_waypoint_);
         target_heading_ = current_waypoint_->target_heading;
         radius_squared = current_waypoint_->radius * current_waypoint_->radius;
+        waypoint_reached = 0;
         mode_ = NAV_MODE_HOME;
         break;
       }

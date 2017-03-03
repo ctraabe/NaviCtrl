@@ -18,7 +18,7 @@
 // =============================================================================
 // Private data:
 
-#define VISION_FRESHNESS_LIMIT (100)  // millisends
+#define VISION_FRESHNESS_LIMIT (200)  // millisends
 #define VARIANCE_POSITION_TX1 (0.0001)
 #define VARIANCE_VELOCITY_RICOH (0.0001)
 
@@ -213,7 +213,7 @@ static void VelocityFromPosition(const float position_variance[3])
     uint32_t dt_us = timestamp_ - timestamp_pv;
 
     // Only update the velocity if the previous sample is recent.
-    if (dt_us < 200000)
+    if (dt_us < 500000)  // 0.5 s
     {
       if (dt_us < 1000) dt_us = 1000;
       float dt_inv = 1e6 / (float)dt_us;
@@ -229,6 +229,12 @@ static void VelocityFromPosition(const float position_variance[3])
 
       // Update the Kalman filter.
       KalmanVelocityMeasurementUpdate(velocity_ned_, velocity_ned_variance);
+    }
+    else
+    {
+      // If the last good value is too old, then the velocity estimate is
+      // probably not good, so change the status to 0.
+      status_ = 0;
     }
 
     // Update past values.

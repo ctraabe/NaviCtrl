@@ -6,6 +6,21 @@
 // =============================================================================
 // Public functions:
 
+// This function implements an IIR digital filter in direct form 2 with the
+// assumption that the most significant numerator coefficient (b0) is zero. See
+// en.wikipedia.org/wiki/Digital_biquad_filter for more information.
+float DirectForm2ZeroB0(float input, const float coefficients[2][2],
+  float delay[2])
+{
+  input -= coefficients[1][0] * delay[0] + coefficients[1][1] * delay[1];
+  float result = coefficients[0][0] * delay[0] + coefficients[0][1] * delay[1];
+
+  delay[1] = delay[0];
+  delay[0] = input;
+  return result;
+}
+
+// -----------------------------------------------------------------------------
 int16_t FloatToS16(float input)
 {
   if (input < 0.0)
@@ -25,6 +40,14 @@ float FloatLimit(float input, float lower_limit, float upper_limit)
 {
   if (input < lower_limit) return lower_limit;
   else if (input > upper_limit) return upper_limit;
+  else return input;
+}
+
+// -----------------------------------------------------------------------------
+float FloatSLimit(float input, float limit)
+{
+  if (input < -limit) return -limit;
+  else if (input > limit) return limit;
   else return input;
 }
 
@@ -165,6 +188,6 @@ uint16_t U16RoundRShiftU32(uint32_t input, uint8_t power)
 float WrapToPlusMinusPi(float angle)
 {
   while (angle > M_PI) angle -= 2.0 * M_PI;
-  while (angle < -M_PI) angle += 2.0 * M_PI;
+  while (angle <= -M_PI) angle += 2.0 * M_PI;
   return angle;
 }

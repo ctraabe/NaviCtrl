@@ -8,6 +8,13 @@
 // =============================================================================
 // Public functions:
 
+// This function implements an IIR digital filter in direct form 2 with the
+// assumption that the most significant numerator coefficient (b0) is zero. See
+// en.wikipedia.org/wiki/Digital_biquad_filter for more information.
+float DirectForm2ZeroB0(float input, const float coefficients[2][2],
+  float delay[2]);
+
+// -----------------------------------------------------------------------------
 int16_t FloatToS16(float input);
 
 // -----------------------------------------------------------------------------
@@ -15,6 +22,9 @@ uint16_t FloatToU16(float input);
 
 // -----------------------------------------------------------------------------
 float FloatLimit(float input, float lower_limit, float upper_limit);
+
+// -----------------------------------------------------------------------------
+float FloatSLimit(float input, float limit);
 
 // -----------------------------------------------------------------------------
 float FloatMax(float input1, float input2);

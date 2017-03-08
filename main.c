@@ -279,19 +279,29 @@ int main(void)
       //   NavDeltaPosition(2),
       //   CurrentHeading() * 180.0 / 3.141596);
 
-      UART1PrintfSafe("C:(%+6.2f,%+6.2f,%+6.2f) D:(%+6.2f,%+6.2f,%+6.2f) H:%+4.0f | V:(%+6.2f,%+6.2f,%+6.2f,%i)",
+      // UART1PrintfSafe("C:(%+6.2f,%+6.2f,%+6.2f) D:(%+6.2f,%+6.2f,%+6.2f) H:%+4.0f | V:(%+6.2f,%+6.2f,%+6.2f,%i)",
+      //   PositionVector()[0],
+      //   PositionVector()[1],
+      //   PositionVector()[2],
+      //   NavDeltaPosition(0),
+      //   NavDeltaPosition(1),
+      //   NavDeltaPosition(2),
+      //   CurrentHeading() * 180.0 / 3.141596,
+      //   VisionPositionVector()[0],
+      //   VisionPositionVector()[1],
+      //   VisionPositionVector()[2],
+      //   VisionStatus()
+      //   );
+
+      UART1PrintfSafe("C:(%+6.2f,%+6.2f,%+6.2f) D:(%+6.2f,%+6.2f,%+6.2f) O:%+6.2f H:%+4.0f",
         PositionVector()[0],
         PositionVector()[1],
         PositionVector()[2],
         NavDeltaPosition(0),
         NavDeltaPosition(1),
         NavDeltaPosition(2),
-        CurrentHeading() * 180.0 / 3.141596,
-        VisionPositionVector()[0],
-        VisionPositionVector()[1],
-        VisionPositionVector()[2],
-        VisionStatus()
-        );
+        VisionObstacleLocationVector()[0] * 1e-3,
+        CurrentHeading() * 180.0 / 3.141596);
 
       // UART1Printf("%+i,%+i,%+i",
       //   UBXGeodeticPositionVector()[0],

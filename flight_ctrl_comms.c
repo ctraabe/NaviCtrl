@@ -341,7 +341,7 @@ void UpdateHeadingCorrectionToFlightCtrl(enum Sensors sensor)
     return;
   }
 
-  if (status != 1) heading_error = 0;
+  if (status == 0) heading_error = 0;
   WrapToPlusMinusPi(heading_error);
   // TODO: put these magic numbers in a #define
   float quat_c_z = 0.5 * 0.025 * heading_error;

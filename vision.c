@@ -33,6 +33,7 @@ static enum VisionErrorBits vision_error_bits_ = VISION_ERROR_BIT_STALE;
 // =============================================================================
 // Private function declarations:
 
+static void QuaternionFromQXYZ(const float q_xyz[3]);
 static void VelocityFromPosition(const float position_variance[3]);
 static void VisionUpdates(void);
 
@@ -120,11 +121,7 @@ void ProcessRaspiVisionData(struct RaspiVision * from_raspi)
   Vector3Copy(from_raspi->position, position_);
 
   // Compute full quaternion.
-  quaternion_[1] = from_raspi->quaternion[0];
-  quaternion_[2] = from_raspi->quaternion[1];
-  quaternion_[3] = from_raspi->quaternion[2];
-  quaternion_[0] = sqrt(1.0 - quaternion_[1] * quaternion_[1] - quaternion_[2]
-    * quaternion_[2] - quaternion_[3] * quaternion_[3]);
+  QuaternionFromQXYZ(from_raspi->quaternion);
 
   // Compute heading.
   heading_ = HeadingFromQuaternion(quaternion_);
@@ -144,18 +141,14 @@ void ProcessRicohObstacleData(struct RicohObjectDetection * from_ricoh)
 // -----------------------------------------------------------------------------
 void ProcessRicohVisionData(struct RicohVision * from_ricoh)
 {
-  status_ = from_ricoh->reliability;
+  status_ = from_ricoh->reliability & 0x0001;
   timestamp_ = from_ricoh->capture_time;
 
   // Convert position from mm to m.
   Vector3Copy(Vector3ScaleSelf(from_ricoh->position, 1.0 / 1000.0), position_);
 
   // Compute full quaternion.
-  quaternion_[1] = from_ricoh->quaternion[0];
-  quaternion_[2] = from_ricoh->quaternion[1];
-  quaternion_[3] = from_ricoh->quaternion[2];
-  quaternion_[0] = sqrt(1.0 - quaternion_[1] * quaternion_[1] - quaternion_[2]
-    * quaternion_[2] - quaternion_[3] * quaternion_[3]);
+  QuaternionFromQXYZ(from_ricoh->quaternion);
 
   // Compute heading angle.
   heading_ = HeadingFromQuaternion(quaternion_);
@@ -183,11 +176,7 @@ void ProcessTX1VisionData(struct TX1Vision * from_tx1)
   Vector3Copy(from_tx1->position, position_);
 
   // Compute full quaternion.
-  quaternion_[1] = from_tx1->quaternion[0];
-  quaternion_[2] = from_tx1->quaternion[1];
-  quaternion_[3] = from_tx1->quaternion[2];
-  quaternion_[0] = sqrt(1.0 - quaternion_[1] * quaternion_[1] - quaternion_[2]
-    * quaternion_[2] - quaternion_[3] * quaternion_[3]);
+  QuaternionFromQXYZ(from_tx1->quaternion);
 
   // Compute heading.
   heading_ = HeadingFromQuaternion(quaternion_);
@@ -204,6 +193,20 @@ void ProcessTX1VisionData(struct TX1Vision * from_tx1)
 // =============================================================================
 // Private functions:
 
+static void QuaternionFromQXYZ(const float q_xyz[3])
+{
+  float q_0_square = 1.0 - q_xyz[0] * q_xyz[0] - q_xyz[1] * q_xyz[1]
+    - q_xyz[2] * q_xyz[2];
+
+  if (q_0_square > 0.0)
+    quaternion_[0] = sqrt(q_0_square);
+  else
+    quaternion_[0] = 0.0;
+
+  Vector3Copy(q_xyz, &quaternion_[1]);
+}
+
+// -----------------------------------------------------------------------------
 static void VelocityFromPosition(const float position_variance[3])
 {
   static uint32_t timestamp_pv = 0;

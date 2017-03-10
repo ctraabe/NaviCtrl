@@ -27,13 +27,14 @@ static float heading_ = 0.0, position_[3] = { 0.0 }, velocity_ned_[3] = { 0.0 },
 static float obstacle_location_[3] = { 0.0 };
 static uint16_t status_ = 0;
 static uint32_t timestamp_ = 0, last_reception_timestamp_ = 0;
-static enum VisionErrorBits vision_error_bits_ = VISION_ERROR_BIT_STALE;
+static enum VisionErrorBits error_bits_ = VISION_ERROR_BIT_STALE;
 
 
 // =============================================================================
 // Private function declarations:
 
 static void QuaternionFromQXYZ(const float q_xyz[3]);
+static void UpdateDataFreshness(void);
 static void VelocityFromPosition(const float position_variance[3]);
 static void VisionUpdates(void);
 
@@ -73,7 +74,7 @@ const float * VisionQuaternionVector(void)
 // -----------------------------------------------------------------------------
 uint32_t VisionDataStale(void)
 {
-  return vision_error_bits_ & VISION_ERROR_BIT_STALE;
+  return error_bits_ & VISION_ERROR_BIT_STALE;
 }
 
 // -----------------------------------------------------------------------------
@@ -102,10 +103,10 @@ void CheckVisionFreshness(void)
 {
   // Only check freshness if the data is not yet stale because the timestamp
   // might rollover, giving a false freshness.
-  if ((~vision_error_bits_ & VISION_ERROR_BIT_STALE) &&
+  if ((~error_bits_ & VISION_ERROR_BIT_STALE) &&
     (MillisSinceTimestamp(last_reception_timestamp_) > VISION_FRESHNESS_LIMIT))
   {
-    vision_error_bits_ |= VISION_ERROR_BIT_STALE;
+    error_bits_ |= VISION_ERROR_BIT_STALE;
     status_ = 0;
     // Update vision data to FlightCtrl to reflect staleness.
     VisionUpdates();
@@ -115,6 +116,8 @@ void CheckVisionFreshness(void)
 // -----------------------------------------------------------------------------
 void ProcessRaspiVisionData(struct RaspiVision * from_raspi)
 {
+  UpdateDataFreshness();
+
   // Copy received data.
   status_ = from_raspi->status;
   timestamp_ = from_raspi->timestamp;
@@ -141,6 +144,8 @@ void ProcessRicohObstacleData(struct RicohObjectDetection * from_ricoh)
 // -----------------------------------------------------------------------------
 void ProcessRicohVisionData(struct RicohVision * from_ricoh)
 {
+  UpdateDataFreshness();
+
   status_ = from_ricoh->reliability & 0x0001;
   timestamp_ = from_ricoh->capture_time;
 
@@ -170,6 +175,8 @@ void ProcessRicohVisionData(struct RicohVision * from_ricoh)
 // -----------------------------------------------------------------------------
 void ProcessTX1VisionData(struct TX1Vision * from_tx1)
 {
+  UpdateDataFreshness();
+
   // Copy received data.
   status_ = from_tx1->status;
   timestamp_ = from_tx1->timestamp;
@@ -204,6 +211,13 @@ static void QuaternionFromQXYZ(const float q_xyz[3])
     quaternion_[0] = 0.0;
 
   Vector3Copy(q_xyz, &quaternion_[1]);
+}
+
+// -----------------------------------------------------------------------------
+static void UpdateDataFreshness(void)
+{
+  last_reception_timestamp_ = GetTimestamp();
+  error_bits_ &= ~VISION_ERROR_BIT_STALE;
 }
 
 // -----------------------------------------------------------------------------

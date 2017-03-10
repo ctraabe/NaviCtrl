@@ -23,7 +23,7 @@
 #define N_ROUTES (3)
 #define MAX_WAYPOINTS (32)
 #define N_GO_HOME_WAYPOINTS (3)
-#define GO_HOME_ALTITUDE (30.0) // m
+#define GO_HOME_ALTITUDE (2.0) // m
 // TODO: make this a set-able parameter
 #define DEFAULT_TRANSIT_SPEED (1)  // m/s
 
@@ -211,207 +211,8 @@ void NavigationInit(void)
   waypoints_[ROUTE_1][1].heading_range = 10.0 * M_PI / 180.0;
   waypoints_[ROUTE_1][1].wait_ms = 0;
 #elif defined(OBSTACLE_AVOIDANCE_B)
-  n_waypoints_[ROUTE_1] = 18;
+  n_waypoints_[ROUTE_2] = 18;
 
-  waypoints_[ROUTE_1][0].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][0].target_position[0].f = 0.0;
-  waypoints_[ROUTE_1][0].target_position[1].f = 0.0;
-  waypoints_[ROUTE_1][0].target_position[2].f = -1.0;
-  waypoints_[ROUTE_1][0].transit_speed = 0.5;
-  waypoints_[ROUTE_1][0].radius = 0.5;
-  waypoints_[ROUTE_1][0].target_heading = 0.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][0].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][0].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][0].wait_ms = 2000;
-
-  waypoints_[ROUTE_1][1].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][1].target_position[0].f = 4.5;
-  waypoints_[ROUTE_1][1].target_position[1].f = 0.0;
-  waypoints_[ROUTE_1][1].target_position[2].f = -1.0;
-  waypoints_[ROUTE_1][1].transit_speed = 2.0;
-  waypoints_[ROUTE_1][1].radius = 0.5;
-  waypoints_[ROUTE_1][1].target_heading = 0.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][1].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][1].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][1].wait_ms = 1000;
-
-  waypoints_[ROUTE_1][2].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][2].target_position[0].f = 4.5;
-  waypoints_[ROUTE_1][2].target_position[1].f = -2.0;
-  waypoints_[ROUTE_1][2].target_position[2].f = -1.0;
-  waypoints_[ROUTE_1][2].transit_speed = 1.0;
-  waypoints_[ROUTE_1][2].radius = 0.5;
-  waypoints_[ROUTE_1][2].target_heading = 0.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][2].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][2].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][2].wait_ms = 3000;
-
-  waypoints_[ROUTE_1][3].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][3].target_position[0].f = 4.5;
-  waypoints_[ROUTE_1][3].target_position[1].f = -2.7;
-  waypoints_[ROUTE_1][3].target_position[2].f = -1.0;
-  waypoints_[ROUTE_1][3].transit_speed = 2.0;
-  waypoints_[ROUTE_1][3].radius = 0.5;
-  waypoints_[ROUTE_1][3].target_heading = 0.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][3].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][3].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][3].wait_ms = 3000;
-
-  waypoints_[ROUTE_1][4].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][4].target_position[0].f = 4.5;
-  waypoints_[ROUTE_1][4].target_position[1].f = -3.4;
-  waypoints_[ROUTE_1][4].target_position[2].f = -1.0;
-  waypoints_[ROUTE_1][4].transit_speed = 2.0;
-  waypoints_[ROUTE_1][4].radius = 0.5;
-  waypoints_[ROUTE_1][4].target_heading = 0.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][4].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][4].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][4].wait_ms = 3000;
-
-  waypoints_[ROUTE_1][5].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][5].target_position[0].f = 4.5;
-  waypoints_[ROUTE_1][5].target_position[1].f = -4.1;
-  waypoints_[ROUTE_1][5].target_position[2].f = -1.0;
-  waypoints_[ROUTE_1][5].transit_speed = 2.0;
-  waypoints_[ROUTE_1][5].radius = 0.5;
-  waypoints_[ROUTE_1][5].target_heading = 0.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][5].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][5].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][5].wait_ms = 3000;
-
-  waypoints_[ROUTE_1][6].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][6].target_position[0].f = 4.5;
-  waypoints_[ROUTE_1][6].target_position[1].f = 0.0;
-  waypoints_[ROUTE_1][6].target_position[2].f = -1.0;
-  waypoints_[ROUTE_1][6].transit_speed = 2.0;
-  waypoints_[ROUTE_1][6].radius = 0.5;
-  waypoints_[ROUTE_1][6].target_heading = 0.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][6].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][6].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][6].wait_ms = 1000;
-
-  waypoints_[ROUTE_1][7].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][7].target_position[0].f = 6.8;
-  waypoints_[ROUTE_1][7].target_position[1].f = 0.0;
-  waypoints_[ROUTE_1][7].target_position[2].f = -1.0;
-  waypoints_[ROUTE_1][7].transit_speed = 2.0;
-  waypoints_[ROUTE_1][7].radius = 0.5;
-  waypoints_[ROUTE_1][7].target_heading = 0.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][7].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][7].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][7].wait_ms = 1000;
-
-  waypoints_[ROUTE_1][8].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][8].target_position[0].f = 6.8;
-  waypoints_[ROUTE_1][8].target_position[1].f = 0.0;
-  waypoints_[ROUTE_1][8].target_position[2].f = -1.0;
-  waypoints_[ROUTE_1][8].transit_speed = 2.0;
-  waypoints_[ROUTE_1][8].radius = 0.5;
-  waypoints_[ROUTE_1][8].target_heading = -90.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][8].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][8].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][8].wait_ms = 1000;
-
-  waypoints_[ROUTE_1][9].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][9].target_position[0].f = 6.8;
-  waypoints_[ROUTE_1][9].target_position[1].f = 0.0;
-  waypoints_[ROUTE_1][9].target_position[2].f = -1.3;
-  waypoints_[ROUTE_1][9].transit_speed = 0.5;
-  waypoints_[ROUTE_1][9].radius = 0.5;
-  waypoints_[ROUTE_1][9].target_heading = -90.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][9].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][9].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][9].wait_ms = 3000;
-
-  waypoints_[ROUTE_1][10].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][10].target_position[0].f = 7.5;
-  waypoints_[ROUTE_1][10].target_position[1].f = 0.0;
-  waypoints_[ROUTE_1][10].target_position[2].f = -0.4;
-  waypoints_[ROUTE_1][10].transit_speed = 0.5;
-  waypoints_[ROUTE_1][10].radius = 0.5;
-  waypoints_[ROUTE_1][10].target_heading = -90.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][10].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][10].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][10].wait_ms = 3000;
-
-  waypoints_[ROUTE_1][11].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][11].target_position[0].f = 8.2;
-  waypoints_[ROUTE_1][11].target_position[1].f = 0.0;
-  waypoints_[ROUTE_1][11].target_position[2].f = -1.3;
-  waypoints_[ROUTE_1][11].transit_speed = 0.5;
-  waypoints_[ROUTE_1][11].radius = 0.5;
-  waypoints_[ROUTE_1][11].target_heading = -90.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][11].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][11].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][11].wait_ms = 3000;
-
-  waypoints_[ROUTE_1][12].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][12].target_position[0].f = 8.9;
-  waypoints_[ROUTE_1][12].target_position[1].f = 0.0;
-  waypoints_[ROUTE_1][12].target_position[2].f = -0.4;
-  waypoints_[ROUTE_1][12].transit_speed = 0.5;
-  waypoints_[ROUTE_1][12].radius = 0.5;
-  waypoints_[ROUTE_1][12].target_heading = -90.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][12].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][12].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][12].wait_ms = 3000;
-
-  waypoints_[ROUTE_1][13].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][13].target_position[0].f = 6.8;
-  waypoints_[ROUTE_1][13].target_position[1].f = 0.0;
-  waypoints_[ROUTE_1][13].target_position[2].f = -1.0;
-  waypoints_[ROUTE_1][13].transit_speed = 2.0;
-  waypoints_[ROUTE_1][13].radius = 0.5;
-  waypoints_[ROUTE_1][13].target_heading = -90.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][13].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][13].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][13].wait_ms = 1000;
-
-  waypoints_[ROUTE_1][14].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][14].target_position[0].f = 6.8;
-  waypoints_[ROUTE_1][14].target_position[1].f = 0.0;
-  waypoints_[ROUTE_1][14].target_position[2].f = -1.0;
-  waypoints_[ROUTE_1][14].transit_speed = 2.0;
-  waypoints_[ROUTE_1][14].radius = 0.5;
-  waypoints_[ROUTE_1][14].target_heading = -180.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][14].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][14].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][14].wait_ms = 1000;
-
-  waypoints_[ROUTE_1][15].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][15].target_position[0].f = 4.5;
-  waypoints_[ROUTE_1][15].target_position[1].f = 0.0;
-  waypoints_[ROUTE_1][15].target_position[2].f = -1.0;
-  waypoints_[ROUTE_1][15].transit_speed = 2.0;
-  waypoints_[ROUTE_1][15].radius = 0.5;
-  waypoints_[ROUTE_1][15].target_heading = -180.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][15].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][15].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][15].wait_ms = 0;
-
-  waypoints_[ROUTE_1][16].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][16].target_position[0].f = 0.0;
-  waypoints_[ROUTE_1][16].target_position[1].f = 0.0;
-  waypoints_[ROUTE_1][16].target_position[2].f = -1.0;
-  waypoints_[ROUTE_1][16].transit_speed = 2.0;
-  waypoints_[ROUTE_1][16].radius = 0.5;
-  waypoints_[ROUTE_1][16].target_heading = -180.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][16].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][16].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][16].wait_ms = 2000;
-
-  waypoints_[ROUTE_1][17].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][17].target_position[0].f = 0.0;
-  waypoints_[ROUTE_1][17].target_position[1].f = 0.0;
-  waypoints_[ROUTE_1][17].target_position[2].f = +5.0;
-  waypoints_[ROUTE_1][17].transit_speed = 0.5;
-  waypoints_[ROUTE_1][17].radius = 0.5;
-  waypoints_[ROUTE_1][17].target_heading = -180.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][17].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][17].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][17].wait_ms = 2000;
-
-  n_waypoints_[ROUTE_2] = 20;
   waypoints_[ROUTE_2][0].type = WP_TYPE_VISION_RELATIVE;
   waypoints_[ROUTE_2][0].target_position[0].f = 0.0;
   waypoints_[ROUTE_2][0].target_position[1].f = 0.0;
@@ -578,59 +379,93 @@ void NavigationInit(void)
   waypoints_[ROUTE_2][14].wait_ms = 1000;
 
   waypoints_[ROUTE_2][15].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][15].target_position[0].f = 4.5;
+  waypoints_[ROUTE_2][15].target_position[0].f = 3.5;
   waypoints_[ROUTE_2][15].target_position[1].f = 0.0;
   waypoints_[ROUTE_2][15].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][15].transit_speed = 2.0;
-  waypoints_[ROUTE_2][15].radius = 0.5;
+  waypoints_[ROUTE_2][15].transit_speed = 1.5;
+  waypoints_[ROUTE_2][15].radius = 1.75;
   waypoints_[ROUTE_2][15].target_heading = -180.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][15].heading_rate = 15.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][15].heading_range = 10.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][15].wait_ms = 0;
 
   waypoints_[ROUTE_2][16].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][16].target_position[0].f = 4.5;
-  waypoints_[ROUTE_2][16].target_position[1].f = -2.0;
+  waypoints_[ROUTE_2][16].target_position[0].f = 0.0;
+  waypoints_[ROUTE_2][16].target_position[1].f = 0.0;
   waypoints_[ROUTE_2][16].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][16].transit_speed = 2.0;
+  waypoints_[ROUTE_2][16].transit_speed = 1.5;
   waypoints_[ROUTE_2][16].radius = 0.5;
   waypoints_[ROUTE_2][16].target_heading = -180.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][16].heading_rate = 15.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][16].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][16].wait_ms = 0;
+  waypoints_[ROUTE_2][16].wait_ms = 2000;
 
   waypoints_[ROUTE_2][17].type = WP_TYPE_VISION_RELATIVE;
   waypoints_[ROUTE_2][17].target_position[0].f = 0.0;
-  waypoints_[ROUTE_2][17].target_position[1].f = -2.0;
-  waypoints_[ROUTE_2][17].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][17].transit_speed = 2.0;
-  waypoints_[ROUTE_2][17].radius = 0.5;
+  waypoints_[ROUTE_2][17].target_position[1].f = 0.0;
+  waypoints_[ROUTE_2][17].target_position[2].f = +5.0;
+  waypoints_[ROUTE_2][17].transit_speed = 0.5;
+  waypoints_[ROUTE_2][17].radius = 0.3;
   waypoints_[ROUTE_2][17].target_heading = -180.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][17].heading_rate = 15.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][17].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][17].wait_ms = 0;
+  waypoints_[ROUTE_2][17].wait_ms = 2000;
 
-  waypoints_[ROUTE_2][18].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][18].target_position[0].f = 0.0;
-  waypoints_[ROUTE_2][18].target_position[1].f = 0.0;
-  waypoints_[ROUTE_2][18].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][18].transit_speed = 2.0;
-  waypoints_[ROUTE_2][18].radius = 0.5;
-  waypoints_[ROUTE_2][18].target_heading = -180.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][18].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][18].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][18].wait_ms = 2000;
+  n_waypoints_[ROUTE_3] = 5;
+  waypoints_[ROUTE_3][0].type = WP_TYPE_VISION_RELATIVE;
+  waypoints_[ROUTE_3][0].target_position[0].f = 4.5;
+  waypoints_[ROUTE_3][0].target_position[1].f = 0.0;
+  waypoints_[ROUTE_3][0].target_position[2].f = -1.0;
+  waypoints_[ROUTE_3][0].transit_speed = 1.5;
+  waypoints_[ROUTE_3][0].radius = 0.5;
+  waypoints_[ROUTE_3][0].target_heading = -180.0 * M_PI / 180.0;
+  waypoints_[ROUTE_3][0].heading_rate = 15.0 * M_PI / 180.0;
+  waypoints_[ROUTE_3][0].heading_range = 10.0 * M_PI / 180.0;
+  waypoints_[ROUTE_3][0].wait_ms = 0;
 
-  waypoints_[ROUTE_2][19].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][19].target_position[0].f = 0.0;
-  waypoints_[ROUTE_2][19].target_position[1].f = 0.0;
-  waypoints_[ROUTE_2][19].target_position[2].f = +5.0;
-  waypoints_[ROUTE_2][19].transit_speed = 0.5;
-  waypoints_[ROUTE_2][19].radius = 0.5;
-  waypoints_[ROUTE_2][19].target_heading = -180.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][19].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][19].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][19].wait_ms = 2000;
+  waypoints_[ROUTE_3][1].type = WP_TYPE_VISION_RELATIVE;
+  waypoints_[ROUTE_3][1].target_position[0].f = 4.5;
+  waypoints_[ROUTE_3][1].target_position[1].f = -3.0;
+  waypoints_[ROUTE_3][1].target_position[2].f = -1.0;
+  waypoints_[ROUTE_3][1].transit_speed = 1.5;
+  waypoints_[ROUTE_3][1].radius = 0.5;
+  waypoints_[ROUTE_3][1].target_heading = -180.0 * M_PI / 180.0;
+  waypoints_[ROUTE_3][1].heading_rate = 15.0 * M_PI / 180.0;
+  waypoints_[ROUTE_3][1].heading_range = 10.0 * M_PI / 180.0;
+  waypoints_[ROUTE_3][1].wait_ms = 0;
+
+  waypoints_[ROUTE_3][2].type = WP_TYPE_VISION_RELATIVE;
+  waypoints_[ROUTE_3][2].target_position[0].f = 0.0;
+  waypoints_[ROUTE_3][2].target_position[1].f = -3.0;
+  waypoints_[ROUTE_3][2].target_position[2].f = -1.0;
+  waypoints_[ROUTE_3][2].transit_speed = 1.5;
+  waypoints_[ROUTE_3][2].radius = 0.5;
+  waypoints_[ROUTE_3][2].target_heading = -180.0 * M_PI / 180.0;
+  waypoints_[ROUTE_3][2].heading_rate = 15.0 * M_PI / 180.0;
+  waypoints_[ROUTE_3][2].heading_range = 10.0 * M_PI / 180.0;
+  waypoints_[ROUTE_3][2].wait_ms = 0;
+
+  waypoints_[ROUTE_3][3].type = WP_TYPE_VISION_RELATIVE;
+  waypoints_[ROUTE_3][3].target_position[0].f = 0.0;
+  waypoints_[ROUTE_3][3].target_position[1].f = 0.0;
+  waypoints_[ROUTE_3][3].target_position[2].f = -1.0;
+  waypoints_[ROUTE_3][3].transit_speed = 1.5;
+  waypoints_[ROUTE_3][3].radius = 0.5;
+  waypoints_[ROUTE_3][3].target_heading = -180.0 * M_PI / 180.0;
+  waypoints_[ROUTE_3][3].heading_rate = 15.0 * M_PI / 180.0;
+  waypoints_[ROUTE_3][3].heading_range = 10.0 * M_PI / 180.0;
+  waypoints_[ROUTE_3][3].wait_ms = 2000;
+
+  waypoints_[ROUTE_3][4].type = WP_TYPE_VISION_RELATIVE;
+  waypoints_[ROUTE_3][4].target_position[0].f = 0.0;
+  waypoints_[ROUTE_3][4].target_position[1].f = 0.0;
+  waypoints_[ROUTE_3][4].target_position[2].f = +5.0;
+  waypoints_[ROUTE_3][4].transit_speed = 0.3;
+  waypoints_[ROUTE_3][4].radius = 0.5;
+  waypoints_[ROUTE_3][4].target_heading = -180.0 * M_PI / 180.0;
+  waypoints_[ROUTE_3][4].heading_rate = 15.0 * M_PI / 180.0;
+  waypoints_[ROUTE_3][4].heading_range = 10.0 * M_PI / 180.0;
+  waypoints_[ROUTE_3][4].wait_ms = 2000;
 #else
   if (!SDCardFSMounted()) return;
 
@@ -819,6 +654,9 @@ void UpdateNavigation(void)
   static float radius_squared = 1.0;
   static uint32_t next_waypoint_time = 0, waypoint_reached = 0;
 #endif
+#if defined(OBSTACLE_AVOIDANCE_B)
+  static uint32_t avoidance_count = 2;
+#endif
 
 #ifndef HARDCODE_GEODETIC_HOME
   static uint32_t state_pv = 0;
@@ -835,8 +673,11 @@ void UpdateNavigation(void)
     {
       case NAV_MODE_AUTO:
       {
-#if defined(OBSTACLE_AVOIDANCE_A) || defined(OBSTACLE_AVOIDANCE_B)
+#if defined(OBSTACLE_AVOIDANCE_A)
         uint32_t route = ROUTE_1;
+#elif defined(OBSTACLE_AVOIDANCE_B)
+        avoidance_count  = 2;
+        uint32_t route = ROUTE_2;
 #else
         uint32_t route = RequestedNavRoute();
 #endif
@@ -945,16 +786,27 @@ void UpdateNavigation(void)
       radius_squared = current_waypoint_->radius * current_waypoint_->radius;
     }
   #ifdef OBSTACLE_AVOIDANCE_B
-    if ((current_waypoint_ == &waypoints_[ROUTE_1][15])
-      && VisionObstacleLocationVector()[0] != 0.0)
+    if ((current_waypoint_ == &waypoints_[ROUTE_2][15]) && (
+      (VisionObstacleDistanceArray()[4] > 0.0 && VisionObstacleDistanceArray()[4] < 4.0) ||
+      (VisionObstacleDistanceArray()[5] > 0.0 && VisionObstacleDistanceArray()[5] < 4.0) ||
+      (VisionObstacleDistanceArray()[6] > 0.0 && VisionObstacleDistanceArray()[6] < 4.0) ||
+      (VisionObstacleDistanceArray()[7] > 0.0 && VisionObstacleDistanceArray()[7] < 4.0)
+      ) && !avoidance_count--)
     {
-      current_waypoint_ = &waypoints_[ROUTE_2][15];
-      final_waypoint_ = &waypoints_[ROUTE_2][n_waypoints_[ROUTE_2]-1];
+      current_waypoint_ = &waypoints_[ROUTE_3][0];
+      final_waypoint_ = &waypoints_[ROUTE_3][n_waypoints_[ROUTE_3]-1];
+      SetTargetPosition(current_waypoint_);
+      target_heading_ = current_waypoint_->target_heading;
+      radius_squared = current_waypoint_->radius * current_waypoint_->radius;
     }
   #endif
 #else
-    if (VisionObstacleLocationVector()[0] > 0.0 &&
-      VisionObstacleLocationVector()[0] < 2500.0)
+    if (
+      (VisionObstacleDistanceArray()[4] > 0.0 && VisionObstacleDistanceArray()[4] < 2.5) ||
+      (VisionObstacleDistanceArray()[5] > 0.0 && VisionObstacleDistanceArray()[5] < 2.5) ||
+      (VisionObstacleDistanceArray()[6] > 0.0 && VisionObstacleDistanceArray()[6] < 2.5) ||
+      (VisionObstacleDistanceArray()[7] > 0.0 && VisionObstacleDistanceArray()[7] < 2.5)
+      )
     {
       if (current_waypoint_ == &waypoints_[ROUTE_1][0]) UART1PrintfSafe("A");
       current_waypoint_ = &waypoints_[ROUTE_1][1];

@@ -293,25 +293,36 @@ int main(void)
       //   VisionStatus()
       //   );
 
-      UART1PrintfSafe("C:(%+6.2f,%+6.2f,%+6.2f) D:(%+6.2f,%+6.2f,%+6.2f) O:%+6.2f H:%+4.0f",
+      UART1PrintfSafe("C:(%+6.2f,%+6.2f,%+6.2f) D:(%+6.2f,%+6.2f,%+6.2f) H:%+4.0f O:%+6.2f @%i",
         PositionVector()[0],
         PositionVector()[1],
         PositionVector()[2],
         NavDeltaPosition(0),
         NavDeltaPosition(1),
         NavDeltaPosition(2),
-        VisionObstacleLocationVector()[0] * 1e-3,
-        CurrentHeading() * 180.0 / 3.141596);
+        CurrentHeading() * 180.0 / 3.141596,
+        VisionObstacleDistanceArray()[VisionNearestObstacleBin()],
+        VisionNearestObstacleBin() + 1);
 
       // UART1Printf("%+i,%+i,%+i",
       //   UBXGeodeticPositionVector()[0],
       //   UBXGeodeticPositionVector()[1],
       //   UBXGeodeticPositionVector()[2]);
 
-      // UART1PrintfSafe("%+5.2f,%+5.2f,%+5.2f",
-      //   VisionObstacleLocationVector()[0],
-      //   VisionObstacleLocationVector()[1],
-      //   VisionObstacleLocationVector()[2]);
+      // UART1PrintfSafe("%+6.2f,%+6.2f,%+6.2f,%+6.2f,%+6.2f,%+6.2f,%+6.2f,%+6.2f,%+6.2f,%+6.2f,%+6.2f,%+6.2f,",
+      //   VisionObstacleDistanceArray()[0],
+      //   VisionObstacleDistanceArray()[1],
+      //   VisionObstacleDistanceArray()[2],
+      //   VisionObstacleDistanceArray()[3],
+      //   VisionObstacleDistanceArray()[4],
+      //   VisionObstacleDistanceArray()[5],
+      //   VisionObstacleDistanceArray()[6],
+      //   VisionObstacleDistanceArray()[7],
+      //   VisionObstacleDistanceArray()[8],
+      //   VisionObstacleDistanceArray()[9],
+      //   VisionObstacleDistanceArray()[10],
+      //   VisionObstacleDistanceArray()[11]
+      //   );
     }
   }
 }

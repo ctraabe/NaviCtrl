@@ -1,7 +1,7 @@
 #include "vision.h"
 
 #include <math.h>
-#include <stddef.h>
+#include <string.h>
 
 #include "attitude.h"
 #include "flight_ctrl_comms.h"
@@ -24,7 +24,8 @@
 
 static float heading_ = 0.0, position_[3] = { 0.0 }, velocity_ned_[3] = { 0.0 },
   quaternion_[4] = { 1.0, 0.0, 0.0, 0.0 };
-static float obstacle_location_[3] = { 0.0 };
+static float obstacle_distance_[12] = { 0 };
+static size_t nearest_obstacle_bin_ = 0;
 static uint16_t status_ = 0;
 static uint32_t timestamp_ = 0, last_reception_timestamp_ = 0;
 static enum VisionErrorBits error_bits_ = VISION_ERROR_BIT_STALE;
@@ -48,9 +49,15 @@ float VisionHeading(void)
 }
 
 // -----------------------------------------------------------------------------
-const float * VisionObstacleLocationVector(void)
+size_t VisionNearestObstacleBin(void)
 {
-  return obstacle_location_;
+  return nearest_obstacle_bin_;
+}
+
+// -----------------------------------------------------------------------------
+const float * VisionObstacleDistanceArray(void)
+{
+  return obstacle_distance_;
 }
 
 // -----------------------------------------------------------------------------
@@ -138,7 +145,18 @@ void ProcessRaspiVisionData(struct RaspiVision * from_raspi)
 // -----------------------------------------------------------------------------
 void ProcessRicohObstacleData(struct RicohObjectDetection * from_ricoh)
 {
-  Vector3Copy(from_ricoh->position, obstacle_location_);
+  uint32_t nearest_distance = 256;
+  nearest_obstacle_bin_ = 0;
+  for (size_t i = 12; i--; )
+  {
+    if (from_ricoh->obstacle_distance[i] != 0
+      && from_ricoh->obstacle_distance[i] < nearest_distance)
+    {
+      nearest_distance = from_ricoh->obstacle_distance[i];
+      nearest_obstacle_bin_ = i;
+    }
+    obstacle_distance_[i] = from_ricoh->obstacle_distance[i] * 0.01953125;
+  }
 }
 
 // -----------------------------------------------------------------------------

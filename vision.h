@@ -3,13 +3,14 @@
 
 
 #include <inttypes.h>
+#include <stddef.h>
 
 #include "constants.h"
 
 
 enum RicohMessageID {
   VISION_MESSAGE_ID_RICOH_VO       = 0x10,
-  VISION_MESSAGE_ID_RICOH_OBSTACLE = 0x20,
+  VISION_MESSAGE_ID_RICOH_OBSTACLE = 0x24,
 };
 
 struct RaspiVision {
@@ -23,7 +24,11 @@ struct RaspiVision {
 struct RicohObjectDetection {
   uint32_t latency;  // Latency (ms)
   uint32_t capture_time;
-  float position[3];  // (mm)
+  float linear_resolution;  // (mm)
+  float angular_resolution;  // (rad)
+  float angular_offset;  // (rad)
+  uint8_t number_of_divisions;
+  uint8_t obstacle_distance[12];  // * linear_resolution
 } __attribute__((packed));
 
 struct RicohVision {
@@ -54,7 +59,10 @@ enum VisionErrorBits {
 float VisionHeading(void);
 
 // -----------------------------------------------------------------------------
-const float * VisionObstacleLocationVector(void);
+size_t VisionNearestObstacleBin(void);
+
+// -----------------------------------------------------------------------------
+const float * VisionObstacleDistanceArray(void);
 
 // -----------------------------------------------------------------------------
 float VisionPosition(enum WorldAxes axis);

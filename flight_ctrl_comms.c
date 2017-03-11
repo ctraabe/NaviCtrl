@@ -1,5 +1,7 @@
 #include "flight_ctrl_comms.h"
 
+#include <string.h>
+
 #include "91x_lib.h"
 #include "crc16.h"
 #include "heading.h"
@@ -356,6 +358,15 @@ void UpdateHeadingCorrectionToFlightCtrl(enum Sensors sensor)
   to_fc->heading_correction_quat_0 = sqrt(1.0 - quat_c_z * quat_c_z);
   to_fc->heading_correction_quat_z = quat_c_z;
 
+  // Check for NaN
+  if (isnan(to_fc->heading_correction_quat_0)
+    || isnan(to_fc->heading_correction_quat_z))
+  {
+    to_fc->heading_correction_quat_0 = 1.0;
+    to_fc->heading_correction_quat_z = 0.0;
+    status = 0;
+  }
+
   if (status)
     to_fc->status |= NAV_STATUS_BIT_HEADING_DATA_OK;
   else
@@ -437,6 +448,15 @@ void UpdatePositionToFlightCtrl(enum Sensors sensor)
     pending_update_bits_ |= PENDING_UPDATE_BIT_POSITION;
   }
 
+  // Check for NaN
+  if (isnan(current_position[N_WORLD_AXIS])
+    || isnan(current_position[E_WORLD_AXIS])
+    || isnan(current_position[D_WORLD_AXIS]))
+  {
+    memset(current_position, 0, sizeof(current_position));
+    status = 0;
+  }
+
   to_fc->position[N_WORLD_AXIS] = current_position[N_WORLD_AXIS];
   to_fc->position[E_WORLD_AXIS] = current_position[E_WORLD_AXIS];
   to_fc->position[D_WORLD_AXIS] = current_position[D_WORLD_AXIS];
@@ -479,6 +499,14 @@ void UpdateVelocityToFlightCtrl(enum Sensors sensor)
   {
     to_fc = &to_fc_buffer_;
     pending_update_bits_ |= PENDING_UPDATE_BIT_VELOCITY;
+  }
+
+  // Check for NaN
+  if (isnan(velocity[N_WORLD_AXIS]) || isnan(velocity[E_WORLD_AXIS])
+    || isnan(velocity[D_WORLD_AXIS]))
+  {
+    memset(velocity, 0, sizeof(velocity));
+    status = 0;
   }
 
   to_fc->velocity[N_WORLD_AXIS] = velocity[N_WORLD_AXIS];

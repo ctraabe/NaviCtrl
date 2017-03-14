@@ -244,7 +244,7 @@ void NavigationInit(void)
   waypoints_[ROUTE_2][2].target_heading = 0.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][2].heading_rate = 15.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][2].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][2].wait_ms = 3000;
+  waypoints_[ROUTE_2][2].wait_ms = 5000;
 
   waypoints_[ROUTE_2][3].type = WP_TYPE_VISION_RELATIVE;
   waypoints_[ROUTE_2][3].target_position[0].f = 4.5;
@@ -255,7 +255,7 @@ void NavigationInit(void)
   waypoints_[ROUTE_2][3].target_heading = 0.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][3].heading_rate = 15.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][3].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][3].wait_ms = 3000;
+  waypoints_[ROUTE_2][3].wait_ms = 5000;
 
   waypoints_[ROUTE_2][4].type = WP_TYPE_VISION_RELATIVE;
   waypoints_[ROUTE_2][4].target_position[0].f = 4.5;
@@ -266,7 +266,7 @@ void NavigationInit(void)
   waypoints_[ROUTE_2][4].target_heading = 0.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][4].heading_rate = 15.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][4].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][4].wait_ms = 3000;
+  waypoints_[ROUTE_2][4].wait_ms = 5000;
 
   waypoints_[ROUTE_2][5].type = WP_TYPE_VISION_RELATIVE;
   waypoints_[ROUTE_2][5].target_position[0].f = 4.5;
@@ -277,7 +277,7 @@ void NavigationInit(void)
   waypoints_[ROUTE_2][5].target_heading = 0.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][5].heading_rate = 15.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][5].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][5].wait_ms = 3000;
+  waypoints_[ROUTE_2][5].wait_ms = 5000;
 
   waypoints_[ROUTE_2][6].type = WP_TYPE_VISION_RELATIVE;
   waypoints_[ROUTE_2][6].target_position[0].f = 4.5;
@@ -313,7 +313,7 @@ void NavigationInit(void)
   waypoints_[ROUTE_2][8].wait_ms = 1000;
 
   waypoints_[ROUTE_2][9].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][9].target_position[0].f = 6.8;
+  waypoints_[ROUTE_2][9].target_position[0].f = 6.85;
   waypoints_[ROUTE_2][9].target_position[1].f = 0.0;
   waypoints_[ROUTE_2][9].target_position[2].f = -1.3;
   waypoints_[ROUTE_2][9].transit_speed = 0.5;
@@ -321,10 +321,10 @@ void NavigationInit(void)
   waypoints_[ROUTE_2][9].target_heading = -90.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][9].heading_rate = 15.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][9].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][9].wait_ms = 3000;
+  waypoints_[ROUTE_2][9].wait_ms = 5000;
 
   waypoints_[ROUTE_2][10].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][10].target_position[0].f = 7.5;
+  waypoints_[ROUTE_2][10].target_position[0].f = 7.55;
   waypoints_[ROUTE_2][10].target_position[1].f = 0.0;
   waypoints_[ROUTE_2][10].target_position[2].f = -0.4;
   waypoints_[ROUTE_2][10].transit_speed = 0.5;
@@ -332,10 +332,10 @@ void NavigationInit(void)
   waypoints_[ROUTE_2][10].target_heading = -90.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][10].heading_rate = 15.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][10].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][10].wait_ms = 3000;
+  waypoints_[ROUTE_2][10].wait_ms = 5000;
 
   waypoints_[ROUTE_2][11].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][11].target_position[0].f = 8.2;
+  waypoints_[ROUTE_2][11].target_position[0].f = 8.25;
   waypoints_[ROUTE_2][11].target_position[1].f = 0.0;
   waypoints_[ROUTE_2][11].target_position[2].f = -1.3;
   waypoints_[ROUTE_2][11].transit_speed = 0.5;
@@ -343,10 +343,10 @@ void NavigationInit(void)
   waypoints_[ROUTE_2][11].target_heading = -90.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][11].heading_rate = 15.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][11].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][11].wait_ms = 3000;
+  waypoints_[ROUTE_2][11].wait_ms = 5000;
 
   waypoints_[ROUTE_2][12].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][12].target_position[0].f = 8.9;
+  waypoints_[ROUTE_2][12].target_position[0].f = 8.95;
   waypoints_[ROUTE_2][12].target_position[1].f = 0.0;
   waypoints_[ROUTE_2][12].target_position[2].f = -0.4;
   waypoints_[ROUTE_2][12].transit_speed = 0.5;
@@ -354,7 +354,7 @@ void NavigationInit(void)
   waypoints_[ROUTE_2][12].target_heading = -90.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][12].heading_rate = 15.0 * M_PI / 180.0;
   waypoints_[ROUTE_2][12].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][12].wait_ms = 3000;
+  waypoints_[ROUTE_2][12].wait_ms = 5000;
 
   waypoints_[ROUTE_2][13].type = WP_TYPE_VISION_RELATIVE;
   waypoints_[ROUTE_2][13].target_position[0].f = 6.8;
@@ -655,7 +655,7 @@ void UpdateNavigation(void)
   static uint32_t next_waypoint_time = 0, waypoint_reached = 0;
 #endif
 #if defined(OBSTACLE_AVOIDANCE_B)
-  static uint32_t avoidance_count = 2;
+  static uint32_t avoidance_count = 64;
 #endif
 
 #ifndef HARDCODE_GEODETIC_HOME
@@ -676,7 +676,7 @@ void UpdateNavigation(void)
 #if defined(OBSTACLE_AVOIDANCE_A)
         uint32_t route = ROUTE_1;
 #elif defined(OBSTACLE_AVOIDANCE_B)
-        avoidance_count  = 2;
+        avoidance_count  = 64;
         uint32_t route = ROUTE_2;
 #else
         uint32_t route = RequestedNavRoute();
@@ -800,8 +800,18 @@ void UpdateNavigation(void)
   #endif
 #else
     if (
-      (VisionObstacleDistance(4) < 2.5) || (VisionObstacleDistance(5) < 2.5) ||
-      (VisionObstacleDistance(6) < 2.5) || (VisionObstacleDistance(7) < 2.5)
+      // (VisionObstacleDistance(0) < 2.5 * 1.7434467956) ||
+      // (VisionObstacleDistance(1) < 2.5 * 1.4142135624) ||
+      (VisionObstacleDistance(2) < 2.5 * 1.2207745888) ||
+      (VisionObstacleDistance(3) < 2.5 * 1.1033779190) ||
+      (VisionObstacleDistance(4) < 2.5 * 1.0352761804) ||
+      (VisionObstacleDistance(5) < 2.5 * 1.0038198375) ||
+      (VisionObstacleDistance(6) < 2.5 * 1.0038198375) ||
+      (VisionObstacleDistance(7) < 2.5 * 1.0352761804) ||
+      (VisionObstacleDistance(8) < 2.5 * 1.1033779190) ||
+      (VisionObstacleDistance(9) < 2.5 * 1.2207745888)
+      // (VisionObstacleDistance(10) < 2.5 * 1.4142135624) ||
+      // (VisionObstacleDistance(11) < 2.5 * 1.7434467956)
       )
     {
       if (current_waypoint_ == &waypoints_[ROUTE_1][0]) UART1PrintfSafe("A");

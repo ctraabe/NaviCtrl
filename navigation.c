@@ -787,10 +787,8 @@ void UpdateNavigation(void)
     }
   #ifdef OBSTACLE_AVOIDANCE_B
     if ((current_waypoint_ == &waypoints_[ROUTE_2][15]) && (
-      (VisionObstacleDistanceArray()[4] > 0.0 && VisionObstacleDistanceArray()[4] < 4.0) ||
-      (VisionObstacleDistanceArray()[5] > 0.0 && VisionObstacleDistanceArray()[5] < 4.0) ||
-      (VisionObstacleDistanceArray()[6] > 0.0 && VisionObstacleDistanceArray()[6] < 4.0) ||
-      (VisionObstacleDistanceArray()[7] > 0.0 && VisionObstacleDistanceArray()[7] < 4.0)
+      (VisionObstacleDistance(4) < 4.0) || (VisionObstacleDistance(5) < 4.0) ||
+      (VisionObstacleDistance(6) < 4.0) || (VisionObstacleDistance(7) < 4.0)
       ) && !avoidance_count--)
     {
       current_waypoint_ = &waypoints_[ROUTE_3][0];
@@ -802,10 +800,8 @@ void UpdateNavigation(void)
   #endif
 #else
     if (
-      (VisionObstacleDistanceArray()[4] > 0.0 && VisionObstacleDistanceArray()[4] < 2.5) ||
-      (VisionObstacleDistanceArray()[5] > 0.0 && VisionObstacleDistanceArray()[5] < 2.5) ||
-      (VisionObstacleDistanceArray()[6] > 0.0 && VisionObstacleDistanceArray()[6] < 2.5) ||
-      (VisionObstacleDistanceArray()[7] > 0.0 && VisionObstacleDistanceArray()[7] < 2.5)
+      (VisionObstacleDistance(4) < 2.5) || (VisionObstacleDistance(5) < 2.5) ||
+      (VisionObstacleDistance(6) < 2.5) || (VisionObstacleDistance(7) < 2.5)
       )
     {
       if (current_waypoint_ == &waypoints_[ROUTE_1][0]) UART1PrintfSafe("A");

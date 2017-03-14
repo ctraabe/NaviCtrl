@@ -62,6 +62,9 @@ float VisionHeading(void);
 size_t VisionNearestObstacleBin(void);
 
 // -----------------------------------------------------------------------------
+float VisionObstacleDistance(size_t bin_index);
+
+// -----------------------------------------------------------------------------
 const float * VisionObstacleDistanceArray(void);
 
 // -----------------------------------------------------------------------------

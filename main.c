@@ -257,7 +257,7 @@ int main(void)
       //   MagnetometerBiasVector()[1],
       //   MagnetometerBiasVector()[2]);
 
-      // UART1Printf("%f", CurrentHeading());
+      // UART1Printf("%f", HeadingAngle());
 
       // UART1Printf("%f,%f,%f",
       //   (float)(UBXPosLLH()->longitude * 1e-7),
@@ -268,7 +268,7 @@ int main(void)
       //   VisionPositionVector()[0],
       //   VisionPositionVector()[1],
       //   VisionPositionVector()[2],
-      //   CurrentHeading() * 180.0 / 3.141596);
+      //   HeadingAngle() * 180.0 / 3.141596);
 
       // UART1PrintfSafe("C:(%+6.2f,%+6.2f,%+6.2f) D:(%+6.2f,%+6.2f,%+6.2f) H:%+4.0f",
       //   PositionVector()[0],
@@ -277,7 +277,7 @@ int main(void)
       //   NavDeltaPosition(0),
       //   NavDeltaPosition(1),
       //   NavDeltaPosition(2),
-      //   CurrentHeading() * 180.0 / 3.141596);
+      //   HeadingAngle() * 180.0 / 3.141596);
 
       // UART1PrintfSafe("C:(%+6.2f,%+6.2f,%+6.2f) D:(%+6.2f,%+6.2f,%+6.2f) H:%+4.0f | V:(%+6.2f,%+6.2f,%+6.2f,%i)",
       //   PositionVector()[0],
@@ -286,7 +286,7 @@ int main(void)
       //   NavDeltaPosition(0),
       //   NavDeltaPosition(1),
       //   NavDeltaPosition(2),
-      //   CurrentHeading() * 180.0 / 3.141596,
+      //   HeadingAngle() * 180.0 / 3.141596,
       //   VisionPositionVector()[0],
       //   VisionPositionVector()[1],
       //   VisionPositionVector()[2],
@@ -300,7 +300,7 @@ int main(void)
         NavDeltaPosition(0),
         NavDeltaPosition(1),
         NavDeltaPosition(2),
-        CurrentHeading() * 180.0 / 3.141596,
+        HeadingAngle() * 180.0 / 3.141596,
         VisionObstacleDistanceArray()[VisionNearestObstacleBin()],
         VisionNearestObstacleBin() + 1);
 

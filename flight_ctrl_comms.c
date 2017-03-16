@@ -4,7 +4,6 @@
 
 #include "91x_lib.h"
 #include "crc16.h"
-#include "heading.h"
 #include "irq_priority.h"
 #include "kalman_filter.h"
 #include "lsm303dl.h"
@@ -58,6 +57,8 @@ static union U16Bytes crc_[2];
 static size_t from_fc_head_ = 1, from_fc_tail_ = 0;
 static uint32_t new_data_ = 0, pending_update_bits_ = 0;
 
+static float heading_angle_ = 0.0;
+
 
 // =============================================================================
 // Private function declarations:
@@ -108,6 +109,12 @@ float Gyro(enum BodyAxes axis)
 const float * GyroVector(void)
 {
   return from_fc_[from_fc_tail_].gyro;
+}
+
+// -----------------------------------------------------------------------------
+float HeadingAngle(void)
+{
+  return heading_angle_;
 }
 
 // -----------------------------------------------------------------------------
@@ -280,6 +287,8 @@ void ProcessIncomingFlightCtrlByte(uint8_t byte)
 
           new_data_ = 1;
 
+          heading_angle_ = HeadingFromQuaternion(Quat());
+
 #ifdef LOG_DEBUG_TO_SD
           LogFromFlightCtrlData();
 #endif
@@ -335,7 +344,7 @@ void UpdateHeadingCorrectionToFlightCtrl(enum Sensors sensor)
   }
   else if ((sensor == VISION) && (ActiveNavSensorBits() & SENSOR_BIT_VISION))
   {
-    heading_error = VisionHeading() - CurrentHeading();
+    heading_error = VisionHeading() - heading_angle_;
     status = VisionStatus();
   }
   else

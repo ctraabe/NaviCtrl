@@ -58,8 +58,7 @@ static enum SensorBits active_nav_sensors_ = SENSOR_BIT_VISION;
 
 static float delta_postion_[3] = { 0.0 },
   target_position_[3] = { 0.0 };
-static float current_heading_ = 0.0, delta_heading_ = 0.0,
-  target_heading_ = 0.0;
+static float delta_heading_ = 0.0, target_heading_ = 0.0;
 
 static const struct Waypoint * current_waypoint_ = &waypoints_[ROUTE_1][0];
 static const struct Waypoint * final_waypoint_ = &waypoints_[ROUTE_1][0];
@@ -83,12 +82,6 @@ static void SetTargetPosition(const struct Waypoint * const waypoint);
 enum SensorBits ActiveNavSensorBits(void)
 {
   return active_nav_sensors_;
-}
-
-// -----------------------------------------------------------------------------
-float CurrentHeading(void)
-{
-  return current_heading_;
 }
 
 // -----------------------------------------------------------------------------
@@ -664,7 +657,6 @@ void UpdateNavigation(void)
     SetGeodeticHome();
   state_pv = FlightCtrlState();
 #endif
-  current_heading_ = HeadingFromQuaternion((float *)Quat());
 
   // Mode switching logic.
   if (RequestedNavMode() != mode_)
@@ -756,13 +748,13 @@ void UpdateNavigation(void)
       {
         Vector3Copy(PositionVector(), target_position_);
       }
-      target_heading_ = current_heading_;
+      target_heading_ = HeadingAngle();
     }
   }
 
   // Compute the deviation from that active waypoint.
   Vector3Subtract(PositionVector(), target_position_, delta_postion_);
-  delta_heading_ = WrapToPlusMinusPi(current_heading_ - target_heading_);
+  delta_heading_ = WrapToPlusMinusPi(HeadingAngle() - target_heading_);
 
   // Waypoint switching logic.
   if (mode_ == NAV_MODE_AUTO || mode_ == NAV_MODE_HOME)

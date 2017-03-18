@@ -293,16 +293,30 @@ int main(void)
       //   VisionStatus()
       //   );
 
-      UART1PrintfSafe("C:(%+6.2f,%+6.2f,%+6.2f) D:(%+6.2f,%+6.2f,%+6.2f) H:%+4.0f O:%+6.2f @%i",
+      // UART1PrintfSafe("C:(%+6.2f,%+6.2f,%+6.2f) D:(%+6.2f,%+6.2f,%+6.2f) H:%+4.0f O:%+6.2f @%i",
+      //   PositionVector()[0],
+      //   PositionVector()[1],
+      //   PositionVector()[2],
+      //   NavDeltaPosition(0),
+      //   NavDeltaPosition(1),
+      //   NavDeltaPosition(2),
+      //   HeadingAngle() * 180.0 / 3.141596,
+      //   VisionObstacleDistanceArray()[VisionNearestObstacleBin()],
+      //   VisionNearestObstacleBin() + 1);
+
+      UART1PrintfSafe("C:(%+6.2f,%+6.2f,%+6.2f,%+4.0f) T:(%+6.2f,%+6.2f,%+6.2f,%+4.0f)@%i O:%+6.2f @%i A:%i",
         PositionVector()[0],
         PositionVector()[1],
         PositionVector()[2],
-        NavDeltaPosition(0),
-        NavDeltaPosition(1),
-        NavDeltaPosition(2),
         HeadingAngle() * 180.0 / 3.141596,
+        TargetPosition(0),
+        TargetPosition(1),
+        TargetPosition(2),
+        TargetHeading(),
+        Route(),
         VisionObstacleDistanceArray()[VisionNearestObstacleBin()],
-        VisionNearestObstacleBin() + 1);
+        VisionNearestObstacleBin() + 1,
+        AvoidanceMode());
 
       // UART1Printf("%+i,%+i,%+i",
       //   UBXGeodeticPositionVector()[0],

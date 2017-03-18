@@ -90,18 +90,27 @@ static const float bin_boundary_transforms[2 * N_BINS + 1][2] = {
 // =============================================================================
 // Private function declarations:
 
-static void ClarifyObstacleData(float sensor_readings[N_BINS],
+static void ClarifyObstacleData(const float sensor_readings[N_BINS],
   float obstacles[N_BINS + 1]);
-static uint32_t ObstacleInROI(float obstacles[N_BINS + 1], float roi_width,
-  float * roi_clearance);
-static uint32_t DeviseAvoidanceWaypoint(float obstacles[N_BINS + 1],
+static uint32_t ObstacleInROI(const float obstacles[N_BINS + 1],
+  float roi_width, float * roi_clearance);
+static uint32_t DeviseAvoidanceWaypoint(const float obstacles[N_BINS + 1],
   float roi_clearance[N_BINS + 1], float avoidance_waypoint[2]);
+
+
+// =============================================================================
+// Accessors:
+
+float ObstacleAvoidanceBinBoundaryAngle(size_t index)
+{
+  return bin_boundary_angles[index];
+}
 
 
 // =============================================================================
 // Public functions:
 
-uint32_t AvoidanceUpdateHelper(float sensor_readings[N_BINS],
+uint32_t AvoidanceUpdateHelper(const float sensor_readings[N_BINS],
   enum AvoidanceWidth avoidance_width_enum, float avoidance_waypoint[2])
 {
   float obstacles[N_BINS + 1], roi_clearance[N_BINS + 1];
@@ -122,7 +131,7 @@ uint32_t AvoidanceUpdateHelper(float sensor_readings[N_BINS],
 // =============================================================================
 // Private functions:
 
-static void ClarifyObstacleData(float sensor_readings[N_BINS],
+static void ClarifyObstacleData(const float sensor_readings[N_BINS],
   float obstacles[N_BINS + 1])
 {
   // Assume that obstacles occur on the boundaries, so find the nearest
@@ -137,8 +146,8 @@ static void ClarifyObstacleData(float sensor_readings[N_BINS],
 }
 
 // -----------------------------------------------------------------------------
-static uint32_t ObstacleInROI(float obstacles[N_BINS + 1], float roi_width,
-  float * roi_clearance)
+static uint32_t ObstacleInROI(const float obstacles[N_BINS + 1],
+  float roi_width, float * roi_clearance)
 {
   // Find the distance to the next waypoint.
   const float distance_to_waypoint = sqrt(NavDeltaPosition(N_WORLD_AXIS)
@@ -165,7 +174,7 @@ static uint32_t ObstacleInROI(float obstacles[N_BINS + 1], float roi_width,
 }
 
 // -----------------------------------------------------------------------------
-static uint32_t DeviseAvoidanceWaypoint(float obstacles[N_BINS + 1],
+static uint32_t DeviseAvoidanceWaypoint(const float obstacles[N_BINS + 1],
   float roi_clearance[N_BINS + 1], float avoidance_waypoint[2])
 {
   // Realign the ROI along each of the bin boundaries and find the nearest

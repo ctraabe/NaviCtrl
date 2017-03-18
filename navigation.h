@@ -5,6 +5,7 @@
 #include <inttypes.h>
 
 #include "constants.h"
+#include "obstacle_avoidance.h"
 #include "sensor_enumeration.h"
 
 
@@ -27,8 +28,9 @@ enum NavError {
 };
 
 enum WaypointTypeBits {
-  WP_TYPE_BIT_VISION   = 1<<0,
-  WP_TYPE_BIT_GEODETIC = 1<<1,
+  WP_TYPE_BIT_VISION        = 1<<0,
+  WP_TYPE_BIT_GEODETIC      = 1<<1,
+  WP_TYPE_BIT_DISABLE_AVOID = 1<<2,
 };
 
 enum WaypointType {
@@ -45,7 +47,10 @@ enum WaypointType {
 enum SensorBits ActiveNavSensorBits(void);
 
 // -----------------------------------------------------------------------------
-float CurrentHeading(void);
+uint32_t AvoidanceMode(void);
+
+// -----------------------------------------------------------------------------
+uint32_t CurrentWaypoint(void);
 
 // -----------------------------------------------------------------------------
 float HeadingRate(void);
@@ -55,6 +60,9 @@ float NavDeltaPosition(enum WorldAxes axis);
 
 // -----------------------------------------------------------------------------
 enum NavMode NavMode(void);
+
+// -----------------------------------------------------------------------------
+uint32_t Route(void);
 
 // -----------------------------------------------------------------------------
 float TargetHeading(void);
@@ -73,6 +81,9 @@ float UBXLongitudeToMeters(void);
 // Public functions:
 
 void NavigationInit(void);
+
+// -----------------------------------------------------------------------------
+void AvoidanceUpdate(enum AvoidanceWidth avoidance_width_enum);
 
 // -----------------------------------------------------------------------------
 void UpdateNavigation(void);

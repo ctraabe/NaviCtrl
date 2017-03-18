@@ -6,6 +6,8 @@
 #include "attitude.h"
 #include "flight_ctrl_comms.h"
 #include "kalman_filter.h"
+#include "navigation.h"
+#include "obstacle_avoidance.h"
 #include "quaternion.h"
 #include "timing.h"
 #include "vector.h"
@@ -169,6 +171,8 @@ void ProcessRicohObstacleData(struct RicohObjectDetection * from_ricoh)
       obstacle_distance_[i] = 99.9;
     }
   }
+
+  AvoidanceUpdate(AVOIDANCE_WIDTH_NARROW);
 }
 
 // -----------------------------------------------------------------------------

@@ -31,7 +31,7 @@ LSTFLAGS  = -Wa,-adhlns=$(addprefix $(BUILD_PATH)/,$(addsuffix .lst, $<))
 LDFLAGS   = -Ofast -pedantic -Wall -Wextra -Werror -Wundef -ffreestanding \
             -Wl,--relax -Tstr911fam.ld
 ALLFLAGS  = -mcpu=$(MCU) -I. $(addprefix -I, $(LIBRARY_INC)) \
-            -DOBSTACLE_AVOIDANCE_B
+            -DOBSTACLE_AVOIDANCE
 
 CC   := arm-none-eabi-gcc
 CCP  := arm-none-eabi-g++

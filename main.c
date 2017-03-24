@@ -238,9 +238,9 @@ int main(void)
     {
       GreenLEDToggle();
 
-      while (TimestampInPast(led_timer)) led_timer += 100;
+      while (TimestampInPast(led_timer)) led_timer += 200;
 
-      // Debug output for GPS and magnetomter. Remove after testing is completed
+      // Debug output
 
       // UART1Printf("%+5.2f,%+5.2f,%+5.2f",
       //   MagneticVector()[0],
@@ -257,7 +257,7 @@ int main(void)
       //   MagnetometerBiasVector()[1],
       //   MagnetometerBiasVector()[2]);
 
-      // UART1Printf("%f", CurrentHeading());
+      // UART1Printf("%f", HeadingAngle());
 
       // UART1Printf("%f,%f,%f",
       //   (float)(UBXPosLLH()->longitude * 1e-7),
@@ -268,7 +268,7 @@ int main(void)
       //   VisionPositionVector()[0],
       //   VisionPositionVector()[1],
       //   VisionPositionVector()[2],
-      //   CurrentHeading() * 180.0 / 3.141596);
+      //   HeadingAngle() * 180.0 / 3.141596);
 
       // UART1PrintfSafe("C:(%+6.2f,%+6.2f,%+6.2f) D:(%+6.2f,%+6.2f,%+6.2f) H:%+4.0f",
       //   PositionVector()[0],
@@ -277,7 +277,7 @@ int main(void)
       //   NavDeltaPosition(0),
       //   NavDeltaPosition(1),
       //   NavDeltaPosition(2),
-      //   CurrentHeading() * 180.0 / 3.141596);
+      //   HeadingAngle() * 180.0 / 3.141596);
 
       // UART1PrintfSafe("C:(%+6.2f,%+6.2f,%+6.2f) D:(%+6.2f,%+6.2f,%+6.2f) H:%+4.0f | V:(%+6.2f,%+6.2f,%+6.2f,%i)",
       //   PositionVector()[0],
@@ -286,42 +286,11 @@ int main(void)
       //   NavDeltaPosition(0),
       //   NavDeltaPosition(1),
       //   NavDeltaPosition(2),
-      //   CurrentHeading() * 180.0 / 3.141596,
+      //   HeadingAngle() * 180.0 / 3.141596,
       //   VisionPositionVector()[0],
       //   VisionPositionVector()[1],
       //   VisionPositionVector()[2],
       //   VisionStatus()
-      //   );
-
-      UART1PrintfSafe("C:(%+6.2f,%+6.2f,%+6.2f) D:(%+6.2f,%+6.2f,%+6.2f) H:%+4.0f O:%+6.2f @%i",
-        PositionVector()[0],
-        PositionVector()[1],
-        PositionVector()[2],
-        NavDeltaPosition(0),
-        NavDeltaPosition(1),
-        NavDeltaPosition(2),
-        CurrentHeading() * 180.0 / 3.141596,
-        VisionObstacleDistanceArray()[VisionNearestObstacleBin()],
-        VisionNearestObstacleBin() + 1);
-
-      // UART1Printf("%+i,%+i,%+i",
-      //   UBXGeodeticPositionVector()[0],
-      //   UBXGeodeticPositionVector()[1],
-      //   UBXGeodeticPositionVector()[2]);
-
-      // UART1PrintfSafe("%+6.2f,%+6.2f,%+6.2f,%+6.2f,%+6.2f,%+6.2f,%+6.2f,%+6.2f,%+6.2f,%+6.2f,%+6.2f,%+6.2f,",
-      //   VisionObstacleDistanceArray()[0],
-      //   VisionObstacleDistanceArray()[1],
-      //   VisionObstacleDistanceArray()[2],
-      //   VisionObstacleDistanceArray()[3],
-      //   VisionObstacleDistanceArray()[4],
-      //   VisionObstacleDistanceArray()[5],
-      //   VisionObstacleDistanceArray()[6],
-      //   VisionObstacleDistanceArray()[7],
-      //   VisionObstacleDistanceArray()[8],
-      //   VisionObstacleDistanceArray()[9],
-      //   VisionObstacleDistanceArray()[10],
-      //   VisionObstacleDistanceArray()[11]
       //   );
     }
   }

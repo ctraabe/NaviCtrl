@@ -55,11 +55,11 @@ static struct Waypoint go_home_[N_GO_HOME_WAYPOINTS] = { 0 };
 static enum NavMode mode_ = NAV_MODE_OFF;
 static enum NavError nav_error_ = NAV_ERROR_NONE;
 static enum SensorBits active_nav_sensors_ = SENSOR_BIT_VISION;
+static size_t route_ = ROUTE_1;
 
 static float delta_postion_[3] = { 0.0 },
   target_position_[3] = { 0.0 };
-static float current_heading_ = 0.0, delta_heading_ = 0.0,
-  target_heading_ = 0.0;
+static float delta_heading_ = 0.0, target_heading_ = 0.0;
 
 static const struct Waypoint * current_waypoint_ = &waypoints_[ROUTE_1][0];
 static const struct Waypoint * final_waypoint_ = &waypoints_[ROUTE_1][0];
@@ -71,9 +71,7 @@ static float ubx_longitude_to_meters_;
 // =============================================================================
 // Private function declarations:
 
-#ifndef OBSTACLE_AVOIDANCE_A
 static uint32_t NextWaypointValid(void);
-#endif
 static void SetTargetPosition(const struct Waypoint * const waypoint);
 
 
@@ -86,9 +84,9 @@ enum SensorBits ActiveNavSensorBits(void)
 }
 
 // -----------------------------------------------------------------------------
-float CurrentHeading(void)
+uint32_t CurrentWaypoint(void)
 {
-  return current_heading_;
+  return current_waypoint_ - &waypoints_[route_][0];
 }
 
 // -----------------------------------------------------------------------------
@@ -107,6 +105,12 @@ float NavDeltaPosition(enum WorldAxes axis)
 enum NavMode NavMode(void)
 {
   return mode_;
+}
+
+// -----------------------------------------------------------------------------
+uint32_t Route(void)
+{
+  return route_;
 }
 
 // -----------------------------------------------------------------------------
@@ -138,7 +142,6 @@ float UBXLongitudeToMeters(void)
 // =============================================================================
 // Public functions:
 
-// Try to load waypoints from WP_LIST.CSV on the SD card (if inserted).
 void NavigationInit(void)
 {
 #ifdef HARDCODE_GEODETIC_HOME
@@ -158,8 +161,8 @@ void NavigationInit(void)
   go_home_[0].transit_speed = 0.5;
   go_home_[0].radius = 1.0;
   go_home_[0].target_heading = 0.0;
-  go_home_[0].heading_rate = 0.1;
-  go_home_[0].heading_range = 0.1;
+  go_home_[0].heading_rate = 15.0 * M_PI / 180.0;
+  go_home_[0].heading_range = 15.0 * M_PI / 180.0;
   go_home_[0].wait_ms = 0;
 
   // Second waypoint directly across to home.
@@ -170,8 +173,8 @@ void NavigationInit(void)
   go_home_[1].transit_speed = 1.0;
   go_home_[1].radius = 1.0;
   go_home_[1].target_heading = 0.0;
-  go_home_[1].heading_rate = 0.1;
-  go_home_[1].heading_range = 0.1;
+  go_home_[1].heading_rate = 15.0 * M_PI / 180.0;
+  go_home_[1].heading_range = 15.0 * M_PI / 180.0;
   go_home_[1].wait_ms = 0;
 
   // Third waypoint descends vertically to the ground.
@@ -182,291 +185,11 @@ void NavigationInit(void)
   go_home_[2].transit_speed = 0.5;
   go_home_[2].radius = 1.0;
   go_home_[2].target_heading = 0.0;
-  go_home_[2].heading_rate = 0.1;
-  go_home_[2].heading_range = 0.1;
+  go_home_[2].heading_rate = 15.0 * M_PI / 180.0;
+  go_home_[2].heading_range = 15.0 * M_PI / 180.0;
   go_home_[2].wait_ms = 0;
 
-#if defined(OBSTACLE_AVOIDANCE_A)
-  n_waypoints_[ROUTE_1] = 2;
-
-  waypoints_[ROUTE_1][0].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][0].target_position[0].f = 1.0;
-  waypoints_[ROUTE_1][0].target_position[1].f = 0.0;
-  waypoints_[ROUTE_1][0].target_position[2].f = -1.0;
-  waypoints_[ROUTE_1][0].transit_speed = 2.5;
-  waypoints_[ROUTE_1][0].radius = 1.0;
-  waypoints_[ROUTE_1][0].target_heading = 0.0;
-  waypoints_[ROUTE_1][0].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][0].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][0].wait_ms = 0;
-
-  waypoints_[ROUTE_1][1].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_1][1].target_position[0].f = 1.0;
-  waypoints_[ROUTE_1][1].target_position[1].f = -1.5;
-  waypoints_[ROUTE_1][1].target_position[2].f = -1.0;
-  waypoints_[ROUTE_1][1].transit_speed = 2.5;
-  waypoints_[ROUTE_1][1].radius = 1.0;
-  waypoints_[ROUTE_1][1].target_heading = 0.0;
-  waypoints_[ROUTE_1][1].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][1].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_1][1].wait_ms = 0;
-#elif defined(OBSTACLE_AVOIDANCE_B)
-  n_waypoints_[ROUTE_2] = 18;
-
-  waypoints_[ROUTE_2][0].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][0].target_position[0].f = 0.0;
-  waypoints_[ROUTE_2][0].target_position[1].f = 0.0;
-  waypoints_[ROUTE_2][0].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][0].transit_speed = 0.5;
-  waypoints_[ROUTE_2][0].radius = 0.5;
-  waypoints_[ROUTE_2][0].target_heading = 0.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][0].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][0].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][0].wait_ms = 2000;
-
-  waypoints_[ROUTE_2][1].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][1].target_position[0].f = 4.5;
-  waypoints_[ROUTE_2][1].target_position[1].f = 0.0;
-  waypoints_[ROUTE_2][1].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][1].transit_speed = 2.0;
-  waypoints_[ROUTE_2][1].radius = 0.5;
-  waypoints_[ROUTE_2][1].target_heading = 0.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][1].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][1].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][1].wait_ms = 1000;
-
-  waypoints_[ROUTE_2][2].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][2].target_position[0].f = 4.5;
-  waypoints_[ROUTE_2][2].target_position[1].f = -2.0;
-  waypoints_[ROUTE_2][2].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][2].transit_speed = 1.0;
-  waypoints_[ROUTE_2][2].radius = 0.5;
-  waypoints_[ROUTE_2][2].target_heading = 0.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][2].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][2].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][2].wait_ms = 3000;
-
-  waypoints_[ROUTE_2][3].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][3].target_position[0].f = 4.5;
-  waypoints_[ROUTE_2][3].target_position[1].f = -2.7;
-  waypoints_[ROUTE_2][3].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][3].transit_speed = 2.0;
-  waypoints_[ROUTE_2][3].radius = 0.5;
-  waypoints_[ROUTE_2][3].target_heading = 0.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][3].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][3].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][3].wait_ms = 3000;
-
-  waypoints_[ROUTE_2][4].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][4].target_position[0].f = 4.5;
-  waypoints_[ROUTE_2][4].target_position[1].f = -3.4;
-  waypoints_[ROUTE_2][4].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][4].transit_speed = 2.0;
-  waypoints_[ROUTE_2][4].radius = 0.5;
-  waypoints_[ROUTE_2][4].target_heading = 0.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][4].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][4].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][4].wait_ms = 3000;
-
-  waypoints_[ROUTE_2][5].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][5].target_position[0].f = 4.5;
-  waypoints_[ROUTE_2][5].target_position[1].f = -4.1;
-  waypoints_[ROUTE_2][5].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][5].transit_speed = 2.0;
-  waypoints_[ROUTE_2][5].radius = 0.5;
-  waypoints_[ROUTE_2][5].target_heading = 0.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][5].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][5].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][5].wait_ms = 3000;
-
-  waypoints_[ROUTE_2][6].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][6].target_position[0].f = 4.5;
-  waypoints_[ROUTE_2][6].target_position[1].f = 0.0;
-  waypoints_[ROUTE_2][6].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][6].transit_speed = 2.0;
-  waypoints_[ROUTE_2][6].radius = 0.5;
-  waypoints_[ROUTE_2][6].target_heading = 0.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][6].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][6].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][6].wait_ms = 1000;
-
-  waypoints_[ROUTE_2][7].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][7].target_position[0].f = 6.8;
-  waypoints_[ROUTE_2][7].target_position[1].f = 0.0;
-  waypoints_[ROUTE_2][7].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][7].transit_speed = 2.0;
-  waypoints_[ROUTE_2][7].radius = 0.5;
-  waypoints_[ROUTE_2][7].target_heading = 0.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][7].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][7].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][7].wait_ms = 1000;
-
-  waypoints_[ROUTE_2][8].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][8].target_position[0].f = 6.8;
-  waypoints_[ROUTE_2][8].target_position[1].f = 0.0;
-  waypoints_[ROUTE_2][8].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][8].transit_speed = 2.0;
-  waypoints_[ROUTE_2][8].radius = 0.5;
-  waypoints_[ROUTE_2][8].target_heading = -90.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][8].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][8].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][8].wait_ms = 1000;
-
-  waypoints_[ROUTE_2][9].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][9].target_position[0].f = 6.8;
-  waypoints_[ROUTE_2][9].target_position[1].f = 0.0;
-  waypoints_[ROUTE_2][9].target_position[2].f = -1.3;
-  waypoints_[ROUTE_2][9].transit_speed = 0.5;
-  waypoints_[ROUTE_2][9].radius = 0.5;
-  waypoints_[ROUTE_2][9].target_heading = -90.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][9].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][9].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][9].wait_ms = 3000;
-
-  waypoints_[ROUTE_2][10].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][10].target_position[0].f = 7.5;
-  waypoints_[ROUTE_2][10].target_position[1].f = 0.0;
-  waypoints_[ROUTE_2][10].target_position[2].f = -0.4;
-  waypoints_[ROUTE_2][10].transit_speed = 0.5;
-  waypoints_[ROUTE_2][10].radius = 0.5;
-  waypoints_[ROUTE_2][10].target_heading = -90.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][10].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][10].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][10].wait_ms = 3000;
-
-  waypoints_[ROUTE_2][11].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][11].target_position[0].f = 8.2;
-  waypoints_[ROUTE_2][11].target_position[1].f = 0.0;
-  waypoints_[ROUTE_2][11].target_position[2].f = -1.3;
-  waypoints_[ROUTE_2][11].transit_speed = 0.5;
-  waypoints_[ROUTE_2][11].radius = 0.5;
-  waypoints_[ROUTE_2][11].target_heading = -90.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][11].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][11].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][11].wait_ms = 3000;
-
-  waypoints_[ROUTE_2][12].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][12].target_position[0].f = 8.9;
-  waypoints_[ROUTE_2][12].target_position[1].f = 0.0;
-  waypoints_[ROUTE_2][12].target_position[2].f = -0.4;
-  waypoints_[ROUTE_2][12].transit_speed = 0.5;
-  waypoints_[ROUTE_2][12].radius = 0.5;
-  waypoints_[ROUTE_2][12].target_heading = -90.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][12].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][12].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][12].wait_ms = 3000;
-
-  waypoints_[ROUTE_2][13].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][13].target_position[0].f = 6.8;
-  waypoints_[ROUTE_2][13].target_position[1].f = 0.0;
-  waypoints_[ROUTE_2][13].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][13].transit_speed = 2.0;
-  waypoints_[ROUTE_2][13].radius = 0.5;
-  waypoints_[ROUTE_2][13].target_heading = -90.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][13].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][13].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][13].wait_ms = 1000;
-
-  waypoints_[ROUTE_2][14].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][14].target_position[0].f = 6.8;
-  waypoints_[ROUTE_2][14].target_position[1].f = 0.0;
-  waypoints_[ROUTE_2][14].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][14].transit_speed = 2.0;
-  waypoints_[ROUTE_2][14].radius = 0.5;
-  waypoints_[ROUTE_2][14].target_heading = -180.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][14].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][14].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][14].wait_ms = 1000;
-
-  waypoints_[ROUTE_2][15].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][15].target_position[0].f = 3.5;
-  waypoints_[ROUTE_2][15].target_position[1].f = 0.0;
-  waypoints_[ROUTE_2][15].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][15].transit_speed = 1.5;
-  waypoints_[ROUTE_2][15].radius = 1.75;
-  waypoints_[ROUTE_2][15].target_heading = -180.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][15].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][15].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][15].wait_ms = 0;
-
-  waypoints_[ROUTE_2][16].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][16].target_position[0].f = 0.0;
-  waypoints_[ROUTE_2][16].target_position[1].f = 0.0;
-  waypoints_[ROUTE_2][16].target_position[2].f = -1.0;
-  waypoints_[ROUTE_2][16].transit_speed = 1.5;
-  waypoints_[ROUTE_2][16].radius = 0.5;
-  waypoints_[ROUTE_2][16].target_heading = -180.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][16].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][16].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][16].wait_ms = 2000;
-
-  waypoints_[ROUTE_2][17].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_2][17].target_position[0].f = 0.0;
-  waypoints_[ROUTE_2][17].target_position[1].f = 0.0;
-  waypoints_[ROUTE_2][17].target_position[2].f = +5.0;
-  waypoints_[ROUTE_2][17].transit_speed = 0.5;
-  waypoints_[ROUTE_2][17].radius = 0.3;
-  waypoints_[ROUTE_2][17].target_heading = -180.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][17].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][17].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_2][17].wait_ms = 2000;
-
-  n_waypoints_[ROUTE_3] = 5;
-  waypoints_[ROUTE_3][0].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_3][0].target_position[0].f = 4.5;
-  waypoints_[ROUTE_3][0].target_position[1].f = 0.0;
-  waypoints_[ROUTE_3][0].target_position[2].f = -1.0;
-  waypoints_[ROUTE_3][0].transit_speed = 1.5;
-  waypoints_[ROUTE_3][0].radius = 0.5;
-  waypoints_[ROUTE_3][0].target_heading = -180.0 * M_PI / 180.0;
-  waypoints_[ROUTE_3][0].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_3][0].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_3][0].wait_ms = 0;
-
-  waypoints_[ROUTE_3][1].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_3][1].target_position[0].f = 4.5;
-  waypoints_[ROUTE_3][1].target_position[1].f = -3.0;
-  waypoints_[ROUTE_3][1].target_position[2].f = -1.0;
-  waypoints_[ROUTE_3][1].transit_speed = 1.5;
-  waypoints_[ROUTE_3][1].radius = 0.5;
-  waypoints_[ROUTE_3][1].target_heading = -180.0 * M_PI / 180.0;
-  waypoints_[ROUTE_3][1].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_3][1].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_3][1].wait_ms = 0;
-
-  waypoints_[ROUTE_3][2].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_3][2].target_position[0].f = 0.0;
-  waypoints_[ROUTE_3][2].target_position[1].f = -3.0;
-  waypoints_[ROUTE_3][2].target_position[2].f = -1.0;
-  waypoints_[ROUTE_3][2].transit_speed = 1.5;
-  waypoints_[ROUTE_3][2].radius = 0.5;
-  waypoints_[ROUTE_3][2].target_heading = -180.0 * M_PI / 180.0;
-  waypoints_[ROUTE_3][2].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_3][2].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_3][2].wait_ms = 0;
-
-  waypoints_[ROUTE_3][3].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_3][3].target_position[0].f = 0.0;
-  waypoints_[ROUTE_3][3].target_position[1].f = 0.0;
-  waypoints_[ROUTE_3][3].target_position[2].f = -1.0;
-  waypoints_[ROUTE_3][3].transit_speed = 1.5;
-  waypoints_[ROUTE_3][3].radius = 0.5;
-  waypoints_[ROUTE_3][3].target_heading = -180.0 * M_PI / 180.0;
-  waypoints_[ROUTE_3][3].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_3][3].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_3][3].wait_ms = 2000;
-
-  waypoints_[ROUTE_3][4].type = WP_TYPE_VISION_RELATIVE;
-  waypoints_[ROUTE_3][4].target_position[0].f = 0.0;
-  waypoints_[ROUTE_3][4].target_position[1].f = 0.0;
-  waypoints_[ROUTE_3][4].target_position[2].f = +5.0;
-  waypoints_[ROUTE_3][4].transit_speed = 0.3;
-  waypoints_[ROUTE_3][4].radius = 0.5;
-  waypoints_[ROUTE_3][4].target_heading = -180.0 * M_PI / 180.0;
-  waypoints_[ROUTE_3][4].heading_rate = 15.0 * M_PI / 180.0;
-  waypoints_[ROUTE_3][4].heading_range = 10.0 * M_PI / 180.0;
-  waypoints_[ROUTE_3][4].wait_ms = 2000;
-#else
+  // Try to load waypoints from WP_LIST.CSV on the SD card (if inserted).
   if (!SDCardFSMounted()) return;
 
   FIL file;
@@ -604,7 +327,6 @@ void NavigationInit(void)
       line_ptr++;  // Next character
     }
   }
-#endif
 
   // Report the loaded waypoints.
   for (uint32_t i = 0; i < 3; i++)
@@ -638,25 +360,17 @@ void NavigationInit(void)
     }
   }
 
-#if defined(OBSTACLE_AVOIDANCE_A) || defined(OBSTACLE_AVOIDANCE_B)
-#else
   UART1Printf("End of %s", filename);
 
   CLOSE_AND_RETURN:
   f_close(&file);
-#endif
 }
 
 // -----------------------------------------------------------------------------
 void UpdateNavigation(void)
 {
-#ifndef OBSTACLE_AVOIDANCE_A
   static float radius_squared = 1.0;
   static uint32_t next_waypoint_time = 0, waypoint_reached = 0;
-#endif
-#if defined(OBSTACLE_AVOIDANCE_B)
-  static uint32_t avoidance_count = 2;
-#endif
 
 #ifndef HARDCODE_GEODETIC_HOME
   static uint32_t state_pv = 0;
@@ -664,7 +378,6 @@ void UpdateNavigation(void)
     SetGeodeticHome();
   state_pv = FlightCtrlState();
 #endif
-  current_heading_ = HeadingFromQuaternion((float *)Quat());
 
   // Mode switching logic.
   if (RequestedNavMode() != mode_)
@@ -673,29 +386,20 @@ void UpdateNavigation(void)
     {
       case NAV_MODE_AUTO:
       {
-#if defined(OBSTACLE_AVOIDANCE_A)
-        uint32_t route = ROUTE_1;
-#elif defined(OBSTACLE_AVOIDANCE_B)
-        avoidance_count  = 2;
-        uint32_t route = ROUTE_2;
-#else
-        uint32_t route = RequestedNavRoute();
-#endif
-        if ((nav_error_ == NAV_ERROR_NONE) && n_waypoints_[route] > 0)
+        route_ = RequestedNavRoute();
+        if ((nav_error_ == NAV_ERROR_NONE) && n_waypoints_[route_] > 0)
         {
-          final_waypoint_ = &waypoints_[route][n_waypoints_[route]-1];
+          final_waypoint_ = &waypoints_[route_][n_waypoints_[route_]-1];
           // Allow continuation from NAV_MODE_HOLD.
           if ((current_waypoint_ >= final_waypoint_) || (current_waypoint_ <
-            &waypoints_[route][0]))
+            &waypoints_[route_][0]))
           {
-            current_waypoint_ = &waypoints_[route][0];
+            current_waypoint_ = &waypoints_[route_][0];
           }
           SetTargetPosition(current_waypoint_);
           target_heading_ = current_waypoint_->target_heading;
-#ifndef OBSTACLE_AVOIDANCE_A
           radius_squared = current_waypoint_->radius * current_waypoint_->radius;
           waypoint_reached = 0;
-#endif
           mode_ = NAV_MODE_AUTO;
         }
         else
@@ -727,10 +431,8 @@ void UpdateNavigation(void)
         final_waypoint_ = &go_home_[2];
         SetTargetPosition(current_waypoint_);
         target_heading_ = current_waypoint_->target_heading;
-#ifndef OBSTACLE_AVOIDANCE_A
         radius_squared = current_waypoint_->radius * current_waypoint_->radius;
         waypoint_reached = 0;
-#endif
         mode_ = NAV_MODE_HOME;
         break;
       }
@@ -756,18 +458,17 @@ void UpdateNavigation(void)
       {
         Vector3Copy(PositionVector(), target_position_);
       }
-      target_heading_ = current_heading_;
+      target_heading_ = HeadingAngle();
     }
   }
 
   // Compute the deviation from that active waypoint.
   Vector3Subtract(PositionVector(), target_position_, delta_postion_);
-  delta_heading_ = WrapToPlusMinusPi(current_heading_ - target_heading_);
+  delta_heading_ = WrapToPlusMinusPi(HeadingAngle() - target_heading_);
 
   // Waypoint switching logic.
   if (mode_ == NAV_MODE_AUTO || mode_ == NAV_MODE_HOME)
   {
-#ifndef OBSTACLE_AVOIDANCE_A
     if (!waypoint_reached
       && (Vector3NormSquared(delta_postion_) < radius_squared)
       && (fabs(delta_heading_) < current_waypoint_->heading_range))
@@ -785,40 +486,6 @@ void UpdateNavigation(void)
       target_heading_ = current_waypoint_->target_heading;
       radius_squared = current_waypoint_->radius * current_waypoint_->radius;
     }
-  #ifdef OBSTACLE_AVOIDANCE_B
-    if ((current_waypoint_ == &waypoints_[ROUTE_2][15]) && (
-      (VisionObstacleDistanceArray()[4] > 0.0 && VisionObstacleDistanceArray()[4] < 4.0) ||
-      (VisionObstacleDistanceArray()[5] > 0.0 && VisionObstacleDistanceArray()[5] < 4.0) ||
-      (VisionObstacleDistanceArray()[6] > 0.0 && VisionObstacleDistanceArray()[6] < 4.0) ||
-      (VisionObstacleDistanceArray()[7] > 0.0 && VisionObstacleDistanceArray()[7] < 4.0)
-      ) && !avoidance_count--)
-    {
-      current_waypoint_ = &waypoints_[ROUTE_3][0];
-      final_waypoint_ = &waypoints_[ROUTE_3][n_waypoints_[ROUTE_3]-1];
-      SetTargetPosition(current_waypoint_);
-      target_heading_ = current_waypoint_->target_heading;
-      radius_squared = current_waypoint_->radius * current_waypoint_->radius;
-    }
-  #endif
-#else
-    if (
-      (VisionObstacleDistanceArray()[4] > 0.0 && VisionObstacleDistanceArray()[4] < 2.5) ||
-      (VisionObstacleDistanceArray()[5] > 0.0 && VisionObstacleDistanceArray()[5] < 2.5) ||
-      (VisionObstacleDistanceArray()[6] > 0.0 && VisionObstacleDistanceArray()[6] < 2.5) ||
-      (VisionObstacleDistanceArray()[7] > 0.0 && VisionObstacleDistanceArray()[7] < 2.5)
-      )
-    {
-      if (current_waypoint_ == &waypoints_[ROUTE_1][0]) UART1PrintfSafe("A");
-      current_waypoint_ = &waypoints_[ROUTE_1][1];
-    }
-    else
-    {
-      if (current_waypoint_ == &waypoints_[ROUTE_1][1]) UART1PrintfSafe("R");
-      current_waypoint_ = &waypoints_[ROUTE_1][0];
-    }
-    SetTargetPosition(current_waypoint_);
-    target_heading_ = current_waypoint_->target_heading;
-#endif
   }
 
   // Active sensor logic (slight preference for vision).
@@ -861,7 +528,6 @@ void UBXToMeters(const int32_t ubx_geodetic[2], float ne[2])
 // =============================================================================
 // Private functions:
 
-#ifndef OBSTACLE_AVOIDANCE_A
 static uint32_t NextWaypointValid(void)
 {
   if (current_waypoint_ == final_waypoint_) return 0;
@@ -870,7 +536,6 @@ static uint32_t NextWaypointValid(void)
 
   return UBXStatus();
 }
-#endif
 
 // -----------------------------------------------------------------------------
 static void SetTargetPosition(const struct Waypoint * const waypoint)

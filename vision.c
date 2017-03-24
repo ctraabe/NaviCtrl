@@ -149,13 +149,19 @@ void ProcessRicohObstacleData(struct RicohObjectDetection * from_ricoh)
   nearest_obstacle_bin_ = 0;
   for (size_t i = 12; i--; )
   {
-    if (from_ricoh->obstacle_distance[i] != 0
-      && from_ricoh->obstacle_distance[i] < nearest_distance)
+    if (from_ricoh->obstacle_distance[i] != 0)
     {
-      nearest_distance = from_ricoh->obstacle_distance[i];
-      nearest_obstacle_bin_ = i;
+      obstacle_distance_[i] = from_ricoh->obstacle_distance[i] * 0.01953125;
+      if (from_ricoh->obstacle_distance[i] < nearest_distance)
+      {
+        nearest_distance = from_ricoh->obstacle_distance[i];
+        nearest_obstacle_bin_ = i;
+      }
     }
-    obstacle_distance_[i] = from_ricoh->obstacle_distance[i] * 0.01953125;
+    else
+    {
+      obstacle_distance_[i] = 99.9;
+    }
   }
 }
 

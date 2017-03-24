@@ -45,7 +45,7 @@ enum WaypointType {
 enum SensorBits ActiveNavSensorBits(void);
 
 // -----------------------------------------------------------------------------
-float CurrentHeading(void);
+uint32_t CurrentWaypoint(void);
 
 // -----------------------------------------------------------------------------
 float HeadingRate(void);
@@ -55,6 +55,9 @@ float NavDeltaPosition(enum WorldAxes axis);
 
 // -----------------------------------------------------------------------------
 enum NavMode NavMode(void);
+
+// -----------------------------------------------------------------------------
+uint32_t Route(void);
 
 // -----------------------------------------------------------------------------
 float TargetHeading(void);
